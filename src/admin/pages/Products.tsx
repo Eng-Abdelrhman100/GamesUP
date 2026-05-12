@@ -1,0 +1,1799 @@
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Modal } from '@/components/ui/Modal';
+import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key } from 'lucide-react';
+import { useStoreSettings } from '@/context/StoreSettingsContext';
+import { productsAPI, categoriesAPI, api, uploadAPI } from '@/utils/api';
+// import { productsAPI } from '@/utils/api';
+
+interface Product {
+  id: string | number;
+  name: string;
+  category_slug: string;
+  sub_category_slug: string;
+  price: number;
+  cost?: number;
+  stock: number;
+  status: string;
+  image: string;
+  attributes?: Record<string, any>;
+  digitalItems?: DigitalItem[];
+  purchasedEmail?: string;
+  purchasedPassword?: string;
+  productCode?: string;
+  sendEmailEnabled?: boolean;
+  emailTemplate?: string;
+  isRulesTemplate?: boolean;
+  fullAccountPrice?: number;
+  fullAccountCost?: number;
+}
+
+interface DigitalItem {
+  id?: string;
+  email?: string;
+  password?: string;
+  code?: string;
+  outlookEmail?: string;
+  outlookPassword?: string;
+  birthdate?: string;
+  region?: string;
+  onlineId?: string;
+  backupCodes?: string;
+  slots?: Record<string, { sold: boolean; orderId: string | null; code?: string; price?: number; cost?: number; customerName?: string }>;
+  totalCodes?: number;
+}
+
+const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, settings, formData, onAddStockItem, groupItems, onRemoveItem, isAdmin }: any) => {
+  const isOffline = groupName.toLowerCase().includes('offline');
+  const [localGroupName, setLocalGroupName] = React.useState(groupName === 'General' ? '' : groupName);
+  const [newItem, setNewItem] = React.useState({ 
+    email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
+  });
+
+  const handleGroupNameBlur = () => {
+    if (localGroupName === (groupName === 'General' ? '' : groupName)) return;
+
+    const newGroup = localGroupName.trim();
+    const newSlots = customSlots.map((s: any) => {
+      const parts = s.name.split(' - ');
+      const g = parts.length > 1 ? parts[0] : 'General';
+      if (g === groupName) {
+        const subName = parts.length > 1 ? parts.slice(1).join(' - ') : s.name;
+        return { ...s, name: newGroup ? `${newGroup} - ${subName}` : subName };
+      }
+      return s;
+    });
+    setCustomSlots(newSlots);
+  };
+
+  const submitStock = () => {
+    onAddStockItem(groupName, newItem);
+    setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '' });
+  };
+
+  return (
+    <div className={`rounded-[2rem] border-2 ${isOffline ? 'bg-gray-800 border-gray-700 shadow-2xl' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm'} overflow-hidden mb-8 transition-all`}>
+      <div className={`${isOffline ? 'bg-gray-900 text-white' : 'bg-gray-50 dark:bg-gray-900'} px-6 py-5 flex justify-between items-center border-b ${isOffline ? 'border-gray-700' : 'border-gray-200 dark:border-gray-700'}`}>
+        <div className="flex items-center flex-1">
+          {isOffline && <span className="mr-3 p-2 bg-gray-800 rounded-xl shadow-inner"><Database className="w-4 h-4 text-white" /></span>}
+          <span className={`${isOffline ? 'text-gray-400' : 'text-gray-400'} mr-2 text-[10px] font-bold uppercase tracking-widest`}>Group:</span>
+          <input
+            type="text"
+            value={localGroupName}
+            placeholder="e.g. PS4 (Leave empty for General)"
+            onChange={(e) => setLocalGroupName(e.target.value)}
+            onBlur={handleGroupNameBlur}
+            onKeyDown={(e) => e.key === 'Enter' && handleGroupNameBlur()}
+            className={`font-black text-lg bg-transparent border-none focus:ring-0 ${isOffline ? 'text-white placeholder-gray-600' : 'text-gray-800 dark:text-white placeholder-gray-400'} w-1/2 p-0 focus:outline-none ml-2`}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const prefix = groupName !== 'General' ? `${groupName} - ` : '';
+            setCustomSlots([...customSlots, { id: crypto.randomUUID(), name: `${prefix}New Slot`, price: '', cost: '' }]);
+          }}
+          className={`text-xs font-black flex items-center px-6 py-2.5 rounded-full transition-all shadow-lg active:scale-95 ${isOffline ? 'bg-white text-gray-900 hover:bg-gray-100' : 'text-white bg-red-600 hover:bg-red-700'}`}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Add Sub-Attribute
+        </button>
+      </div>
+
+      <div className={`p-6 space-y-4 ${isOffline ? 'bg-gray-800' : ''}`}>
+        {slotsInGroup.map((slot: any) => {
+          const parts = slot.name.split(' - ');
+          const subName = parts.length > 1 ? parts.slice(1).join(' - ') : slot.name;
+          const index = customSlots.findIndex((s: any) => s.id === slot.id);
+
+          return (
+            <div key={slot.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center relative group pb-4 border-b border-gray-100 dark:border-gray-700/50 last:border-0 last:pb-0">
+              <div className="col-span-12 md:col-span-4">
+                <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>Sub-Attribute Name</label>
+                <input
+                  type="text"
+                  value={subName}
+                  onChange={(e) => {
+                    const newSlots = [...customSlots];
+                    const newSub = e.target.value;
+                    newSlots[index].name = groupName !== 'General' ? `${groupName} - ${newSub}` : newSub;
+                    setCustomSlots(newSlots);
+                  }}
+                  className={`w-full px-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all ${isOffline ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-700 dark:text-gray-300'}`}
+                />
+              </div>
+              <div className={`col-span-6 md:col-span-${isAdmin ? '3' : '6'}`}>
+                <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>Price ({settings.currency_symbol})</label>
+                <input
+                  type="number" step="0.01" value={slot.price}
+                  onChange={(e) => { const n = [...customSlots]; n[index].price = e.target.value; setCustomSlots(n); }}
+                  className={`w-full px-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all ${isOffline ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-700 dark:text-gray-300'}`}
+                  placeholder={formData.price || "0.00"}
+                />
+              </div>
+              {isAdmin && (
+              <div className="col-span-6 md:col-span-3">
+                <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>Cost ({settings.currency_symbol})</label>
+                <input
+                  type="number" step="0.01" value={slot.cost}
+                  onChange={(e) => { const n = [...customSlots]; n[index].cost = e.target.value; setCustomSlots(n); }}
+                  className={`w-full px-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all ${isOffline ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-700 dark:text-gray-300'}`}
+                  placeholder={formData.cost || "0.00"}
+                />
+              </div>
+              )}
+              <div className="col-span-12 md:col-span-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setCustomSlots(customSlots.filter((s: any) => s.id !== slot.id))}
+                  className={`p-2.5 rounded-full transition-all active:scale-90 ${isOffline ? 'text-red-400 hover:bg-red-900/30' : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className={`${isOffline ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700'} p-8 border-t`}>
+        <div className="flex items-center justify-between mb-8">
+          <h4 className={`text-base font-black flex items-center ${isOffline ? 'text-white' : 'text-gray-900 dark:text-gray-200'}`}>
+            <span className={`w-3.5 h-3.5 ${isOffline ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-green-500 shadow-sm'} rounded-full mr-3.5`}></span>
+            Add Account & Codes to <span className="ml-1.5 px-2.5 py-1 bg-white/10 rounded-lg text-xs tracking-tighter uppercase">{groupName || 'General'}</span>
+          </h4>
+          {isOffline && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full">
+              <Shield className="w-3 h-3 text-red-500" />
+              <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Internal Stock Only</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className={`space-y-5 p-6 rounded-3xl border transition-all ${isOffline ? 'bg-gray-800/50 backdrop-blur-md border-gray-700 shadow-inner' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`p-2 rounded-xl ${isOffline ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                <User className="w-4 h-4" />
+              </div>
+              <h5 className={`text-xs font-black uppercase tracking-widest ${isOffline ? 'text-white' : 'text-gray-900'}`}>PSN Identity</h5>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="relative">
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>PSN Email</label>
+                <div className="relative">
+                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <input 
+                    type="email" value={newItem.email} onChange={e => setNewItem({...newItem, email: e.target.value})} 
+                    className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+                    placeholder="example@psn.com"
+                  />
+                </div>
+              </div>
+
+              <div className="relative">
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>PSN Password</label>
+                <div className="relative">
+                  <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <input 
+                    type="text" value={newItem.password} onChange={e => setNewItem({...newItem, password: e.target.value})} 
+                    className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+                    placeholder="PSN Secret Key"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>Region</label>
+                  <div className="relative">
+                    <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                    <input type="text" value={newItem.region} onChange={e => setNewItem({...newItem, region: e.target.value})} className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder="US/UK" />
+                  </div>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>Online ID</label>
+                  <div className="relative">
+                    <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                    <input type="text" value={newItem.onlineId} onChange={e => setNewItem({...newItem, onlineId: e.target.value})} className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder="PSN_Nick" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className={`space-y-5 p-6 rounded-3xl border transition-all ${isOffline ? 'bg-gray-800/50 backdrop-blur-md border-gray-700 shadow-inner' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`p-2 rounded-xl ${isOffline ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
+                <Key className="w-4 h-4" />
+              </div>
+              <h5 className={`text-xs font-black uppercase tracking-widest ${isOffline ? 'text-white' : 'text-gray-900'}`}>Recovery Setup</h5>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>Outlook Email</label>
+                <div className="relative">
+                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <input type="email" value={newItem.outlookEmail} onChange={e => setNewItem({...newItem, outlookEmail: e.target.value})} className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder="recovery@outlook.com" />
+                </div>
+              </div>
+              <div>
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`}>Outlook Password</label>
+                <div className="relative">
+                  <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <input type="text" value={newItem.outlookPassword} onChange={e => setNewItem({...newItem, outlookPassword: e.target.value})} className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder="Mail Secret" />
+                </div>
+              </div>
+              <div>
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`}>Birthdate</label>
+                <div className="relative">
+                  <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <input type="text" placeholder="YYYY-MM-DD" value={newItem.birthdate} onChange={e => setNewItem({...newItem, birthdate: e.target.value})} className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`mb-8 p-6 rounded-3xl border transition-all ${isOffline ? 'bg-gray-800/50 backdrop-blur-md border-gray-700' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-2 rounded-xl ${isOffline ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
+              <Hash className="w-4 h-4" />
+            </div>
+            <label className={`text-xs font-black uppercase tracking-widest ${isOffline ? 'text-white' : 'text-gray-900'}`}>Game Codes (one per line)</label>
+          </div>
+          <textarea value={newItem.code} onChange={e => setNewItem({...newItem, code: e.target.value})} rows={3} className={`w-full px-5 py-4 text-sm border rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500 font-mono break-all transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder={"GAME-001\nGAME-002"} />
+        </div>
+
+        <button 
+          type="button" onClick={submitStock} 
+          disabled={!newItem.email && !newItem.password && !newItem.code} 
+          className={`w-full text-base py-4.5 ${isOffline ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-[0_0_30px_rgba(255,255,255,0.15)]' : 'bg-red-600 hover:bg-red-700 text-white'} rounded-full font-black shadow-2xl disabled:opacity-50 transition-all flex items-center justify-center active:scale-[0.97] hover:-translate-y-0.5 group`}
+        >
+           <Plus className={`w-5 h-5 mr-2.5 transition-transform group-hover:rotate-90 ${isOffline ? 'text-red-600' : 'text-white'}`} /> 
+           Add Final Stock to {groupName || 'General'}
+        </button>
+
+        {groupItems && groupItems.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h5 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Added Stock for this Group ({groupItems.length})</h5>
+            <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
+              <table className="w-full text-xs text-left bg-white dark:bg-gray-900">
+                <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Email</th>
+                    <th className="px-3 py-2 font-medium">Password</th>
+                    <th className="px-3 py-2 font-medium">Codes</th>
+                    <th className="px-3 py-2 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {groupItems.map((item: any, idx: number) => (
+                    <tr key={idx}>
+                      <td className="px-3 py-2">{item.email || '-'}</td>
+                      <td className="px-3 py-2 font-mono">{item.password || '******'}</td>
+                      <td className="px-3 py-2 font-mono">
+                         {(() => {
+                           if (item.slots) {
+                             const rc = Object.values(item.slots).filter((s:any) => s.code).length;
+                             const bcc = item.backupCodes ? item.backupCodes.split('\n').length : 0;
+                             return (rc + bcc) + ' code(s)';
+                           }
+                           return item.code ? item.code.split('\n').length + ' code(s)' : 'None';
+                         })()}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button type="button" onClick={() => onRemoveItem(item.id)} className="text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+const VariantGenerator = ({ customSlots, setCustomSlots }: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [attributes, setAttributes] = useState([{ name: '', options: '' }]);
+
+  const handleAddAttribute = () => {
+    setAttributes([...attributes, { name: '', options: '' }]);
+  };
+
+  const handleRemoveAttribute = (index: number) => {
+    setAttributes(attributes.filter((_, i) => i !== index));
+  };
+
+  const handleGenerate = () => {
+    // Filter out empty attributes
+    const validAttributes = attributes.filter(a => a.name.trim() && a.options.trim());
+    if (validAttributes.length === 0) return;
+
+    // Generate combinations
+    const optionsList = validAttributes.map(a => 
+      a.options.split(',').map(opt => opt.trim()).filter(Boolean)
+    );
+
+    const generateCombinations = (lists: string[][], n: number, result: string[], current: string) => {
+      if (n === lists.length) {
+        result.push(current);
+        return;
+      }
+      for (let i = 0; i < lists[n].length; i++) {
+        generateCombinations(lists, n + 1, result, current ? `${current} - ${lists[n][i]}` : lists[n][i]);
+      }
+    };
+
+    const combinations: string[] = [];
+    generateCombinations(optionsList, 0, combinations, '');
+
+    const newSlots = combinations.map(combo => ({
+      id: crypto.randomUUID(),
+      name: combo,
+      price: '',
+      cost: ''
+    }));
+
+    // Optionally append to existing slots or replace? Usually replace or append. Let's append but warn if duplicate
+    setCustomSlots([...customSlots, ...newSlots]);
+    setIsOpen(false);
+    setAttributes([{ name: '', options: '' }]);
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg transition-colors mb-3"
+      >
+        <Plus className="w-4 h-4 mr-1" /> Generate Variants (Like Shopify)
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+      <h5 className="text-sm font-semibold mb-3">Generate Variants</h5>
+      {attributes.map((attr, index) => (
+        <div key={index} className="flex gap-3 mb-3 items-start">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Attribute Name (e.g. Console)"
+              value={attr.name}
+              onChange={(e) => {
+                const newAttrs = [...attributes];
+                newAttrs[index].name = e.target.value;
+                setAttributes(newAttrs);
+              }}
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none"
+            />
+          </div>
+          <div className="flex-[2]">
+            <input
+              type="text"
+              placeholder="Options separated by comma (e.g. PS4, PS5)"
+              value={attr.options}
+              onChange={(e) => {
+                const newAttrs = [...attributes];
+                newAttrs[index].options = e.target.value;
+                setAttributes(newAttrs);
+              }}
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => handleRemoveAttribute(index)}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+      <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={handleAddAttribute}
+          className="text-sm text-blue-600 hover:text-blue-800"
+        >
+          + Add another attribute
+        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="px-3 py-1.5 text-sm text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+          >
+            Generate Combinations
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export function Products() {
+  const { settings, formatPrice } = useStoreSettings();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [attributes, setAttributes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'all' | 'products' | 'giftcards'>('all');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [giftCategoryFilter, setGiftCategoryFilter] = useState('All');
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    category: '',
+    subCategory: '',
+    price: '',
+    cost: '',
+    stock: 0,
+    image: '',
+    attributes: {} as Record<string, any>,
+    digitalItems: [] as Product['digitalItems'],
+    sendEmailEnabled: false,
+    emailTemplate: '',
+    isRulesTemplate: false,
+  });
+
+  const [newItem, setNewItem] = useState({ 
+    email: '', 
+    password: '', 
+    code: '',
+    outlookEmail: '',
+    outlookPassword: '',
+    birthdate: '',
+    region: '',
+    onlineId: '',
+    backupCodes: '',
+    assignedGroup: 'All Groups'
+  });
+
+  const [customSlots, setCustomSlots] = useState<{ id: string; originalName: string; name: string; price: string; cost: string }[]>([
+    { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS4 - Primary', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS5 - Primary', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS4', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS5', price: '', cost: '' }
+  ]);
+
+  useEffect(() => {
+    loadData();
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const parsed = JSON.parse(userStr);
+        setIsAdmin((parsed?.user_metadata?.role || 'admin') === 'admin');
+      }
+    } catch(e) {}
+  }, []);
+
+  const loadData = async () => {
+    try {
+        console.log('Loading data...');
+        setLoading(true);
+        
+        const [catsRes, subCatsRes, attrsRes, productsRes] = await Promise.all([
+            categoriesAPI.getAll(),
+            api.get('sub_categories'),
+            api.get('product_attributes'),
+            productsAPI.getAll()
+        ]);
+
+        console.log('API responses:', { catsRes, subCatsRes, attrsRes, productsRes });
+
+        // Handle categories
+        if (catsRes) {
+            const data = catsRes;
+            console.log('Categories data:', data);
+            setCategories(data);
+            if (data.length > 0 && !formData.category) {
+                 setFormData(prev => ({ ...prev, category: data[0].slug }));
+            }
+        } else {
+            setCategories([]);
+        }
+        
+        // Handle subcategories
+        if (subCatsRes) {
+            const subData = subCatsRes.map((item: any) => ({
+                ...item,
+                categoryId: item.category_id,
+                displayOrder: item.display_order,
+                isActive: item.is_active,
+            }));
+            console.log('Subcategories data:', subData);
+            setSubCategories(subData);
+        } else {
+            setSubCategories([]);
+        }
+        
+        // Handle attributes
+        if (attrsRes) {
+            const attrsData = attrsRes;
+            console.log('Attributes data:', attrsData);
+            setAttributes(attrsData);
+        } else {
+            setAttributes([]);
+        }
+        
+        console.log('Products response:', productsRes);
+        setProducts(productsRes.products || []);
+        setError(null);
+    } catch (err: any) {
+        console.error("Failed to load data", err);
+        console.error('Error details:', {
+            message: err?.message,
+            stack: err?.stack,
+            name: err?.name
+        });
+        setError(err?.message || 'Failed to load data');
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  async function loadProducts() {
+     try {
+       const data = await productsAPI.getAll();
+       setProducts(data.products);
+     } catch (err) {
+       console.error(err);
+     }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const { url } = await uploadAPI.uploadImage(file);
+      setFormData(prev => ({ ...prev, image: url }));
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file. Please ensure you have created a "products" bucket in Supabase Storage and set it to Public.');
+    }
+  };
+
+  const handleAddDigitalItem = () => {
+    // For gift cards, handle multiple codes
+    if (formData.category === 'gift-cards') {
+      const codes = newItem.code
+        .split('\n')
+        .map(code => code.trim())
+        .filter(code => code.length === 12 && /^\d+$/.test(code));
+
+      if (codes.length === 0) return;
+      
+      // For gift cards, only store id and code
+      const newItems = codes.map(code => ({
+        id: crypto.randomUUID(),
+        code: code,
+      }));
+
+      setFormData(prev => ({
+        ...prev,
+        digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), ...newItems],
+        stock: prev.stock + codes.length
+      }));
+      setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
+      return;
+    }
+    
+    // For regular products, require account details or codes
+    if (!newItem.email && !newItem.password && !newItem.code) return;
+    
+    const codes = newItem.code
+      .split('\n')
+      .map(code => code.trim())
+      .filter(code => code.length > 0);
+
+    if (codes.length === 0) return;
+
+    const targetSlots = newItem.assignedGroup === 'All Groups' 
+      ? customSlots 
+      : customSlots.filter(slot => {
+          const parts = slot.name.split(' - ');
+          const group = parts.length > 1 ? parts[0].trim() : 'General';
+          return group === newItem.assignedGroup;
+        });
+
+    if (targetSlots.length === 0) {
+      alert('No slots found for the selected group.');
+      return;
+    }
+
+    const mainCodes = codes.slice(0, targetSlots.length);
+    const backupCodes = codes.slice(targetSlots.length);
+    
+    const slots: Record<string, any> = {};
+    targetSlots.forEach((slot, index) => {
+      slots[slot.name] = {
+        sold: false,
+        orderId: null,
+        code: mainCodes[index] || '',
+        price: parseFloat(slot.price) || parseFloat(formData.price) || 0,
+        cost: parseFloat(slot.cost) || parseFloat(formData.cost) || 0
+      };
+    });
+
+    const newItemData = {
+      ...newItem,
+      id: crypto.randomUUID(),
+      code: mainCodes[0] || '',
+      slots,
+      backupCodes: backupCodes.join('\n'),
+      totalCodes: codes.length
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData],
+      stock: prev.stock + targetSlots.length
+    }));
+    setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
+    setCustomSlots(customSlots.map(s => ({ ...s, price: '', cost: '' })));
+  };
+
+  
+  const handleRemoveDigitalItemById = (id: string) => {
+    setFormData(prev => {
+        const itemToRemove = prev.digitalItems?.find((i: any) => i.id === id);
+        const slotsCount = itemToRemove?.slots ? Object.keys(itemToRemove.slots).length : 1;
+        return {
+            ...prev,
+            digitalItems: prev.digitalItems?.filter((i: any) => i.id !== id) || [],
+            stock: Math.max(0, prev.stock - slotsCount)
+        };
+    });
+  };
+
+  const handleAddGroupStock = (targetGroupName: string, localNewItem: any) => {
+    if (!localNewItem.email && !localNewItem.password && !localNewItem.code) return;
+    
+    const codes = localNewItem.code.split('\n').map((c: string) => c.trim()).filter(Boolean);
+    
+    const targetSlots = customSlots.filter(slot => {
+        const parts = slot.name.split(' - ');
+        const group = parts.length > 1 ? parts[0].trim() : 'General';
+        return group === targetGroupName;
+    });
+
+    if (targetSlots.length === 0) {
+      alert('No sub-attributes found for this group. Add sub-attributes first.');
+      return;
+    }
+
+    const mainCodes = codes.slice(0, targetSlots.length);
+    const backupCodes = codes.slice(targetSlots.length);
+    
+    const slots: Record<string, any> = {};
+    targetSlots.forEach((slot, index) => {
+      slots[slot.name] = {
+        sold: false, orderId: null, code: mainCodes[index] || '',
+        price: parseFloat(slot.price) || parseFloat(formData.price as unknown as string) || 0,
+        cost: parseFloat(slot.cost) || parseFloat(formData.cost as unknown as string) || 0
+      };
+    });
+
+    const newItemData = {
+      ...localNewItem,
+      id: crypto.randomUUID(),
+      code: mainCodes[0] || localNewItem.code,
+      slots,
+      backupCodes: backupCodes.join('\n'),
+      totalCodes: codes.length,
+      assignedGroup: targetGroupName
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData],
+      stock: (prev.stock || 0) + targetSlots.length
+    }));
+  };
+
+const handleRemoveDigitalItem = (index: number) => {
+    setFormData(prev => {
+        const item = prev.digitalItems?.[index];
+        const slotsCount = item?.slots ? Object.keys(item.slots).length : 1;
+        return {
+            ...prev,
+            digitalItems: (Array.isArray(prev.digitalItems) ? prev.digitalItems : []).filter((_, i) => i !== index),
+            stock: Math.max(0, prev.stock - slotsCount)
+        };
+    });
+  };
+
+  const handleExportCSVTemplate = () => {
+    const headers = ['Email,Password,Code,OutlookEmail,OutlookPassword,Birthdate,Region,OnlineID,BackupCodes'];
+    const csvContent = headers.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'digital_stock_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      const newItems: Product['digitalItems'] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(',').map(item => item.trim());
+        const [email, password, code, outlookEmail, outlookPassword, birthdate, region, onlineId, ...rest] = parts;
+        
+        const backupCodes = rest.join(',');
+
+        if (email || password || code) {
+          newItems.push({
+            email, 
+            password, 
+            code,
+            outlookEmail,
+            outlookPassword,
+            birthdate,
+            region,
+            onlineId,
+            backupCodes,
+            slots: {
+                'Primary ps4': { sold: false, orderId: null },
+                'Primary ps5': { sold: false, orderId: null },
+                'Secondary': { sold: false, orderId: null },
+                'Offline ps4': { sold: false, orderId: null },
+                'Offline ps5': { sold: false, orderId: null }
+            }
+          });
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), ...newItems],
+        stock: prev.stock + (newItems.length * 5)
+      }));
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleSaveProduct = async () => {
+    try {
+      const status =
+        formData.category === 'gift-cards'
+          ? formData.stock > 0
+            ? 'In Stock'
+            : 'Out of Stock'
+          : formData.stock > 10
+            ? 'In Stock'
+            : 'Low Stock';
+            
+      // Map slot prices to all digital items before saving
+      let finalDigitalItems = formData.digitalItems;
+      
+      if (formData.category !== 'gift-cards' && Array.isArray(finalDigitalItems)) {
+        finalDigitalItems = finalDigitalItems.map((item: any) => {
+          if (!item.slots) return item;
+          
+          const updatedSlots = { ...item.slots };
+          
+          customSlots.forEach(slot => {
+            const priceVal = parseFloat(slot.price);
+            const costVal = parseFloat(slot.cost);
+            
+            if (slot.originalName && slot.originalName !== slot.name && updatedSlots[slot.originalName]) {
+               updatedSlots[slot.name] = updatedSlots[slot.originalName];
+               delete updatedSlots[slot.originalName];
+            }
+            
+            if (updatedSlots[slot.name]) {
+              if (!isNaN(priceVal)) updatedSlots[slot.name].price = priceVal;
+              if (!isNaN(costVal)) updatedSlots[slot.name].cost = costVal;
+            } else {
+              updatedSlots[slot.name] = { sold: false, orderId: null, code: '', price: isNaN(priceVal) ? 0 : priceVal, cost: isNaN(costVal) ? 0 : costVal };
+            }
+          });
+          
+          return { ...item, slots: updatedSlots };
+        });
+      }
+
+      // Map frontend fields to database fields
+      // Ensure category_slug and sub_category_slug are set
+      const productData: any = {
+        name: formData.name,
+        description: formData.description,
+        category_slug: formData.category, // This is the slug from the select
+        sub_category_slug: formData.subCategory, // This is the slug/name from subcats
+        price: parseFloat(formData.price as any) || 0,
+        cost: parseFloat(formData.cost as any) || 0,
+        stock: parseInt(formData.stock as any) || 0,
+        image: formData.image || 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=100&h=100&fit=crop',
+        status,
+        attributes: formData.attributes || {},
+        // For gift-cards, save the codes. For other products, save digital items with slots
+        digitalItems: finalDigitalItems,
+        product_variants: customSlots.map(slot => ({
+          name: slot.name,
+          price: slot.price ? parseFloat(slot.price) : null,
+          cost: slot.cost ? parseFloat(slot.cost) : null
+        })),
+        sendEmailEnabled: formData.sendEmailEnabled || false,
+        emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : (formData.emailTemplate || ''),
+        isRulesTemplate: formData.isRulesTemplate || false,
+        fullAccountPrice: formData.fullAccountPrice ? parseFloat(formData.fullAccountPrice as any) : null,
+        fullAccountCost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null,
+      };
+
+      // Add Full Account variant if price is set
+      if (formData.fullAccountPrice) {
+        productData.product_variants.push({
+          name: 'Full Account',
+          price: parseFloat(formData.fullAccountPrice as any),
+          cost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null
+        });
+      }
+
+      if (editingProduct) {
+        await productsAPI.update(editingProduct.id, productData);
+      } else {
+        await productsAPI.create(productData);
+      }
+
+      await loadData();
+      setIsAddModalOpen(false);
+      setEditingProduct(null);
+      setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+      setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
+      setCustomSlots([
+        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS4 - Primary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS5 - Primary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS5', price: '', cost: '' }
+      ]);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('Failed to save product. Check console for details.');
+    }
+  };
+
+  const handleDeleteProduct = async (id: string | number) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    
+    try {
+      await productsAPI.delete(id);
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Failed to delete product');
+    }
+  };
+
+  const handleEditProduct = (product: Product & { product_variants?: any[] }) => {
+    setEditingProduct(product);
+    
+    // Parse digital items to extract existing slot prices if available
+    const parsedDigitalItems = typeof product.digitalItems === 'string' 
+      ? JSON.parse(product.digitalItems) 
+      : (product.digitalItems || []);
+
+    const newCustomSlots: { id: string; originalName: string; name: string; price: string; cost: string }[] = [];
+
+    // First check if we have the new product_variants table data
+    if (product.product_variants && product.product_variants.length > 0) {
+      product.product_variants.forEach((variant: any) => {
+        newCustomSlots.push({
+          id: crypto.randomUUID(),
+          originalName: variant.name,
+          name: variant.name,
+          price: variant.price ? String(variant.price) : '',
+          cost: variant.cost ? String(variant.cost) : ''
+        });
+      });
+    } 
+    // Fallback to legacy JSONB approach
+    else if (parsedDigitalItems.length > 0) {
+      const itemWithSlots = parsedDigitalItems.find((item: any) => item.slots);
+      if (itemWithSlots && itemWithSlots.slots) {
+        Object.entries(itemWithSlots.slots).forEach(([attr, slot]: [string, any]) => {
+          newCustomSlots.push({
+            id: crypto.randomUUID(),
+            originalName: attr,
+            name: attr,
+            price: slot.price ? String(slot.price) : '',
+            cost: slot.cost ? String(slot.cost) : ''
+          });
+        });
+      }
+    }
+    
+    if (newCustomSlots.length === 0) {
+      newCustomSlots.push(
+        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS4 - Primary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS5 - Primary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS5', price: '', cost: '' }
+      );
+    }
+
+    setCustomSlots(newCustomSlots);
+
+    setFormData({
+      name: product.name,
+      description: (product as any).description || '',
+      category: product.category_slug,
+      subCategory: product.sub_category_slug,
+      price: product.price.toString().replace('$', ''),
+      cost: product.cost ? product.cost.toString().replace('$', '') : '',
+      stock: product.stock,
+      image: product.image,
+      attributes: (product.attributes || {}) as Record<string, any>,
+      digitalItems: parsedDigitalItems,
+      sendEmailEnabled: product.sendEmailEnabled || false,
+      emailTemplate: product.emailTemplate === 'rules_for_games' ? '' : (product.emailTemplate || ''),
+      isRulesTemplate: product.emailTemplate === 'rules_for_games' || product.isRulesTemplate || false,
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const filteredProducts = (products || []).filter((product) => {
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const isGiftCard = product.category_slug === 'gift-cards';
+    const matchesTab =
+      activeTab === 'all' ? true : activeTab === 'giftcards' ? isGiftCard : !isGiftCard;
+    const matchesCategory =
+      activeTab === 'giftcards'
+        ? giftCategoryFilter === 'All' || product.sub_category_slug === giftCategoryFilter
+        : categoryFilter === 'All' || product.category_slug === categoryFilter;
+
+    return matchesSearch && matchesTab && matchesCategory;
+  });
+
+  const renderContent = () => {
+    try {
+      if (loading) {
+        return (
+          <div className="flex items-center justify-center h-96">
+            <div className="text-gray-500 dark:text-gray-400">Loading products...</div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <div className="text-red-600 dark:text-red-400">{error}</div>
+            <Button onClick={loadData}>Try Again</Button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Products</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your product inventory</p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingProduct(null);
+                const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
+                setFormData({ name: '', description: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
+                setIsAddModalOpen(true);
+              }}
+              icon={Plus}
+            >
+              Add Product
+            </Button>
+          </div>
+
+          <div className="inline-flex p-1 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'all'
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'products'
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Products
+            </button>
+            <button
+              onClick={() => setActiveTab('giftcards')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'giftcards'
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Gift Cards
+            </button>
+          </div>
+
+          <Card className="p-8">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={activeTab === 'giftcards' ? 'Search gift cards...' : 'Search products...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              {activeTab === 'giftcards' ? (
+                <select
+                  value={giftCategoryFilter}
+                  onChange={(e) => setGiftCategoryFilter(e.target.value)}
+                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="All">All Gift Categories</option>
+                  {(() => {
+                    const giftCategory = categories.find((c: any) => c.slug === 'gift-cards');
+                    const giftSubs = giftCategory
+                      ? subCategories.filter((s: any) => s.categoryId === giftCategory.id)
+                      : [];
+                    return giftSubs.map((s: any) => (
+                      <option key={s.id || s.slug} value={s.slug}>
+                        {s.name}
+                      </option>
+                    ));
+                  })()}
+                </select>
+              ) : (
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option>All</option>
+                  {categories
+                    .filter((c: any) => c.slug !== 'gift-cards')
+                    .map((c: any) => (
+                      <option key={c.id} value={c.slug}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <div className={`${product.category_slug === 'gift-cards' ? 'aspect-[3/4]' : 'aspect-square'} bg-gray-100 dark:bg-gray-800 relative`}>
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                  <div className="absolute top-2 right-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      product.status === 'In Stock' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {product.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{product.category_slug}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400">{formatPrice(product.price)}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Stock: {product.stock}</span>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleEditProduct(product)}
+                      className="flex-1"
+                    >
+                      <Edit2 className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className="text-white hover:text-white hover:bg-red-600 dark:hover:bg-red-600 bg-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Modal
+            isOpen={isAddModalOpen || !!editingProduct}
+            onClose={() => {
+              setIsAddModalOpen(false);
+              setEditingProduct(null);
+              setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+            }}
+            title={editingProduct ? 'Edit Product' : 'Add New Product'}
+            maxWidth="4xl"
+          >
+            <div className="space-y-6 pb-6">
+              {/* Product Identity Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-8 space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-600">
+                        <Package className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Product Identity</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Product Name</label>
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+                          placeholder="Enter product name (e.g. God of War Ragnarök)"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Description</label>
+                        <textarea
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+                          placeholder="Enter product description"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Category</label>
+                          <select
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
+                          >
+                            <option value="">Select Category</option>
+                            {categories.map(c => (
+                                <option key={c.id} value={c.slug}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Sub Category</label>
+                          <select
+                            value={formData.subCategory}
+                            onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
+                          >
+                            <option value="">Select Sub Category</option>
+                            {(() => {
+                                const cat = categories.find(c => c.slug === formData.category);
+                                return cat ? subCategories.filter(s => s.categoryId === cat.id && s.isActive).map(s => (
+                                    <option key={s.id} value={s.slug || s.name}>{s.name}</option>
+                                )) : [];
+                            })()}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm space-y-4 h-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Product Visual</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="aspect-video w-full bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 overflow-hidden flex items-center justify-center relative group">
+                        {formData.image ? (
+                          <>
+                            <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button onClick={() => setFormData({ ...formData, image: '' })} className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-center p-4">
+                            <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-[10px] text-gray-400 font-medium uppercase">No Image Preview</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Image URL</label>
+                        <input
+                          type="text"
+                          value={formData.image}
+                          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                          className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                          <div className="w-full border-t border-gray-100 dark:border-gray-700"></div>
+                        </div>
+                        <div className="relative flex justify-center text-[10px] uppercase">
+                          <span className="bg-white dark:bg-gray-800 px-2 text-gray-400 font-bold tracking-widest">OR</span>
+                        </div>
+                      </div>
+
+                      <label className="flex flex-col items-center justify-center w-full px-4 py-2 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-full cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 transition-all active:scale-95 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <Plus className="w-4 h-4 text-red-600" />
+                          <span className="text-xs font-black text-red-700 dark:text-red-400 uppercase tracking-tighter">Upload Image File</span>
+                        </div>
+                        <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing & Stock Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-xl text-green-600">
+                      <Shield className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Pricing Summary</h3>
+                  </div>
+
+                  {formData.category === 'gift-cards' || customSlots.length === 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Base Price</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{settings.currency_symbol}</span>
+                          <input
+                            type="number" step="0.01" value={formData.price}
+                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                            className="w-full pl-8 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Base Cost</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{settings.currency_symbol}</span>
+                            <input
+                              type="number" step="0.01" value={formData.cost}
+                              onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                              className="w-full pl-8 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-4 rounded-xl">
+                      <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                        <span className="font-bold block mb-1">Dynamic Pricing Active:</span>
+                        Base price and cost are currently managed by the Sub-Attributes in the Inventory section below.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-xl text-orange-600">
+                      <Layout className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Inventory Status</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Current Stock Level</label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="number" value={formData.stock}
+                          onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                          disabled={formData.category !== 'gift-cards' && (formData.digitalItems?.length || 0) > 0}
+                          className={`flex-1 px-4 py-2.5 rounded-xl font-bold text-lg focus:outline-none transition-all ${
+                            formData.category !== 'gift-cards' && (formData.digitalItems?.length || 0) > 0 
+                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 cursor-not-allowed' 
+                              : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-red-500'
+                          }`}
+                          placeholder="0"
+                        />
+                        <div className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest ${formData.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {formData.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                        </div>
+                      </div>
+                    </div>
+                    {formData.category !== 'gift-cards' && (formData.digitalItems?.length || 0) > 0 && (
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium italic">
+                        * Stock is auto-calculated from {formData.digitalItems?.length} digital delivery items.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Technical Details Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Technical Details</h3>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Genre</label>
+                    <input
+                      type="text"
+                      value={(formData.attributes as any)?.genre || ''}
+                      onChange={(e) => setFormData({ ...formData, attributes: { ...(formData.attributes || {}), genre: e.target.value } })}
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Action / Adventure"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Platform</label>
+                    <input
+                      type="text"
+                      value={(formData.attributes as any)?.platform || ''}
+                      onChange={(e) => setFormData({ ...formData, attributes: { ...(formData.attributes || {}), platform: e.target.value } })}
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="PS5 / PS4"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Game Size</label>
+                    <input
+                      type="text"
+                      value={(formData.attributes as any)?.gameSize || ''}
+                      onChange={(e) => setFormData({ ...formData, attributes: { ...(formData.attributes || {}), gameSize: e.target.value } })}
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="50 GB"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Language</label>
+                    <input
+                      type="text"
+                      value={(formData.attributes as any)?.language || ''}
+                      onChange={(e) => setFormData({ ...formData, attributes: { ...(formData.attributes || {}), language: e.target.value } })}
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="English / Arabic"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Template Section for Digital Products */}
+              {formData.category !== 'gift-cards' && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded">Email</span>
+                      Email Delivery Settings
+                    </h3>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.sendEmailEnabled}
+                        onChange={(e) => setFormData({ ...formData, sendEmailEnabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-red-600"></div>
+                      <span className="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {formData.sendEmailEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {formData.sendEmailEnabled && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 space-y-4">
+                      <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Rules for Games Template</span>
+                          <span className="text-[10px] text-gray-500">Send the predefined game rules instead of a custom message</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.isRulesTemplate}
+                            onChange={(e) => setFormData({ ...formData, isRulesTemplate: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      {!formData.isRulesTemplate ? (
+                        <>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">
+                            When this product is purchased, send an email to the customer with the details below. Available placeholders: <code className="bg-white dark:bg-gray-800 px-1 rounded">{'{{email}}'}</code>, <code className="bg-white dark:bg-gray-800 px-1 rounded">{'{{password}}'}</code>, <code className="bg-white dark:bg-gray-800 px-1 rounded">{'{{code}}'}</code>, <code className="bg-white dark:bg-gray-800 px-1 rounded">{'{{name}}'}</code>, <code className="bg-white dark:bg-gray-800 px-1 rounded">{'{{orderNumber}}'}</code>
+                          </p>
+                          <textarea
+                            value={formData.emailTemplate}
+                            onChange={(e) => setFormData({ ...formData, emailTemplate: e.target.value })}
+                            className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
+                            placeholder={"Email: {{email}}\nPassword: {{password}}\nCode: {{code}}\n\nThank you for your purchase!"}
+                            rows={6}
+                          />
+                        </>
+                      ) : (
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-700">
+                           <p className="text-xs text-gray-600 dark:text-gray-400">
+                             <span className="font-bold text-blue-600 dark:text-blue-400">Rules Active:</span> The global "Rules for Games" template will be sent automatically. You can manage its content in the Email Templates section.
+                           </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Gift Cards Section - Multiple 12-digit codes */}
+              {formData.category === 'gift-cards' && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded">Gift Cards</span>
+                      Gift Card Stock
+                    </h3>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {formData.digitalItems?.length || 0} codes in stock
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                    <div className="mb-4">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Gift Card Codes (one per line)
+                      </label>
+                      <textarea
+                        value={newItem.code}
+                        onChange={(e) => setNewItem({ ...newItem, code: e.target.value })}
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-mono tracking-wider"
+                        placeholder={"123456789012\n987654321012\n456789123012"}
+                        rows={6}
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-xs text-gray-500">Enter one 12-digit code per line</p>
+                        {newItem.code && (
+                          <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">
+                            {newItem.code.split('\n').filter(line => line.trim().length === 12).length} code(s) detected
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button 
+                      onClick={handleAddDigitalItem} 
+                      className="w-full text-sm py-3 bg-green-600 hover:bg-green-700 text-white font-black rounded-full shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-[0.98]"
+                      disabled={!newItem.code || newItem.code.split('\n').filter(line => line.trim().length === 12).length === 0}
+                    >
+                      <span className="flex items-center justify-center">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Gift Card Codes
+                      </span>
+                    </Button>
+                  </div>
+
+                  {(formData.digitalItems?.length || 0) > 0 && (
+                    <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-16">#</th>
+                            <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Gift Card Code</th>
+                            <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-24 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {(formData.digitalItems || []).map((item, index) => (
+                            <tr key={item.id || index} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-4 py-2 text-gray-500">{index + 1}</td>
+                              <td className="px-4 py-2 font-mono tracking-widest text-gray-900 dark:text-gray-300">{item.code}</td>
+                              <td className="px-4 py-2 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDigitalItem(index)}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {formData.category !== 'gift-cards' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-md border-t-4 border-t-red-600">
+                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-red-600 text-white rounded-2xl shadow-lg shadow-red-200 dark:shadow-none">
+                      <Layout className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Inventory & Attributes</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-widest">Manage your digital items and selling slots</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={handleExportCSVTemplate} className="text-[10px] px-4 h-9 dark:text-white font-black border-2 rounded-full transition-all active:scale-95">
+                      <Download className="w-3.5 h-3.5 mr-1.5" /> Template
+                    </Button>
+                    <label className="cursor-pointer">
+                      <span className="inline-flex items-center justify-center px-5 h-9 text-[10px] font-black text-white bg-gray-900 rounded-full hover:bg-black transition-all shadow-md uppercase tracking-wider active:scale-95">
+                        <Plus className="w-4 h-4 mr-1.5" /> Import CSV
+                      </span>
+                      <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+                
+                                  {/* Attribute Prices and Costs */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                      Slot Prices & Costs
+                    </h4>
+                    
+                    <VariantGenerator customSlots={customSlots} setCustomSlots={setCustomSlots} />
+
+                    <div className="mb-4 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-purple-700 dark:text-purple-400">Full Account Option</span>
+                          <span className="text-[10px] text-gray-500">Allow customers to buy the entire account exclusively</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Price ({settings.currency_symbol})</label>
+                          <input
+                            type="number" step="0.01"
+                            value={formData.fullAccountPrice || ''}
+                            onChange={(e) => setFormData({ ...formData, fullAccountPrice: e.target.value })}
+                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            placeholder="e.g. 50.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Cost ({settings.currency_symbol})</label>
+                          <input
+                            type="number" step="0.01"
+                            value={formData.fullAccountCost || ''}
+                            onChange={(e) => setFormData({ ...formData, fullAccountCost: e.target.value })}
+                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            placeholder="e.g. 20.00"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-purple-600/70 italic">
+                        * Note: If a user buys a "Full Account", all other slots for that specific email will be locked. If any slot is sold, the "Full Account" option for that email becomes unavailable.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(() => {
+                        // Group slots by prefix before " - "
+                        const groupedSlots = customSlots.reduce((acc, slot) => {
+                          const parts = slot.name.split(' - ');
+                          const group = parts.length > 1 ? parts[0] : 'General';
+                          if (!acc[group]) acc[group] = [];
+                          acc[group].push(slot);
+                          return acc;
+                        }, {} as Record<string, typeof customSlots>);
+
+                        // Sort the groups to maintain a stable order
+                        const sortedGroups = Object.entries(groupedSlots).sort(([a], [b]) => a.localeCompare(b));
+
+                        
+                        return sortedGroups.map(([groupName, slotsInGroup]) => {
+                          const groupItems = formData.digitalItems?.filter((item: any) => {
+                              if (item.assignedGroup) return item.assignedGroup === groupName;
+                              if (item.slots) {
+                                 const firstSlotKey = Object.keys(item.slots)[0];
+                                 if (firstSlotKey) {
+                                    const parts = firstSlotKey.split(' - ');
+                                    const g = parts.length > 1 ? parts[0] : 'General';
+                                    return g === groupName;
+                                 }
+                              }
+                              return groupName === 'General';
+                          });
+                          return (
+                            <GroupEditor 
+                              key={groupName} 
+                              groupName={groupName} 
+                              slotsInGroup={slotsInGroup} 
+                              customSlots={customSlots} 
+                              setCustomSlots={setCustomSlots} 
+                              settings={settings} 
+                              formData={formData} 
+                              onAddStockItem={handleAddGroupStock}
+                              groupItems={groupItems}
+                              onRemoveItem={handleRemoveDigitalItemById}
+                              isAdmin={isAdmin}
+                            />
+                          );
+                        });
+  
+                      })()}
+                      
+                      <div className="flex items-center justify-between mt-6 px-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomSlots([...customSlots, { id: crypto.randomUUID(), originalName: '', name: `New Group - Slot 1`, price: '', cost: '' }]);
+                          }}
+                          className="text-xs text-white hover:bg-red-700 font-black flex items-center bg-red-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-2" /> Add New Group
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const offlineSlots = [
+                              { id: crypto.randomUUID(), originalName: '', name: `Offline - PS4`, price: '', cost: '' },
+                              { id: crypto.randomUUID(), originalName: '', name: `Offline - PS5`, price: '', cost: '' }
+                            ];
+                            setCustomSlots([...customSlots, ...offlineSlots]);
+                          }}
+                          className="text-xs text-white hover:bg-indigo-700 font-black flex items-center bg-indigo-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-2" /> Add Offline Group (PS4/PS5)
+                        </button>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 italic font-medium">
+                          * Groups visually organize your slots (e.g., PS4, PS5).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+
+
+
+
+                
+                <p className="text-xs text-gray-500 mt-2">
+                  Total Digital Stock: {formData.stock} total stock slots created
+                </p>
+              </div>
+              )}
+              
+              <div className="flex justify-end gap-3 pt-8 border-t border-gray-100 dark:border-gray-700">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingProduct(null);
+                    setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                  }}
+                  className="px-8 py-3 rounded-full font-black text-gray-500 hover:text-gray-700 transition-all border-2 active:scale-95"
+                >
+                  Discard Changes
+                </Button>
+                <Button 
+                  onClick={handleSaveProduct} 
+                  className="px-10 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-black shadow-lg shadow-red-200 dark:shadow-none transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+                >
+                  {editingProduct ? 'Save Product Changes' : 'Publish Product'}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        </div>
+      );
+    } catch (error) {
+      console.error('Error rendering Products component:', error);
+      return (
+        <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
+          <h3 className="text-red-800 font-semibold mb-2">Error Loading Products</h3>
+          <p className="text-red-600">There was an error loading the products. Please try refreshing the page.</p>
+        </div>
+      );
+    }
+  };
+
+  return renderContent();
+}

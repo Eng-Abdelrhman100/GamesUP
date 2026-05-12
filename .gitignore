@@ -1,0 +1,17 @@
+node_modules/
+dist/
+client/node_modules/
+.env
+.env.*
+!.env.example
+.trae/
+.windsurf/
+.agents/
+.vscode/
+# Allow client .env for frontend variables
+!client/.env 
+*.local
+server/.env.local 
+/graphify-out/
+.graphify_detect.json
+.graphify_semantic.json

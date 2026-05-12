@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-02T16:44:33Z",
+  "title": "Design System: GamesUp Platform",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Glitch Magenta",
+        "canonical": "#ff1574",
+        "tonalRamp": ["#330417", "#66082e", "#990c45", "#cc115d", "#ff1574", "#ff4490", "#ff73ac", "#ffa1c7"]
+      },
+      "obsidian-deep": {
+        "role": "neutral",
+        "displayName": "Obsidian Deep",
+        "canonical": "#000000",
+        "tonalRamp": ["#000000", "#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#777777"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "High-impact card headings and hero titles." },
+      "body": { "displayName": "Body", "purpose": "Standard reading and descriptive text." }
+    },
+    "motion": [
+      { "name": "cinematic-scale", "value": "transition-all duration-[2.5s] ease-out", "purpose": "Standard bento image hover effect." },
+      { "name": "tactile-pop", "value": "transition-all duration-700 ease-out", "purpose": "Floating asset entry and hover reactions." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bento Text Panel",
+      "kind": "card",
+      "refersTo": "card-bento",
+      "description": "The standardized glassmorphism container for bento grid content.",
+      "html": "<div class=\"ds-bento-panel\"><span class=\"ds-label\">EXPLORE</span><h3 class=\"ds-heading\">Gameshare<br/>Accounts</h3><p class=\"ds-body\">Primary • Secondary • Full</p></div>",
+      "css": ".ds-bento-panel { background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); border-radius: 24px; padding: 24px 32px; border: 1px solid rgba(255,255,255,0.1); max-width: 400px; } .ds-label { color: #ff1574; font-weight: 900; font-size: 12px; letter-spacing: 0.2em; display: block; margin-bottom: 8px; } .ds-heading { color: #ffffff; font-weight: 900; font-size: 32px; text-transform: uppercase; line-height: 1; margin: 0 0 8px 0; letter-spacing: -0.02em; } .ds-body { color: rgba(255,255,255,0.7); font-size: 16px; font-weight: 700; margin: 0; }"
+    },
+    {
+      "name": "Primary CTA",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-impact brand button.",
+      "html": "<button class=\"ds-btn-primary\">EXPLORE NOW</button>",
+      "css": ".ds-btn-primary { background: #ff1574; color: #ffffff; font-weight: 900; font-size: 14px; letter-spacing: 0.1em; padding: 16px 48px; border: none; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; } .ds-btn-primary:hover { filter: brightness(1.1); transform: translateY(-2px); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Immersive Arena",
+    "overview": "The GamesUp visual system is built for high-octane immersion. It rejects the flat, sterile patterns of corporate e-commerce in favor of cinematic depth, atmospheric textures, and bold structural hierarchy.",
+    "keyCharacteristics": [
+      "Atmospheric Depth",
+      "Glassmorphism Logic",
+      "Extreme Radii (64px)"
+    ],
+    "rules": [
+      { "name": "The Rarity Rule", "body": "Glitch Magenta should occupy ≤10% of any given surface.", "section": "colors" }
+    ],
+    "dos": [
+      "Do use full-bleed atmospheric images behind dark overlays",
+      "Do keep text panels centered or bottom-aligned",
+      "Do use tracking-tighter on all headings"
+    ],
+    "donts": [
+      "Don't use generic white cards",
+      "Don't use thin, lightweight fonts",
+      "Don't allow PNG assets to overlap main heading text"
+    ]
+  }
+}
