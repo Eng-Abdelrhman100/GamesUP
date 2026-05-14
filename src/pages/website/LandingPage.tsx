@@ -88,7 +88,8 @@ export function LandingPage({ onNavigate, onOpenCart }: LandingPageProps) {
   const loadCategories = async () => {
     try {
       const data = await categoriesAPI.getAll();
-      const active = (data || []).filter((cat: any) => (cat.is_active ?? cat.isActive) !== false);
+      const list = Array.isArray(data) ? data : (data as any)?.categories || (data as any)?.data || [];
+      const active = (list || []).filter((cat: any) => (cat.is_active ?? cat.isActive) !== false);
       setCategories(active.filter((cat: any) => cat.slug !== 'gift-cards').slice(0, 6));
     } catch (error) {
       console.error('Error loading categories:', error);

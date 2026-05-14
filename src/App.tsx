@@ -1,6 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate, useOutletContext, useParams } from 'react-router-dom';
-import AdminApp from './admin/AdminApp';
-import { AdminRoute } from './admin/AdminRoute';
 import { Website } from './pages/website/Website';
 import { LandingPage } from './pages/website/LandingPage';
 import { ShopPage } from './pages/website/ShopPage';
@@ -60,9 +58,6 @@ export default function App() {
     <StoreSettingsProvider>
       <BrowserRouter>
         <Routes>
-          {/* Admin Routes */}
-          <Route path="/admin/*" element={<AdminRoute><AdminApp /></AdminRoute>} />
-
           {/* Website Routes with Shared Layout */}
           <Route element={<WebsiteWrapper />}>
             <Route path="/" element={<LandingWrapper />} />

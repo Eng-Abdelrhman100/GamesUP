@@ -23,6 +23,13 @@ function getAccessToken(scope: AuthScope) {
   return admin || customer || null;
 }
 
+function coerceArray(data: any) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.categories)) return data.categories;
+  if (data && Array.isArray(data.data)) return data.data;
+  return [];
+}
+
 async function requestJson<T>(path: string, options?: { method?: string; body?: any; auth?: AuthScope; headers?: Record<string, string> }): Promise<T> {
   const method = options?.method || 'GET';
   const auth = options?.auth ?? 'any';
@@ -259,10 +266,12 @@ export const bannersAPI = {
 // Categories API
 export const categoriesAPI = {
   getAll: async () => {
-    return requestJson<any[]>(`/categories`, { auth: 'none' });
+    const data = await requestJson<any>(`/categories`, { auth: 'none' });
+    return coerceArray(data);
   },
   getFooterTop: async (limit = 5) => {
-    return requestJson<any[]>(`/categories/footer-top?limit=${limit}`, { auth: 'none' });
+    const data = await requestJson<any>(`/categories/footer-top?limit=${limit}`, { auth: 'none' });
+    return coerceArray(data);
   },
   create: async (category: any) => {
     return requestJson<any>(`/categories`, { method: 'POST', body: category, auth: 'admin' });

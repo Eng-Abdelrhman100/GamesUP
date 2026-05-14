@@ -90,7 +90,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'adm
       return (
         <div key={item.id} className="mb-1">
             <NavLink
-              to={`/admin/${item.id}`}
+              to={`/${item.id}`}
               end={!item.children}
               className={({ isActive }) => `w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
                 isActive

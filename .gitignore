@@ -15,3 +15,5 @@ server/.env.local
 /graphify-out/
 .graphify_detect.json
 .graphify_semantic.json
+gamesup_deploy_key
+gamesup_deploy_key.pub
