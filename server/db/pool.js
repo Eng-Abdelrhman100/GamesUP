@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import mysql from 'mysql2/promise';
 
 const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_NAME'];
