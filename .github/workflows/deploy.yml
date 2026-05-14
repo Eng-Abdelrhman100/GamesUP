@@ -29,17 +29,8 @@ jobs:
         if: hashFiles('server/package.json') != ''
         run: npm ci --prefix server
 
-      - name: Install frontend dependencies
-        if: hashFiles('frontend/package.json') != ''
-        run: npm ci --prefix frontend
-
       - name: Build frontend
-        run: |
-          if [ -f frontend/package.json ]; then
-            npm run build --prefix frontend
-          else
-            npm run build
-          fi
+        run: npm run build
 
   deploy:
     runs-on: ubuntu-latest
@@ -64,15 +55,8 @@ jobs:
               cd ..
             fi
 
-            if [ -f frontend/package.json ]; then
-              cd frontend
-              npm ci
-              npm run build
-              cd ..
-            else
-              npm ci
-              npm run build
-            fi
+            npm ci
+            npm run build
 
             if pm2 describe gamesup-api >/dev/null 2>&1; then
               pm2 reload gamesup-api --update-env
