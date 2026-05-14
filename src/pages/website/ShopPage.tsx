@@ -61,7 +61,7 @@ export function ShopPage({ onNavigate, onOpenCart }: any) {
     try {
       const data = await categoriesAPI.getAll();
       const list = Array.isArray(data) ? data : (data as any)?.categories || (data as any)?.data || [];
-      const active = (list || []).filter((cat: any) => (cat.is_active ?? cat.isActive) === true);
+      const active = (list || []).filter((cat: any) => (cat.is_active ?? cat.isActive) !== false);
       setCategories(active.filter((cat: any) => cat.slug !== 'gift-cards'));
     } catch (error) {
       console.error('Error loading categories:', error);
