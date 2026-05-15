@@ -1,9 +1,14 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { adminRouter } from './admin/routes/index.js';
 import { apiRouter } from './routes/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const port = process.env.PORT ? Number.parseInt(String(process.env.PORT), 10) : 3005;
