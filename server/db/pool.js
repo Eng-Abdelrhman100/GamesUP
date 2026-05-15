@@ -6,6 +6,7 @@ import mysql from 'mysql2/promise';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../.env') });
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_NAME'];
 
