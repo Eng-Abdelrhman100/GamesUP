@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.29.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -53,15 +54,15 @@
     "input-otp": "^1.4.2",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.0.0",
-    "lucide-react": "^0.487.0",
-    "motion": "*",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
     "multer": "^2.1.1",
     "mysql2": "^3.22.3",
     "next-themes": "^0.4.6",
     "nodemailer": "^8.0.2",
-    "react": "^18.3.1",
+    "react": "^19.0.1",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.0.1",
     "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.30.3",
@@ -69,17 +70,20 @@
     "sonner": "^2.0.3",
     "swiper": "^12.1.4",
     "tailwind-merge": "*",
-    "tailwindcss": "*",
+    "tailwindcss": "^4.1.14",
     "vaul": "^1.1.2"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^22.14.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react-swc": "^3.10.2",
-    "autoprefixer": "^10.4.16",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
     "dotenv": "^17.3.1",
     "postcss": "^8.4.31",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
     "vite": "^6.4.1"
   }
 }

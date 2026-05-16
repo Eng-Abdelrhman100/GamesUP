@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
   base: '/',
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
@@ -74,8 +75,8 @@ export default defineConfig({
   },
   server: {
     host: true, // Expose to network
-    port: 5173,
-    strictPort: true,
+    port: 5174,
+    strictPort: false,
     open: true,
     proxy: {
       '/api': {

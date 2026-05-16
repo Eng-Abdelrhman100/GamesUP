@@ -17,3 +17,4 @@ server/.env.local
 .graphify_semantic.json
 gamesup_deploy_key
 gamesup_deploy_key.pub
+server/uploads/

@@ -1,36 +1,29 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Header } from './components/Header';
-import { Hero } from './components/Hero';
-import { Stats } from './components/Stats';
-import { StoreSection } from './components/StoreSection';
+import { AboutPage } from './components/AboutPage';
+import { CartDrawer } from './components/CartDrawer';
 import { Categories } from './components/Categories';
 import { CategoryRow } from './components/CategoryRow';
-import { ProductPage } from './components/ProductPage';
-import { ShopPage } from './components/ShopPage';
-import { OrdersPage } from './components/OrdersPage';
-import { FavoritesPage } from './components/FavoritesPage';
-import { AboutPage } from './components/AboutPage';
-import { ContactPage } from './components/ContactPage';
-import { RequestGamePage } from './components/RequestGamePage';
-import { DashboardPage } from './components/DashboardPage';
 import { CheckoutPage } from './components/CheckoutPage';
-import { OrderConfirmationPage } from './components/OrderConfirmationPage';
-import { SearchPage } from './components/SearchPage';
-import { Preloader } from './components/Preloader';
-import { CartDrawer } from './components/CartDrawer';
+import { ContactPage } from './components/ContactPage';
+import { DashboardPage } from './components/DashboardPage';
+import { FavoritesPage } from './components/FavoritesPage';
 import { Footer } from './components/Footer';
-import { Game, CartItem, AccountType, AppView } from './types';
+import { Header } from './components/Header';
+import { Hero } from './components/Hero';
+import { OrderConfirmationPage } from './components/OrderConfirmationPage';
+import { OrdersPage } from './components/OrdersPage';
+import { Preloader } from './components/Preloader';
+import { ProductPage } from './components/ProductPage';
+import { RequestGamePage } from './components/RequestGamePage';
+import { SearchPage } from './components/SearchPage';
+import { ShopPage } from './components/ShopPage';
+import { Stats } from './components/Stats';
+import { StoreSection } from './components/StoreSection';
 import { GAMES_DATA } from './constants';
-import { productsAPI } from './utils/api';
+import { AccountType, AppView, CartItem, Game } from './types';
 
 export default function App() {
-  const [games, setGames] = useState<Game[]>(GAMES_DATA);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [view, setView] = useState<AppView>('home');
   const [shopCategory, setShopCategory] = useState<string>('ALL');
@@ -39,44 +32,6 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const { products } = await productsAPI.getPublic();
-        if (products && products.length > 0) {
-          const mappedGames: Game[] = products.map((p: any) => ({
-            id: String(p.id),
-            title: p.name,
-            image: p.image || '',
-            banner: p.image || '',
-            price: p.price || 0,
-            basePrice: p.price || 0,
-            category: p.category_slug ? p.category_slug.charAt(0).toUpperCase() + p.category_slug.slice(1) : 'Action',
-            tags: [],
-            status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
-            description: p.description || '',
-            accountTypes: Array.isArray(p.product_variants) && p.product_variants.length > 0
-              ? p.product_variants.map((v: any) => ({
-                  tier: v.name.toUpperCase(),
-                  price: v.price,
-                  save: '0%',
-                  status: v.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
-                  icon: v.name.toUpperCase().includes('PLATINUM') ? '💎' : v.name.toUpperCase().includes('GOLD') ? '🥇' : '🥈',
-                  isAvailable: v.stock > 0
-                }))
-              : [
-                  { price: p.price, tier: 'SILVER', save: '0%', status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK', icon: '🥈', isAvailable: p.stock > 0 }
-                ]
-          }));
-          setGames(mappedGames);
-        }
-      } catch (error) {
-        console.error('Failed to fetch products:', error);
-      }
-    }
-    fetchProducts();
-  }, []);
 
   useEffect(() => {
     if (isDark) {
@@ -106,7 +61,7 @@ export default function App() {
     setView('shop');
     window.scrollTo(0, 0);
   };
-  
+
   const handleSeeAll = () => {
     setShopCategory('ALL');
     setView('shop');
@@ -123,12 +78,12 @@ export default function App() {
       price: accountType.price,
       quantity: 1,
     };
-    setCartItems(prev => [...prev, newItem]);
+    setCartItems((prev) => [...prev, newItem]);
     setIsCartOpen(true);
   };
 
   const removeFromCart = (cartId: string) => {
-    setCartItems(prev => prev.filter(item => item.cartId !== cartId));
+    setCartItems((prev) => prev.filter((item) => item.cartId !== cartId));
   };
 
   const handleCheckout = () => {
@@ -143,11 +98,7 @@ export default function App() {
   };
 
   const toggleFavorite = (gameId: string) => {
-    setFavorites(prev => 
-      prev.includes(gameId) 
-        ? prev.filter(id => id !== gameId) 
-        : [...prev, gameId]
-    );
+    setFavorites((prev) => (prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]));
   };
 
   const renderView = () => {
@@ -158,46 +109,38 @@ export default function App() {
             <Hero />
             <Stats />
             <Categories onCategoryClick={handleCategoryClick} />
-            
-            {/* Category Sliders */}
-            <CategoryRow 
-              title="ACTION MISSIONS" 
-              games={games.filter(g => g.category?.toUpperCase() === 'ACTION')} 
+            <CategoryRow
+              title="ACTION MISSIONS"
+              games={GAMES_DATA.filter((g) => g.category?.toUpperCase() === 'ACTION')}
               onProductClick={handleProductClick}
               onSeeAll={handleSeeAll}
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
             />
-            <CategoryRow 
-              title="SPORTS ARENA" 
-              games={games.filter(g => g.category?.toUpperCase() === 'SPORTS')} 
+            <CategoryRow
+              title="SPORTS ARENA"
+              games={GAMES_DATA.filter((g) => g.category?.toUpperCase() === 'SPORTS')}
               onProductClick={handleProductClick}
               onSeeAll={handleSeeAll}
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
             />
-            <CategoryRow 
-              title="RPG FRONTIERS" 
-              games={games.filter(g => g.category?.toUpperCase() === 'RPG')} 
+            <CategoryRow
+              title="RPG FRONTIERS"
+              games={GAMES_DATA.filter((g) => g.category?.toUpperCase() === 'RPG')}
               onProductClick={handleProductClick}
               onSeeAll={handleSeeAll}
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
             />
-
-            <StoreSection 
-              games={games}
-              onProductClick={handleProductClick} 
-              favorites={favorites}
-              onToggleFavorite={toggleFavorite}
-            />
+            <StoreSection onProductClick={handleProductClick} favorites={favorites} onToggleFavorite={toggleFavorite} />
           </>
         );
       case 'shop':
         return (
-          <ShopPage 
-            games={games} 
-            onProductClick={handleProductClick} 
+          <ShopPage
+            games={GAMES_DATA}
+            onProductClick={handleProductClick}
             onBack={handleBackToHome}
             initialCategory={shopCategory}
             favorites={favorites}
@@ -206,8 +149,8 @@ export default function App() {
         );
       case 'product':
         return selectedGame ? (
-          <ProductPage 
-            game={selectedGame} 
+          <ProductPage
+            game={selectedGame}
             onBack={handleBackToHome}
             onAddToCart={addToCart}
             isFavorited={favorites.includes(selectedGame.id)}
@@ -218,9 +161,9 @@ export default function App() {
         return <OrdersPage onBack={handleBackToHome} />;
       case 'favorites':
         return (
-          <FavoritesPage 
-            onBack={handleBackToHome} 
-            favoriteGames={games.filter(g => favorites.includes(g.id))}
+          <FavoritesPage
+            onBack={handleBackToHome}
+            favoriteGames={GAMES_DATA.filter((g) => favorites.includes(g.id))}
             onProductClick={handleProductClick}
             onToggleFavorite={toggleFavorite}
           />
@@ -238,52 +181,33 @@ export default function App() {
       case 'confirmation':
         return <OrderConfirmationPage onBackToHome={handleBackToHome} onViewOrders={() => setView('orders')} />;
       case 'search':
-        return (
-          <SearchPage 
-            games={games}
-            onBack={handleBackToHome} 
-            onProductClick={handleProductClick}
-            favorites={favorites}
-            onToggleFavorite={toggleFavorite}
-          />
-        );
+        return <SearchPage onBack={handleBackToHome} onProductClick={handleProductClick} favorites={favorites} onToggleFavorite={toggleFavorite} />;
       default:
         return null;
     }
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'dark' : ''} bg-bg-dark text-[var(--text-primary)] selection:bg-brand-red selection:text-white transition-colors duration-300`}>
-      <AnimatePresence>
-        {isLoading && (
-          <Preloader onLoadingComplete={() => setIsLoading(false)} />
-        )}
-      </AnimatePresence>
+    <div
+      className={`min-h-screen ${isDark ? 'dark' : ''} bg-bg-dark text-[var(--text-primary)] selection:bg-brand-red selection:text-white transition-colors duration-300`}
+    >
+      <AnimatePresence>{isLoading && <Preloader onLoadingComplete={() => setIsLoading(false)} />}</AnimatePresence>
 
-      <Header 
-        isDark={isDark} 
-        toggleTheme={toggleTheme} 
+      <Header
+        isDark={isDark}
+        toggleTheme={toggleTheme}
         cartCount={cartItems.length}
         onCartClick={() => setIsCartOpen(true)}
         onLogoClick={handleBackToHome}
         onViewChange={setView}
         currentView={view}
       />
-      
-      <main>
-        {renderView()}
-      </main>
+
+      <main>{renderView()}</main>
 
       <Footer isDark={isDark} />
 
-      <CartDrawer 
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onRemove={removeFromCart}
-        onCheckout={handleCheckout}
-      />
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cartItems} onRemove={removeFromCart} onCheckout={handleCheckout} />
     </div>
   );
 }
-
