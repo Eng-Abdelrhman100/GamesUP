@@ -2,6 +2,15 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
+import fs from 'fs';
+
+// Admin routes — any URL starting with these prefixes belongs to the admin app
+const ADMIN_ROUTES = [
+  '/dashboard', '/products', '/data-overview', '/orders', '/sold-products',
+  '/order-chats', '/analytics', '/customers', '/tasks', '/team', '/settings',
+  '/roles', '/outlook', '/banners', '/hero-slider', '/hr', '/pos', '/system',
+  '/delivery', '/email-templates', '/expenses',
+];
 
 export default defineConfig({
   base: '/',
@@ -90,5 +99,29 @@ export default defineConfig({
         secure: false,
       },
     },
+    // Serve admin.html for all admin routes so page refresh works correctly
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url || '/';
+        const pathname = url.split('?')[0];
+        
+        // Check if this is an admin route
+        const isAdminRoute = ADMIN_ROUTES.some(route => 
+          pathname === route || pathname.startsWith(route + '/')
+        );
+        
+        if (isAdminRoute) {
+          const adminHtml = fs.readFileSync(
+            path.resolve(__dirname, 'admin.html'),
+            'utf-8'
+          );
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(adminHtml);
+          return;
+        }
+        next();
+      });
+    },
   },
 });
+
