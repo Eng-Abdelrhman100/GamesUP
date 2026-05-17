@@ -21,6 +21,14 @@ interface StoreSettings {
   payment_methods?: { name: string; enabled: boolean }[];
   coming_soon?: boolean;
   default_banners?: any[];
+  homepage_categories?: {
+    id: string;
+    title: string;
+    desc: string;
+    image: string;
+    icon: string;
+    count: string;
+  }[];
 }
 
 interface StoreSettingsContextType {
@@ -49,6 +57,40 @@ const defaultSettings: StoreSettings = {
   business_hours: [],
   payment_methods: [],
   coming_soon: false,
+  homepage_categories: [
+    {
+      id: 'rpg',
+      title: 'ACTION & RPG',
+      desc: 'Immersion protocols engaged. Explore vast digital frontiers.',
+      image: 'https://images.unsplash.com/photo-1605898399789-19794336e181?q=80&w=1000&auto=format&fit=crop',
+      icon: 'Swords',
+      count: '24 ASSETS'
+    },
+    {
+      id: 'sports',
+      title: 'SPORTS & RACING',
+      desc: 'Peak performance required. Master the field and the track.',
+      image: 'https://images.unsplash.com/photo-1547941126-3d5322b218b0?q=80&w=1000&auto=format&fit=crop',
+      icon: 'Zap',
+      count: '18 ASSETS'
+    },
+    {
+      id: 'shooter',
+      title: 'WARFARE & FPS',
+      desc: 'Tactical dominance. High-precision assets for elite operators.',
+      image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
+      icon: 'Target',
+      count: '32 ASSETS'
+    },
+    {
+      id: 'horror',
+      title: 'HORROR & SURVIVAL',
+      desc: 'Nightmare scenarios. Survival is the only objective.',
+      image: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop',
+      icon: 'Shield',
+      count: '12 ASSETS'
+    }
+  ]
 };
 
 const StoreSettingsContext = createContext<StoreSettingsContextType | undefined>(undefined);
@@ -81,6 +123,11 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         default_banners = data.default_banners ? JSON.parse(data.default_banners) : [];
       } catch (e) {}
 
+      let homepage_categories: any[] = [];
+      try {
+        homepage_categories = data.homepage_categories ? JSON.parse(data.homepage_categories) : [];
+      } catch (e) {}
+
       setSettings({
         currency_code: data.currency_code || 'EGP',
         currency_symbol: data.currency_symbol || 'EGP',
@@ -100,6 +147,7 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         business_hours,
         payment_methods,
         default_banners,
+        homepage_categories: (homepage_categories && homepage_categories.length > 0) ? homepage_categories : defaultSettings.homepage_categories,
         coming_soon: data.coming_soon === true || data.coming_soon === 'true',
       });
     } catch (error) {
@@ -125,6 +173,9 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
       }
       if (serverData.payment_methods) {
         serverData.payment_methods = JSON.stringify(serverData.payment_methods);
+      }
+      if (serverData.homepage_categories) {
+        serverData.homepage_categories = JSON.stringify(serverData.homepage_categories);
       }
 
       await settingsAPI.update(serverData);

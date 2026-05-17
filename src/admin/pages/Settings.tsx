@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Save, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { 
+  Save, 
+  Eye, 
+  EyeOff, 
+  CheckCircle, 
+  Plus, 
+  Trash2, 
+  Upload, 
+  Swords, 
+  Zap, 
+  Target, 
+  Shield, 
+  Gamepad, 
+  Trophy, 
+  Flame, 
+  Skull 
+} from 'lucide-react';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 import { authAPI, uploadAPI } from '../../utils/api';
 // import { BASE_URL, authAPI } from '../../utils/api';
@@ -69,6 +85,7 @@ export function Settings() {
     business_hours: [] as { day: string; open: string; close: string }[],
     payment_methods: [] as { name: string; enabled: boolean }[],
     coming_soon: false,
+    homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string }[],
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
 
@@ -107,6 +124,7 @@ export function Settings() {
         business_hours: (settings.business_hours && settings.business_hours.length > 0) ? settings.business_hours : defaultBusinessHours,
         payment_methods: (settings.payment_methods && settings.payment_methods.length > 0) ? settings.payment_methods : defaultPaymentMethods,
         coming_soon: settings.coming_soon || false,
+        homepage_categories: settings.homepage_categories || [],
       });
     }
   }, [settings]);
@@ -203,6 +221,7 @@ export function Settings() {
 
   const tabs = [
     { id: 'store', label: 'Store Info' },
+    { id: 'categories', label: 'Home Categories' },
     { id: 'payments', label: 'Payments' },
     { id: 'shipping', label: 'Shipping' },
     { id: 'notifications', label: 'Notifications' },
@@ -463,6 +482,207 @@ export function Settings() {
                     onChange={(e) => handleBusinessHoursChange(day.day, 'close', e.target.value)}
                     className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Categories */}
+      {activeTab === 'categories' && (
+        <div className="space-y-6">
+          <Card className="p-8 bg-bg-dark border border-border-subtle relative overflow-hidden rounded-[2rem]">
+            <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-brand-red/5 rounded-full blur-[120px] pointer-events-none"></div>
+            
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Home Categories</h3>
+                <p className="text-sm text-gray-400 mt-1 font-bold uppercase tracking-wider">Configure the homepage deployment sectors and category cards</p>
+              </div>
+              <Button
+                onClick={() => {
+                  const newId = `custom_${Date.now()}`;
+                  setFormData(prev => ({
+                    ...prev,
+                    homepage_categories: [
+                      ...prev.homepage_categories,
+                      {
+                        id: newId,
+                        title: 'NEW CATEGORY',
+                        desc: 'Add descriptive details for this homepage category sector.',
+                        image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
+                        icon: 'Gamepad',
+                        count: '0 ASSETS'
+                      }
+                    ]
+                  }));
+                }}
+                className="bg-brand-red hover:bg-brand-red-hover text-white font-black uppercase italic tracking-wider px-6 py-3 rounded-xl transition-all duration-300"
+              >
+                <Plus className="w-4 h-4 mr-2" /> Add Category
+              </Button>
+            </div>
+
+            {/* Categories List/Editor Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {formData.homepage_categories.map((cat, idx) => (
+                <div key={cat.id || idx} className="p-6 bg-white/5 border border-white/10 rounded-3xl relative overflow-hidden flex flex-col justify-between group">
+                  {/* Category Image Preview & Info */}
+                  <div className="space-y-4">
+                    <div className="relative h-[160px] rounded-2xl overflow-hidden border border-white/10">
+                      <img 
+                        src={cat.image} 
+                        alt={cat.title} 
+                        className="w-full h-full object-cover grayscale opacity-70 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                      <div className="absolute bottom-4 left-4 flex items-center gap-3">
+                        <div className="p-2 bg-brand-red text-white rounded-lg">
+                          {cat.icon === 'Swords' && <Swords className="w-5 h-5" />}
+                          {cat.icon === 'Zap' && <Zap className="w-5 h-5" />}
+                          {cat.icon === 'Target' && <Target className="w-5 h-5" />}
+                          {cat.icon === 'Shield' && <Shield className="w-5 h-5" />}
+                          {cat.icon === 'Gamepad' && <Gamepad className="w-5 h-5" />}
+                          {cat.icon === 'Trophy' && <Trophy className="w-5 h-5" />}
+                          {cat.icon === 'Flame' && <Flame className="w-5 h-5" />}
+                          {cat.icon === 'Skull' && <Skull className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-black text-white italic uppercase tracking-tighter">{cat.title}</h4>
+                          <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{cat.count}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Inputs */}
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category Title</label>
+                          <input 
+                            type="text"
+                            value={cat.title}
+                            onChange={(e) => {
+                              const updated = [...formData.homepage_categories];
+                              updated[idx].title = e.target.value;
+                              setFormData({ ...formData, homepage_categories: updated });
+                            }}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Assets Count Text</label>
+                          <input 
+                            type="text"
+                            value={cat.count}
+                            onChange={(e) => {
+                              const updated = [...formData.homepage_categories];
+                              updated[idx].count = e.target.value;
+                              setFormData({ ...formData, homepage_categories: updated });
+                            }}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Short Description</label>
+                        <textarea 
+                          value={cat.desc}
+                          onChange={(e) => {
+                            const updated = [...formData.homepage_categories];
+                            updated[idx].desc = e.target.value;
+                            setFormData({ ...formData, homepage_categories: updated });
+                          }}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red resize-none"
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Lucide Icon</label>
+                          <select
+                            value={cat.icon}
+                            onChange={(e) => {
+                              const updated = [...formData.homepage_categories];
+                              updated[idx].icon = e.target.value;
+                              setFormData({ ...formData, homepage_categories: updated });
+                            }}
+                            className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
+                          >
+                            <option value="Swords">Swords</option>
+                            <option value="Zap">Zap</option>
+                            <option value="Target">Target</option>
+                            <option value="Shield">Shield</option>
+                            <option value="Gamepad">Gamepad</option>
+                            <option value="Trophy">Trophy</option>
+                            <option value="Flame">Flame</option>
+                            <option value="Skull">Skull</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Upload Art</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="file"
+                              accept="image/*"
+                              id={`art-upload-${cat.id || idx}`}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const res = await uploadAPI.uploadImage(file);
+                                    const updated = [...formData.homepage_categories];
+                                    updated[idx].image = res.url;
+                                    setFormData({ ...formData, homepage_categories: updated });
+                                  } catch (err) {
+                                    console.error('Image upload failed', err);
+                                  }
+                                }
+                              }}
+                            />
+                            <label 
+                              htmlFor={`art-upload-${cat.id || idx}`}
+                              className="w-full cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs font-bold"
+                            >
+                              <Upload className="w-3.5 h-3.5" /> Choose Image
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Image URL</label>
+                        <input 
+                          type="text"
+                          value={cat.image}
+                          onChange={(e) => {
+                            const updated = [...formData.homepage_categories];
+                            updated[idx].image = e.target.value;
+                            setFormData({ ...formData, homepage_categories: updated });
+                          }}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end mt-4 pt-4 border-t border-white/5">
+                    <Button
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          homepage_categories: prev.homepage_categories.filter((_, cIdx) => cIdx !== idx)
+                        }));
+                      }}
+                      className="bg-red-950/40 hover:bg-red-900 border border-red-900/50 text-red-400 rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove Category
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
