@@ -5,6 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import { adminRouter } from './admin/routes/index.js';
 import { apiRouter } from './routes/index.js';
+import { pool } from './db/pool.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +24,62 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'server', 'uploads')
 app.use('/admin', adminRouter);
 app.use('/api', apiRouter);
 
-// Start the server
-app.listen(port, () => {
-  console.log(`API Server running at http://localhost:${port}`);
+const defaultHomepageCategories = [
+  {
+    id: 'rpg',
+    title: 'ACTION & ADVENTURE RPG',
+    desc: 'Elite RPG titles and high-immersive adventure protocols.',
+    image: 'https://images.unsplash.com/photo-1605898399789-19794336e181?q=80&w=1000&auto=format&fit=crop',
+    icon: 'Swords',
+    count: '24 ASSETS',
+  },
+  {
+    id: 'sports',
+    title: 'SPORTS & RACING',
+    desc: 'Peak performance required. Master the field and the track.',
+    image: 'https://images.unsplash.com/photo-1547941126-3d5322b218b0?q=80&w=1000&auto=format&fit=crop',
+    icon: 'Zap',
+    count: '18 ASSETS',
+  },
+  {
+    id: 'shooter',
+    title: 'WARFARE & FPS',
+    desc: 'Tactical dominance. High-precision assets for elite operators.',
+    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
+    icon: 'Target',
+    count: '32 ASSETS',
+  },
+  {
+    id: 'horror',
+    title: 'HORROR & SURVIVAL',
+    desc: 'Nightmare scenarios. Survival is the only objective.',
+    image: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop',
+    icon: 'Shield',
+    count: '12 ASSETS',
+  },
+];
+
+async function ensureHomepageCategoriesSeeded() {
+  const [rows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['homepage_categories']);
+  const existing = rows?.[0]?.setting_value;
+  const existingTrimmed = typeof existing === 'string' ? existing.trim() : '';
+
+  if (!existingTrimmed || existingTrimmed === '[]') {
+    await pool.query(
+      'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+      ['homepage_categories', JSON.stringify(defaultHomepageCategories)],
+    );
+  }
+}
+
+async function bootstrap() {
+  await ensureHomepageCategoriesSeeded();
+  app.listen(port, () => {
+    console.log(`API Server running at http://localhost:${port}`);
+  });
+}
+
+bootstrap().catch((err) => {
+  console.error('Failed to start API server:', err);
+  process.exit(1);
 });

@@ -28,8 +28,11 @@ import { Footer } from './components/Footer';
 import { Game, CartItem, AccountType, AppView } from './types';
 import { GAMES_DATA } from './constants';
 import { productsAPI } from './utils/api';
+import { useStoreSettings } from './context/StoreSettingsContext';
+import { Facebook, Instagram, MessageCircle, Twitter } from 'lucide-react';
 
 export default function App() {
+  const { settings, loading: settingsLoading } = useStoreSettings();
   const [games, setGames] = useState<Game[]>(GAMES_DATA);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [view, setView] = useState<AppView>('home');
@@ -42,6 +45,8 @@ export default function App() {
 
   useEffect(() => {
     async function fetchProducts() {
+      if (settingsLoading) return;
+      if (settings?.coming_soon) return;
       try {
         const { products } = await productsAPI.getPublic();
         if (products && products.length > 0) {
@@ -76,7 +81,7 @@ export default function App() {
       }
     }
     fetchProducts();
-  }, []);
+  }, [settingsLoading, settings?.coming_soon]);
 
   useEffect(() => {
     if (isDark) {
@@ -251,6 +256,77 @@ export default function App() {
         return null;
     }
   };
+
+  if (!settingsLoading && settings?.coming_soon) {
+    const socialLinks = [
+      { key: 'instagram', url: settings?.instagram_url, label: 'Instagram', Icon: Instagram },
+      { key: 'facebook', url: settings?.facebook_url, label: 'Facebook', Icon: Facebook },
+      { key: 'whatsapp', url: settings?.whatsapp_url, label: 'WhatsApp', Icon: MessageCircle },
+      { key: 'twitter', url: settings?.twitter_url, label: 'X', Icon: Twitter },
+    ].filter((s) => !!s.url);
+
+    return (
+      <div className={`min-h-screen ${isDark ? 'dark' : ''} bg-bg-dark text-[var(--text-primary)] selection:bg-brand-red selection:text-white transition-colors duration-300`}>
+        <div className="min-h-screen flex items-center justify-center px-6 py-20 relative overflow-hidden">
+          <div className="absolute inset-0 grid-pattern opacity-[0.08]" />
+          <div className="absolute -top-24 -right-24 w-[420px] h-[420px] bg-brand-red/20 blur-[140px] rounded-full pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-[420px] h-[420px] bg-brand-red/10 blur-[140px] rounded-full pointer-events-none" />
+
+          <div className="relative z-10 max-w-2xl w-full bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 md:p-14 text-center shadow-2xl">
+            <p className="text-[10px] font-black text-brand-red tracking-[0.4em] uppercase italic mb-4">Maintenance Mode</p>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter font-display uppercase italic leading-none text-[var(--text-primary)]">
+              {settings?.store_name || settings?.website_title || 'Games Up'}
+              <span className="text-brand-red">.</span>
+            </h1>
+            <p className="mt-6 text-sm md:text-base font-bold uppercase tracking-widest text-text-secondary leading-relaxed">
+              Coming Soon. We’re preparing the store for launch.
+            </p>
+
+            <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
+              {settings?.store_email ? (
+                <a href={`mailto:${settings.store_email}`} className="btn-primary">
+                  Contact Support
+                </a>
+              ) : (
+                <a href="#contact" className="btn-primary">
+                  Contact Support
+                </a>
+              )}
+              <button type="button" onClick={toggleTheme} className="btn-secondary">
+                {isDark ? 'Light Mode' : 'Dark Mode'}
+              </button>
+            </div>
+
+            {(settings?.store_phone || settings?.store_email || socialLinks.length > 0) && (
+              <div className="mt-10 pt-8 border-t border-border-subtle">
+                <div className="flex flex-col gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-text-secondary">
+                  {settings?.store_phone && <div>{settings.store_phone}</div>}
+                  {settings?.store_email && <div>{settings.store_email}</div>}
+                </div>
+
+                {socialLinks.length > 0 && (
+                  <div className="mt-6 flex items-center justify-center gap-3">
+                    {socialLinks.map(({ key, url, label, Icon }) => (
+                      <a
+                        key={key}
+                        href={String(url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={label}
+                        className="h-10 w-10 border border-border-subtle flex items-center justify-center text-text-secondary hover:text-[var(--text-primary)] hover:border-brand-red transition-all bg-bg-card active:scale-95"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${isDark ? 'dark' : ''} bg-bg-dark text-[var(--text-primary)] selection:bg-brand-red selection:text-white transition-colors duration-300`}>

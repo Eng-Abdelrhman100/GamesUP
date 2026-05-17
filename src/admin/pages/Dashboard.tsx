@@ -117,7 +117,7 @@ export function Dashboard() {
       </div>
 
       {loading && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading dashboard...</div>
+        <div className="text-center py-8 text-text-secondary">Loading dashboard...</div>
       )}
 
       {/* Charts Row */}
@@ -126,22 +126,22 @@ export function Dashboard() {
         <Card className="lg:col-span-2 p-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Product Sales</h3>
+              <h3 className="font-semibold text-text-primary">Product Sales</h3>
               <div className="flex items-center gap-4 mt-2">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Sales: {numberFmt.format(totalSales)}</span>
+                  <span className="text-sm text-text-secondary">Total Sales: {numberFmt.format(totalSales)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Earning: {formatPrice(totalEarning)}</span>
+                  <span className="text-sm text-text-secondary">Total Earning: {formatPrice(totalEarning)}</span>
                 </div>
               </div>
             </div>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="px-3 py-1.5 text-sm border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
             >
               <option value="">All Category</option>
               {categories.map((c: any) => (
@@ -173,11 +173,11 @@ export function Dashboard() {
         {/* Traffic Source */}
         <Card className="p-8">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Sales by Traffic Source</h3>
+            <h3 className="font-semibold text-text-primary">Sales by Traffic Source</h3>
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as any)}
-              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="px-3 py-1.5 text-sm border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
             >
               <option value="monthly">Monthly</option>
               <option value="weekly">Weekly</option>
@@ -206,9 +206,9 @@ export function Dashboard() {
               <div key={item.name} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{item.name}</span>
+                  <span className="text-sm text-text-secondary">{item.name}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{item.value}%</span>
+                <span className="text-sm font-medium text-text-primary">{item.value}%</span>
               </div>
             ))}
           </div>
@@ -220,19 +220,19 @@ export function Dashboard() {
         {/* Top Products */}
         <Card className="p-8">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Top Selling Products</h3>
+            <h3 className="font-semibold text-text-primary">Top Selling Products</h3>
             <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">View All</button>
           </div>
           <div className="space-y-4">
             {topProducts.map((product) => (
-              <div key={product.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div key={product.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
                 <img src={product.image || '/placeholder-image.png'} alt={product.name} className="w-16 h-16 rounded-lg object-cover" />
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900 dark:text-white">{product.name}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{numberFmt.format(Number(product.sales) || 0)} sales</p>
+                  <h4 className="font-medium text-text-primary">{product.name}</h4>
+                  <p className="text-sm text-text-secondary">{numberFmt.format(Number(product.sales) || 0)} sales</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900 dark:text-white">{formatPrice(product.revenue)}</p>
+                  <p className="font-semibold text-text-primary">{formatPrice(product.revenue)}</p>
                 </div>
               </div>
             ))}
@@ -242,15 +242,15 @@ export function Dashboard() {
         {/* Recent Orders */}
         <Card className="p-8">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Recent Orders</h3>
+            <h3 className="font-semibold text-text-primary">Recent Orders</h3>
             <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">View All</button>
           </div>
           <div className="space-y-3">
             {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div key={order.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900 dark:text-white">{order.id}</span>
+                    <span className="font-medium text-text-primary">{order.id}</span>
                     <span
                       className={`px-2 py-0.5 rounded text-xs font-medium ${
                         String(order.status || '').toLowerCase() === 'completed'
@@ -263,11 +263,11 @@ export function Dashboard() {
                       {order.status}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{order.customer}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{order.date}</p>
+                  <p className="text-sm text-text-secondary mt-1">{order.customer}</p>
+                  <p className="text-xs text-text-secondary/70 mt-0.5">{order.date}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900 dark:text-white">{formatPrice(order.amount)}</p>
+                  <p className="font-semibold text-text-primary">{formatPrice(order.amount)}</p>
                 </div>
               </div>
             ))}

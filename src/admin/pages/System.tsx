@@ -340,26 +340,26 @@ export function System() {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Name</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Slug</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Icon</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Order</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-            <th className="text-right p-4 text-sm font-semibold text-gray-900 dark:text-white">Actions</th>
+          <tr className="border-b border-border-subtle">
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Name</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Slug</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Icon</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Order</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Status</th>
+            <th className="text-right p-4 text-sm font-semibold text-text-primary">Actions</th>
           </tr>
         </thead>
         <tbody>
           {categories.map((category) => (
-            <tr key={category.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-              <td className="p-4 text-sm text-gray-900 dark:text-white font-medium">{category.name}</td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">{category.slug}</td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
-                <div className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <tr key={category.id} className="border-b border-border-subtle">
+              <td className="p-4 text-sm text-text-primary font-medium">{category.name}</td>
+              <td className="p-4 text-sm text-text-secondary">{category.slug}</td>
+              <td className="p-4 text-sm text-text-secondary">
+                <div className="w-8 h-8 flex items-center justify-center bg-bg-secondary rounded-lg">
                   {renderIcon(category.icon)}
                 </div>
               </td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">{category.displayOrder}</td>
+              <td className="p-4 text-sm text-text-secondary">{category.displayOrder}</td>
               <td className="p-4">
                 <button
                   onClick={() => handleToggleStatus(category, 'categories')}
@@ -397,24 +397,24 @@ export function System() {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Name</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Category</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Slug</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Order</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-            <th className="text-right p-4 text-sm font-semibold text-gray-900 dark:text-white">Actions</th>
+          <tr className="border-b border-border-subtle">
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Name</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Category</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Slug</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Order</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Status</th>
+            <th className="text-right p-4 text-sm font-semibold text-text-primary">Actions</th>
           </tr>
         </thead>
         <tbody>
           {subCategories.map((subCategory) => (
-            <tr key={subCategory.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-              <td className="p-4 text-sm text-gray-900 dark:text-white font-medium">{subCategory.name}</td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
+            <tr key={subCategory.id} className="border-b border-border-subtle">
+              <td className="p-4 text-sm text-text-primary font-medium">{subCategory.name}</td>
+              <td className="p-4 text-sm text-text-secondary">
                 {categories.find(c => c.id === subCategory.categoryId)?.name || 'Unknown'}
               </td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">{subCategory.slug}</td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">{subCategory.displayOrder}</td>
+              <td className="p-4 text-sm text-text-secondary">{subCategory.slug}</td>
+              <td className="p-4 text-sm text-text-secondary">{subCategory.displayOrder}</td>
               <td className="p-4">
                 <button
                   onClick={() => handleToggleStatus(subCategory, 'subcategories')}
@@ -452,28 +452,28 @@ export function System() {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Name</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Type</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Required</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Order</th>
-            <th className="text-left p-4 text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-            <th className="text-right p-4 text-sm font-semibold text-gray-900 dark:text-white">Actions</th>
+          <tr className="border-b border-border-subtle">
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Name</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Type</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Required</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Order</th>
+            <th className="text-left p-4 text-sm font-semibold text-text-primary">Status</th>
+            <th className="text-right p-4 text-sm font-semibold text-text-primary">Actions</th>
           </tr>
         </thead>
         <tbody>
           {attributes.map((attribute) => (
-            <tr key={attribute.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-              <td className="p-4 text-sm text-gray-900 dark:text-white font-medium">{attribute.name}</td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400 capitalize">{attribute.type}</td>
+            <tr key={attribute.id} className="border-b border-border-subtle">
+              <td className="p-4 text-sm text-text-primary font-medium">{attribute.name}</td>
+              <td className="p-4 text-sm text-text-secondary capitalize">{attribute.type}</td>
               <td className="p-4">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  attribute.isRequired ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                  attribute.isRequired ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-bg-secondary text-text-secondary'
                 }`}>
                   {attribute.isRequired ? 'Required' : 'Optional'}
                 </span>
               </td>
-              <td className="p-4 text-sm text-gray-600 dark:text-gray-400">{attribute.displayOrder}</td>
+              <td className="p-4 text-sm text-text-secondary">{attribute.displayOrder}</td>
               <td className="p-4">
                 <button
                   onClick={() => handleToggleStatus(attribute, 'attributes')}
@@ -516,32 +516,32 @@ export function System() {
           {activeTab === 'categories' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Name</label>
                 <input
                   type="text"
                   value={editingItem.name}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Slug</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Slug</label>
                 <input
                   type="text"
                   value={editingItem.slug}
                   onChange={(e) => setEditingItem({ ...editingItem, slug: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Icon (Emoji, URL, or SVG Upload)</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Icon (Emoji, URL, or SVG Upload)</label>
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <input
                       type="text"
                       value={editingItem.icon}
                       onChange={(e) => setEditingItem({ ...editingItem, icon: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
+                      className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary mb-2"
                       placeholder="Emoji or URL"
                     />
                     <div className="flex items-center gap-2">
@@ -554,7 +554,7 @@ export function System() {
                       />
                       <label
                         htmlFor="icon-upload"
-                        className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                       >
                         {uploadingIcon ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -573,18 +573,18 @@ export function System() {
                       )}
                     </div>
                   </div>
-                  <div className="w-14 h-14 border border-gray-200 dark:border-gray-600 rounded-xl flex items-center justify-center bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                  <div className="w-14 h-14 border border-border-subtle rounded-xl flex items-center justify-center bg-bg-secondary/70 flex-shrink-0">
                     {renderIcon(editingItem.icon)}
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Display Order</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Display Order</label>
                 <input
                   type="number"
                   value={editingItem.displayOrder || 0}
                   onChange={(e) => setEditingItem({ ...editingItem, displayOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div className="flex items-center">
@@ -594,7 +594,7 @@ export function System() {
                   onChange={(e) => setEditingItem({ ...editingItem, isActive: e.target.checked })}
                   className="mr-2"
                 />
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Active</label>
+                <label className="text-sm font-medium text-text-secondary">Active</label>
               </div>
             </>
           )}
@@ -602,11 +602,11 @@ export function System() {
           {activeTab === 'subcategories' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Parent Category</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Parent Category</label>
                 <select
                   value={editingItem.categoryId}
                   onChange={(e) => setEditingItem({ ...editingItem, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 >
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -614,39 +614,39 @@ export function System() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Name</label>
                 <input
                   type="text"
                   value={editingItem.name}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Description</label>
                 <textarea
                   value={editingItem.description}
                   onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                   rows={3}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Slug</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Slug</label>
                 <input
                   type="text"
                   value={editingItem.slug}
                   onChange={(e) => setEditingItem({ ...editingItem, slug: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Display Order</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Display Order</label>
                 <input
                   type="number"
                   value={editingItem.displayOrder || 0}
                   onChange={(e) => setEditingItem({ ...editingItem, displayOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div className="flex items-center">
@@ -656,7 +656,7 @@ export function System() {
                   onChange={(e) => setEditingItem({ ...editingItem, isActive: e.target.checked })}
                   className="mr-2"
                 />
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Active</label>
+                <label className="text-sm font-medium text-text-secondary">Active</label>
               </div>
             </>
           )}
@@ -664,20 +664,20 @@ export function System() {
           {activeTab === 'attributes' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Name</label>
                 <input
                   type="text"
                   value={editingItem.name}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Type</label>
                 <select
                   value={editingItem.type}
                   onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 >
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -687,22 +687,22 @@ export function System() {
               </div>
               {editingItem.type === 'select' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Options (comma-separated)</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">Options (comma-separated)</label>
                   <input
                     type="text"
                     value={editingItem.options?.join(', ') || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, options: e.target.value.split(',').map(s => s.trim()) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Display Order</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Display Order</label>
                 <input
                   type="number"
                   value={editingItem.displayOrder || 0}
                   onChange={(e) => setEditingItem({ ...editingItem, displayOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
                 />
               </div>
               <div className="flex items-center">
@@ -712,7 +712,7 @@ export function System() {
                   onChange={(e) => setEditingItem({ ...editingItem, isRequired: e.target.checked })}
                   className="mr-2"
                 />
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Required</label>
+                <label className="text-sm font-medium text-text-secondary">Required</label>
               </div>
               <div className="flex items-center">
                 <input
@@ -721,7 +721,7 @@ export function System() {
                   onChange={(e) => setEditingItem({ ...editingItem, isActive: e.target.checked })}
                   className="mr-2"
                 />
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Active</label>
+                <label className="text-sm font-medium text-text-secondary">Active</label>
               </div>
             </>
           )}
@@ -745,19 +745,19 @@ export function System() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">System Configuration</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage categories, sub-categories, and product attributes</p>
+          <h1 className="text-3xl font-bold text-text-primary">System Configuration</h1>
+          <p className="text-text-secondary mt-1">Manage categories, sub-categories, and product attributes</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-2 border-b border-border-subtle">
         <button
           onClick={() => setActiveTab('categories')}
           className={`px-4 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'categories'
-              ? 'border-red-600 text-white'
-              : 'border-transparent text-white hover:text-red-300'
+              ? 'border-brand-red text-text-primary'
+              : 'border-transparent text-text-secondary hover:text-brand-red'
           }`}
         >
           <Tag className="w-4 h-4" />
@@ -767,8 +767,8 @@ export function System() {
           onClick={() => setActiveTab('subcategories')}
           className={`px-4 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'subcategories'
-              ? 'border-red-600 text-white'
-              : 'border-transparent text-white hover:text-red-300'
+              ? 'border-brand-red text-text-primary'
+              : 'border-transparent text-text-secondary hover:text-brand-red'
           }`}
         >
           <FolderTree className="w-4 h-4" />
@@ -778,8 +778,8 @@ export function System() {
           onClick={() => setActiveTab('attributes')}
           className={`px-4 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
             activeTab === 'attributes'
-              ? 'border-red-600 text-white'
-              : 'border-transparent text-white hover:text-red-300'
+              ? 'border-brand-red text-text-primary'
+              : 'border-transparent text-text-secondary hover:text-brand-red'
           }`}
         >
           <SettingsIcon className="w-4 h-4" />
@@ -791,7 +791,7 @@ export function System() {
       <Card className="p-8">
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white capitalize">{activeTab}</h2>
+            <h2 className="text-xl font-semibold text-text-primary capitalize">{activeTab}</h2>
             <div className="flex gap-2">
               {activeTab === 'categories' && categories.length === 0 && (
                 <Button onClick={initializeDemoData} variant="secondary">
@@ -808,7 +808,7 @@ export function System() {
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-              <p className="text-gray-600 dark:text-gray-400 mt-4">Loading...</p>
+              <p className="text-text-secondary mt-4">Loading...</p>
             </div>
           ) : (
             <>

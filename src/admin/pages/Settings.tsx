@@ -19,13 +19,14 @@ import {
   Skull 
 } from 'lucide-react';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
-import { authAPI, uploadAPI } from '../../utils/api';
+import { authAPI, categoriesAPI, uploadAPI } from '../../utils/api';
 // import { BASE_URL, authAPI } from '../../utils/api';
 
 export function Settings() {
   const { settings, updateSettings, loading: settingsLoading } = useStoreSettings();
   const [activeTab, setActiveTab] = useState('store');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [systemCategories, setSystemCategories] = useState<any[]>([]);
   
   // Local state for password change
   const [passwordForm, setPasswordForm] = useState({
@@ -85,9 +86,20 @@ export function Settings() {
     business_hours: [] as { day: string; open: string; close: string }[],
     payment_methods: [] as { name: string; enabled: boolean }[],
     coming_soon: false,
-    homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string }[],
+    homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string; system_category_slug?: string }[],
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    categoriesAPI.getAll()
+      .then((items: any[]) => {
+        const active = (items || []).filter((c: any) => c?.is_active !== false);
+        setSystemCategories(active);
+      })
+      .catch(() => {
+        setSystemCategories([]);
+      });
+  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -106,9 +118,9 @@ export function Settings() {
       }));
 
       setFormData({
-        currency_code: settings.currency_code,
-        currency_symbol: settings.currency_symbol,
-        tax_rate: settings.tax_rate,
+        currency_code: settings.currency_code || 'USD',
+        currency_symbol: settings.currency_symbol || '$',
+        tax_rate: typeof settings.tax_rate === 'number' && !Number.isNaN(settings.tax_rate) ? settings.tax_rate : 0,
         website_title: settings.website_title || '',
         website_description: settings.website_description || '',
         website_favicon: settings.website_favicon || '',
@@ -121,10 +133,17 @@ export function Settings() {
         facebook_url: settings.facebook_url || '',
         whatsapp_url: settings.whatsapp_url || '',
         twitter_url: settings.twitter_url || '',
-        business_hours: (settings.business_hours && settings.business_hours.length > 0) ? settings.business_hours : defaultBusinessHours,
+        business_hours: ((settings.business_hours && settings.business_hours.length > 0) ? settings.business_hours : defaultBusinessHours).map((bh: any) => ({
+          day: String(bh?.day ?? ''),
+          open: bh?.open == null ? '' : String(bh.open),
+          close: bh?.close == null ? '' : String(bh.close),
+        })),
         payment_methods: (settings.payment_methods && settings.payment_methods.length > 0) ? settings.payment_methods : defaultPaymentMethods,
         coming_soon: settings.coming_soon || false,
-        homepage_categories: settings.homepage_categories || [],
+        homepage_categories: (settings.homepage_categories || []).map((c: any) => ({
+          ...c,
+          system_category_slug: c?.system_category_slug ?? '',
+        })),
       });
     }
   }, [settings]);
@@ -471,14 +490,14 @@ export function Settings() {
                   <div className="w-24 text-sm text-gray-700 dark:text-gray-300">{day.day}</div>
                   <input
                     type="time"
-                    value={day.open}
+                    value={day.open ?? ''}
                     onChange={(e) => handleBusinessHoursChange(day.day, 'open', e.target.value)}
                     className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-gray-500 dark:text-gray-400">to</span>
                   <input
                     type="time"
-                    value={day.close}
+                    value={day.close ?? ''}
                     onChange={(e) => handleBusinessHoursChange(day.day, 'close', e.target.value)}
                     className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -509,10 +528,10 @@ export function Settings() {
                       setFormData(prev => ({
                         ...prev,
                         homepage_categories: [
-                          { id: 'rpg', title: 'ACTION & RPG', desc: 'Immersion protocols engaged. Explore vast digital frontiers.', image: 'https://images.unsplash.com/photo-1605898399789-19794336e181?q=80&w=1000&auto=format&fit=crop', icon: 'Swords', count: '24 ASSETS' },
-                          { id: 'sports', title: 'SPORTS & RACING', desc: 'Peak performance required. Master the field and the track.', image: 'https://images.unsplash.com/photo-1547941126-3d5322b218b0?q=80&w=1000&auto=format&fit=crop', icon: 'Zap', count: '18 ASSETS' },
-                          { id: 'shooter', title: 'WARFARE & FPS', desc: 'Tactical dominance. High-precision assets for elite operators.', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop', icon: 'Target', count: '32 ASSETS' },
-                          { id: 'horror', title: 'HORROR & SURVIVAL', desc: 'Nightmare scenarios. Survival is the only objective.', image: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop', icon: 'Shield', count: '12 ASSETS' },
+                          { id: 'rpg', title: 'ACTION & ADVENTURE RPG', desc: 'Elite RPG titles and high-immersive adventure protocols.', image: 'https://images.unsplash.com/photo-1605898399789-19794336e181?q=80&w=1000&auto=format&fit=crop', icon: 'Swords', count: '24 ASSETS', system_category_slug: '' },
+                          { id: 'sports', title: 'SPORTS & RACING', desc: 'Peak performance required. Master the field and the track.', image: 'https://images.unsplash.com/photo-1547941126-3d5322b218b0?q=80&w=1000&auto=format&fit=crop', icon: 'Zap', count: '18 ASSETS', system_category_slug: '' },
+                          { id: 'shooter', title: 'WARFARE & FPS', desc: 'Tactical dominance. High-precision assets for elite operators.', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop', icon: 'Target', count: '32 ASSETS', system_category_slug: '' },
+                          { id: 'horror', title: 'HORROR & SURVIVAL', desc: 'Nightmare scenarios. Survival is the only objective.', image: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop', icon: 'Shield', count: '12 ASSETS', system_category_slug: '' },
                         ]
                       }));
                     }}
@@ -533,7 +552,8 @@ export function Settings() {
                           desc: 'Add descriptive details for this homepage category sector.',
                           image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
                           icon: 'Gamepad',
-                          count: '0 ASSETS'
+                          count: '0 ASSETS',
+                          system_category_slug: ''
                         }
                       ]
                     }));
@@ -608,7 +628,7 @@ export function Settings() {
                               )
                             }));
                           }}
-                          placeholder="e.g. ACTION & RPG"
+                          placeholder="e.g. ACTION & ADVENTURE RPG"
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
                         />
                       </div>
@@ -630,6 +650,30 @@ export function Settings() {
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">System Category</label>
+                      <select
+                        value={cat.system_category_slug ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setFormData(prev => ({
+                            ...prev,
+                            homepage_categories: prev.homepage_categories.map((c, i) =>
+                              i === idx ? { ...c, system_category_slug: v } : c
+                            )
+                          }));
+                        }}
+                        className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
+                      >
+                        <option value="">Auto (based on title)</option>
+                        {systemCategories.map((c: any) => (
+                          <option key={c.slug} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>

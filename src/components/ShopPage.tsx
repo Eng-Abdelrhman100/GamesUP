@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Filter, Search, Grid, List as ListIcon, Star, ShoppingCart, SlidersHorizontal, X, ArrowLeft, Heart } from 'lucide-react';
 import { Game } from '../types';
@@ -20,7 +20,7 @@ export const ShopPage = ({
   favorites = [],
   onToggleFavorite
 }: ShopPageProps) => {
-  const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
+  const [activeCategory, setActiveCategory] = useState<string>(String(initialCategory || 'ALL').toUpperCase());
   const [searchQuery, setSearchQuery] = useState('');
   const [priceSort, setPriceSort] = useState<'LOW' | 'HIGH' | 'DEFAULT'| 'AZ' | 'ZA'>('DEFAULT');
   const [showFilters, setShowFilters] = useState(false);
@@ -29,12 +29,21 @@ export const ShopPage = ({
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
 
-  const categories = ['ALL', 'ACTION', 'RPG', 'SPORTS', 'SHOOTER', 'HORROR'];
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of games) {
+      const c = String((g as any)?.category || '').trim();
+      if (c) set.add(c.toUpperCase());
+    }
+    const dynamic = Array.from(set).sort();
+    return ['ALL', ...dynamic];
+  }, [games]);
   const statuses = ['ALL', 'IN STOCK', 'NEW', 'LIMITED', 'OUT OF STOCK'];
   const tiers = ['ALL', 'PLATINUM', 'GOLD', 'SILVER'];
 
   const filteredGames = games.filter(game => {
-    const matchesCategory = activeCategory === 'ALL' || (game.category || '').toUpperCase().includes(activeCategory);
+    const matchesCategory =
+      activeCategory === 'ALL' || (game.category || '').toUpperCase().includes(String(activeCategory).toUpperCase());
     const matchesSearch = game.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || game.status === statusFilter;
     const matchesTier = tierFilter === 'ALL' || game.accountTypes.some(t => t.tier === tierFilter && t.isAvailable);
@@ -107,7 +116,7 @@ export const ShopPage = ({
           {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => setActiveCategory(String(cat).toUpperCase())}
               className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic whitespace-nowrap transition-all ${
                 activeCategory === cat 
                   ? 'bg-brand-red text-white shadow-lg shadow-brand-red/20' 

@@ -28,6 +28,7 @@ interface StoreSettings {
     image: string;
     icon: string;
     count: string;
+    system_category_slug?: string;
   }[];
 }
 
@@ -60,11 +61,12 @@ const defaultSettings: StoreSettings = {
   homepage_categories: [
     {
       id: 'rpg',
-      title: 'ACTION & RPG',
-      desc: 'Immersion protocols engaged. Explore vast digital frontiers.',
+      title: 'ACTION & ADVENTURE RPG',
+      desc: 'Elite RPG titles and high-immersive adventure protocols.',
       image: 'https://images.unsplash.com/photo-1605898399789-19794336e181?q=80&w=1000&auto=format&fit=crop',
       icon: 'Swords',
-      count: '24 ASSETS'
+      count: '24 ASSETS',
+      system_category_slug: ''
     },
     {
       id: 'sports',
@@ -72,7 +74,8 @@ const defaultSettings: StoreSettings = {
       desc: 'Peak performance required. Master the field and the track.',
       image: 'https://images.unsplash.com/photo-1547941126-3d5322b218b0?q=80&w=1000&auto=format&fit=crop',
       icon: 'Zap',
-      count: '18 ASSETS'
+      count: '18 ASSETS',
+      system_category_slug: ''
     },
     {
       id: 'shooter',
@@ -80,7 +83,8 @@ const defaultSettings: StoreSettings = {
       desc: 'Tactical dominance. High-precision assets for elite operators.',
       image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
       icon: 'Target',
-      count: '32 ASSETS'
+      count: '32 ASSETS',
+      system_category_slug: ''
     },
     {
       id: 'horror',
@@ -88,7 +92,8 @@ const defaultSettings: StoreSettings = {
       desc: 'Nightmare scenarios. Survival is the only objective.',
       image: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop',
       icon: 'Shield',
-      count: '12 ASSETS'
+      count: '12 ASSETS',
+      system_category_slug: ''
     }
   ]
 };

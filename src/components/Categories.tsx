@@ -41,6 +41,8 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categoriesList.map((cat, idx) => {
             const Icon = getIcon(cat.icon);
+            const selectedCategory = String((cat as any).system_category_slug || '').trim();
+            const categoryFilter = (selectedCategory || getCleanCategoryId(cat.title)).toUpperCase();
             return (
               <motion.div
                 key={cat.id || idx}
@@ -48,7 +50,7 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
                 viewport={{ once: true }}
-                onClick={() => onCategoryClick(getCleanCategoryId(cat.title))}
+                onClick={() => onCategoryClick(categoryFilter)}
                 className="group relative h-[500px] rounded-[2.5rem] overflow-hidden cursor-pointer border border-border-subtle"
               >
                 {/* Background Image */}
