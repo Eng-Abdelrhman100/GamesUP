@@ -562,11 +562,14 @@ export function Settings() {
                           <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category Title</label>
                           <input 
                             type="text"
-                            value={cat.title}
+                            value={cat.title ?? ''}
                             onChange={(e) => {
-                              const updated = [...formData.homepage_categories];
-                              updated[idx].title = e.target.value;
-                              setFormData({ ...formData, homepage_categories: updated });
+                              setFormData(prev => {
+                                const updated = prev.homepage_categories.map((c, i) =>
+                                  i === idx ? { ...c, title: e.target.value } : c
+                                );
+                                return { ...prev, homepage_categories: updated };
+                              });
                             }}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
                           />
@@ -575,11 +578,14 @@ export function Settings() {
                           <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Assets Count Text</label>
                           <input 
                             type="text"
-                            value={cat.count}
+                            value={cat.count ?? ''}
                             onChange={(e) => {
-                              const updated = [...formData.homepage_categories];
-                              updated[idx].count = e.target.value;
-                              setFormData({ ...formData, homepage_categories: updated });
+                              setFormData(prev => {
+                                const updated = prev.homepage_categories.map((c, i) =>
+                                  i === idx ? { ...c, count: e.target.value } : c
+                                );
+                                return { ...prev, homepage_categories: updated };
+                              });
                             }}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
                           />
@@ -589,11 +595,14 @@ export function Settings() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Short Description</label>
                         <textarea 
-                          value={cat.desc}
+                          value={cat.desc ?? ''}
                           onChange={(e) => {
-                            const updated = [...formData.homepage_categories];
-                            updated[idx].desc = e.target.value;
-                            setFormData({ ...formData, homepage_categories: updated });
+                            setFormData(prev => {
+                              const updated = prev.homepage_categories.map((c, i) =>
+                                i === idx ? { ...c, desc: e.target.value } : c
+                              );
+                              return { ...prev, homepage_categories: updated };
+                            });
                           }}
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red resize-none"
                           rows={2}
@@ -604,11 +613,14 @@ export function Settings() {
                         <div>
                           <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Lucide Icon</label>
                           <select
-                            value={cat.icon}
+                            value={cat.icon ?? 'Gamepad'}
                             onChange={(e) => {
-                              const updated = [...formData.homepage_categories];
-                              updated[idx].icon = e.target.value;
-                              setFormData({ ...formData, homepage_categories: updated });
+                              setFormData(prev => {
+                                const updated = prev.homepage_categories.map((c, i) =>
+                                  i === idx ? { ...c, icon: e.target.value } : c
+                                );
+                                return { ...prev, homepage_categories: updated };
+                              });
                             }}
                             className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
                           >
@@ -635,11 +647,16 @@ export function Settings() {
                                 if (file) {
                                   try {
                                     const res = await uploadAPI.uploadImage(file);
-                                    const updated = [...formData.homepage_categories];
-                                    updated[idx].image = res.url;
-                                    setFormData({ ...formData, homepage_categories: updated });
+                                    // Use functional updater to avoid stale closure
+                                    setFormData(prev => {
+                                      const updated = prev.homepage_categories.map((c, i) =>
+                                        i === idx ? { ...c, image: res.url } : c
+                                      );
+                                      return { ...prev, homepage_categories: updated };
+                                    });
                                   } catch (err) {
                                     console.error('Image upload failed', err);
+                                    alert('Failed to upload image. Please check server connection.');
                                   }
                                 }
                               }}
@@ -658,11 +675,14 @@ export function Settings() {
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Image URL</label>
                         <input 
                           type="text"
-                          value={cat.image}
+                          value={cat.image ?? ''}
                           onChange={(e) => {
-                            const updated = [...formData.homepage_categories];
-                            updated[idx].image = e.target.value;
-                            setFormData({ ...formData, homepage_categories: updated });
+                            setFormData(prev => {
+                              const updated = prev.homepage_categories.map((c, i) =>
+                                i === idx ? { ...c, image: e.target.value } : c
+                              );
+                              return { ...prev, homepage_categories: updated };
+                            });
                           }}
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
                         />
