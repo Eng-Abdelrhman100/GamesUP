@@ -20,7 +20,18 @@ export async function authMiddleware(req, res, next) {
     }
 
     const userRow = rows[0];
-    const permissions = userRow.permissions ? JSON.parse(userRow.permissions) : null;
+    let permissions = null;
+    if (userRow.permissions) {
+      if (typeof userRow.permissions === 'string') {
+        try {
+          permissions = JSON.parse(userRow.permissions);
+        } catch {
+          permissions = null;
+        }
+      } else {
+        permissions = userRow.permissions;
+      }
+    }
     req.user = {
       id: userRow.id,
       email: userRow.email,

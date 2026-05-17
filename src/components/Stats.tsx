@@ -2,8 +2,8 @@ import React from 'react';
 import { Gamepad2, Package, ShieldCheck, Zap } from 'lucide-react';
 
 const statItems = [
-  { value: '338', label: 'GAMES', icon: Gamepad2 },
-  { value: '244', label: 'IN STOCK', icon: Package },
+  { value: '338', label: 'PRODUCTS', icon: Gamepad2 },
+  { value: 'TRUSTED', label: 'MARKET PLACE', icon: Package },
   { value: '24/7', label: 'SUPPORT', icon: ShieldCheck },
   { value: 'FAST', label: 'DELIVERY', icon: Zap }
 ];

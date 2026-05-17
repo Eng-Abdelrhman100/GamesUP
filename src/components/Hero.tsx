@@ -25,8 +25,7 @@ export const Hero = () => (
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="text-4xl sm:text-7xl md:text-[140px] lg:text-[160px] leading-[1] md:leading-[0.8] font-black tracking-tighter text-[var(--text-primary)] uppercase mb-8 md:mb-10 drop-shadow-2xl italic font-display transition-colors break-words overflow-hidden"
       >
-        EGYPT'S <span className="text-transparent text-stroke-white">ELITE</span> <br className="hidden sm:block" />
-        GAME <span className="text-brand-red">ARMORY</span>
+        Games<span className="text-brand-red">Up</span> Community
       </motion.h2>
       
       <motion.p 
@@ -46,7 +45,7 @@ export const Hero = () => (
         className="flex flex-col sm:flex-row gap-6 items-center"
       >
         <button className="btn-primary h-14 px-12 text-sm">
-          EXPLORE STORE
+          SHOP NOW
         </button>
         <button className="btn-secondary h-14 px-12 text-sm italic">
           WHATSAPP SUPPORT

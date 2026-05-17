@@ -206,23 +206,20 @@ export const tasksAPI = {
 // Team API
 export const teamAPI = {
   getAll: async () => {
-    const data = await requestJson<any[]>(`/employees`, { auth: 'admin' });
-    return data.map((emp: any) => ({ ...emp, avatar: emp.image }));
+    const data = await requestJson<any[]>(`/admin/users`, { auth: 'admin' });
+    return (data || []).map((u: any) => ({
+      ...u,
+      avatar: u.avatar,
+    }));
   },
   create: async (member: any) => {
-    const { avatar, status, identity_document, password, ...memberWithoutAvatar } = member;
-    const payload = { ...memberWithoutAvatar };
-    if (avatar !== undefined) payload.image = avatar;
-    return requestJson<any>(`/employees`, { method: 'POST', body: payload, auth: 'admin' });
+    return requestJson<any>(`/admin/users`, { method: 'POST', body: member, auth: 'admin' });
   },
   update: async (id: string | number, member: any) => {
-    const { avatar, status, identity_document, password, ...memberWithoutAvatar } = member;
-    const payload = { ...memberWithoutAvatar };
-    if (avatar !== undefined) payload.image = avatar;
-    return requestJson<any>(`/employees/${id}`, { method: 'PUT', body: payload, auth: 'admin' });
+    return requestJson<any>(`/admin/users/${id}`, { method: 'PUT', body: member, auth: 'admin' });
   },
   delete: async (id: string | number) => {
-    await requestJson(`/employees/${id}`, { method: 'DELETE', auth: 'admin' });
+    await requestJson(`/admin/users/${id}`, { method: 'DELETE', auth: 'admin' });
     return true;
   },
 };

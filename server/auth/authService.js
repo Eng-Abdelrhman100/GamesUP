@@ -13,7 +13,18 @@ function getJwtExpiresIn() {
 }
 
 function toSupabaseLikeUser(row) {
-  const permissions = row.permissions ? JSON.parse(row.permissions) : null;
+  let permissions = null;
+  if (row.permissions) {
+    if (typeof row.permissions === 'string') {
+      try {
+        permissions = JSON.parse(row.permissions);
+      } catch {
+        permissions = null;
+      }
+    } else {
+      permissions = row.permissions;
+    }
+  }
   return {
     id: row.id,
     email: row.email,

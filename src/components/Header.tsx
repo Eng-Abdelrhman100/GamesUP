@@ -35,6 +35,13 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-[var(--glass-bg)] backdrop-blur-md border-b border-border-subtle transition-all duration-300">
+      <div className="w-full border-b border-border-subtle bg-bg-card/40">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-2">
+          <div className="text-center text-[10px] md:text-[11px] font-black uppercase tracking-[0.25em] italic text-text-secondary">
+            More Games, Less Waiting
+          </div>
+        </div>
+      </div>
       <nav className="max-w-[1400px] mx-auto px-6 md:px-10 py-4 md:py-6 flex items-center justify-between">
         <div className="flex items-center gap-12">
           <div 
