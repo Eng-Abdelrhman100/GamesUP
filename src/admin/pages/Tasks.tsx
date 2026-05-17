@@ -53,12 +53,22 @@ export function Tasks() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tasksData, teamData] = await Promise.all([
-        tasksAPI.getAll(),
-        teamAPI.getAll()
-      ]);
-      setTasks(tasksData);
-      setTeamMembers(teamData);
+      const results = await Promise.allSettled([tasksAPI.getAll(), teamAPI.getAll()]);
+      const tasksResult = results[0];
+      const teamResult = results[1];
+
+      if (tasksResult.status === 'fulfilled') {
+        setTasks(tasksResult.value);
+      } else {
+        console.error('Error fetching tasks:', tasksResult.reason);
+      }
+
+      if (teamResult.status === 'fulfilled') {
+        setTeamMembers(teamResult.value);
+      } else {
+        console.error('Error fetching users:', teamResult.reason);
+        setTeamMembers([]);
+      }
     } catch (error) {
       console.error('Error fetching task data:', error);
     } finally {

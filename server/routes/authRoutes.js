@@ -105,7 +105,7 @@ authRoutes.put('/auth/profile', requireAuth, async (req, res) => {
       email: row.email,
       user_metadata: {
         name: row.name || null,
-        role: row.role || null,
+        role: row.role ? String(row.role).trim().toLowerCase() : null,
         theme: row.theme || null,
         permissions: row.permissions ? JSON.parse(row.permissions) : null,
         phone: row.phone || null,

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { MessageSquare, Play } from 'lucide-react';
 
-export const Hero = () => (
+export const Hero = ({ onShopNow }: { onShopNow?: () => void }) => (
   <section className="relative pt-64 pb-32 overflow-hidden grid-pattern">
     {/* Gradient Overlay for better contrast */}
     <div className="absolute inset-x-0 bottom-0 h-96 bg-gradient-to-t from-bg-dark via-bg-dark/80 to-transparent transition-colors duration-300"></div>
@@ -34,8 +34,7 @@ export const Hero = () => (
         transition={{ duration: 0.6, delay: 0.3 }}
         className="text-base md:text-xl text-text-secondary max-w-2xl mb-10 md:mb-14 leading-relaxed font-medium tracking-wide transition-colors"
       >
-        Primary & Secondary digital accounts delivered via WhatsApp in minutes.<br />
-        Unbeatable pricing for the modern Egyptian gamer.
+        Welcome to Gamesup, your trusted gaming hub! Level up with secure PlayStation digital accounts (Full, Primary &amp; Secondary), PS Plus subscriptions, and instant game top-ups. Dive into PC gaming with premium Steam accounts, or shop our latest consoles, accessories, and physical games.
       </motion.p>
       
       <motion.div 
@@ -44,7 +43,7 @@ export const Hero = () => (
         transition={{ duration: 0.6, delay: 0.4 }}
         className="flex flex-col sm:flex-row gap-6 items-center"
       >
-        <button className="btn-primary h-14 px-12 text-sm">
+        <button className="btn-primary h-14 px-12 text-sm" onClick={onShopNow}>
           SHOP NOW
         </button>
         <button className="btn-secondary h-14 px-12 text-sm italic">

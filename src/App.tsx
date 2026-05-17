@@ -129,6 +129,13 @@ export default function App() {
     window.scrollTo(0, 0);
   };
   
+  const handleShopNow = () => {
+    setSelectedGame(null);
+    setShopCategory('ALL');
+    setView('shop');
+    window.scrollTo(0, 0);
+  };
+
   const handleSeeAll = () => {
     setShopCategory('ALL');
     setView('shop');
@@ -177,7 +184,7 @@ export default function App() {
       case 'home':
         return (
           <>
-            <Hero />
+            <Hero onShopNow={handleShopNow} />
             <Stats />
             <Categories onCategoryClick={handleCategoryClick} />
             

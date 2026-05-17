@@ -98,7 +98,7 @@ export function TeamMembers() {
       if (editingUser) {
         await teamAPI.update(editingUser.id, payload);
       } else {
-        await rolesAPI.createAdminUser(payload);
+        await teamAPI.create(payload);
       }
 
       setShowModal(false);

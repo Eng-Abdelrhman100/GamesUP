@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
@@ -50,14 +50,30 @@ export default function AdminApp() {
   const [user, setUser] = useState<any>(null);
   const [session, setSession] = useState<any>(null);
   const [dynamicRoles, setDynamicRoles] = useState<any[]>([]);
+  const refreshedUserRef = useRef(false);
+
+  const normalizeRole = (role: any) => {
+    const r = String(role || '').trim().toLowerCase();
+    if (!r) return 'staff';
+    if (r === 'mgr' || r === 'managerial' || r.startsWith('manager')) return 'manager';
+    if (r === 'employee') return 'staff';
+    if (r === 'superadmin' || r === 'super_admin' || r === 'administrator') return 'admin';
+    return r;
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
-      rolesAPI.getAll().then((data: any) => {
-        if (data && data.roles) setDynamicRoles(data.roles);
-      }).catch(console.error);
+      const role = normalizeRole(user?.user_metadata?.role);
+      if (role === 'admin' || role === 'manager') {
+        rolesAPI
+          .getAll()
+          .then((data: any) => {
+            if (data && data.roles) setDynamicRoles(data.roles);
+          })
+          .catch(() => {});
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
@@ -86,6 +102,20 @@ export default function AdminApp() {
       console.log('Removed dark class from document element');
     }
   }, [isDarkMode, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !session?.access_token || refreshedUserRef.current) return;
+    refreshedUserRef.current = true;
+    authAPI
+      .getCurrentUser()
+      .then((freshUser) => {
+        if (freshUser) {
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated, session]);
 
   useEffect(() => {
     // Check for existing session in localStorage
@@ -150,13 +180,13 @@ export default function AdminApp() {
     localStorage.removeItem('session');
   };
 
-  const currentRoleName = user?.user_metadata?.role || 'admin';
+  const currentRoleName = normalizeRole(user?.user_metadata?.role);
   const customRole = dynamicRoles.find(r => r.name === currentRoleName);
   const effectivePermissions = customRole?.permissions || user?.user_metadata?.permissions || null;
 
   const hasRoleAccess = (screenId: string) => {
     const role = currentRoleName;
-    if (role === 'admin') return true;
+    if (role === 'admin' || role === 'manager') return true;
     if (!effectivePermissions || Object.keys(effectivePermissions).length === 0) return false;
     const val = effectivePermissions[screenId];
     return val === true || val === 'read' || val === 'write';

@@ -33,6 +33,8 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
       const data = await api.get('notifications');
       setNotifications(data || []);
     } catch (error) {
+      const status = (error as any)?.status;
+      if (status === 403) return;
       console.error('Failed to fetch notifications:', error);
     }
   };
@@ -71,7 +73,8 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
   };
 
   const userName = user?.user_metadata?.name || user?.email || 'User';
-  const userRole = user?.user_metadata?.role || 'admin';
+  const userRoleRaw = user?.user_metadata?.role;
+  const userRole = String(userRoleRaw || 'staff').trim().toLowerCase().startsWith('manager') || String(userRoleRaw || '').trim().toLowerCase() === 'managerial' ? 'manager' : String(userRoleRaw || 'staff').trim().toLowerCase();
   const initials = getInitials(userName);
   const unreadCount = notifications.filter(n => !n.is_read).length;
 

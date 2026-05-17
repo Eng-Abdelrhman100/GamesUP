@@ -15,7 +15,15 @@ export function AdminRoute({ children }: { children: ReactNode }) {
 
   try {
     const parsed = JSON.parse(savedUser);
-    const role = parsed?.user_metadata?.role;
+    const raw = String(parsed?.user_metadata?.role || '').trim().toLowerCase();
+    const role =
+      raw === 'mgr' || raw === 'managerial' || raw.startsWith('manager')
+        ? 'manager'
+        : raw === 'employee'
+          ? 'staff'
+          : raw === 'superadmin' || raw === 'super_admin' || raw === 'administrator'
+            ? 'admin'
+            : raw;
     if (!role) {
       localStorage.removeItem('session');
       localStorage.removeItem('user');

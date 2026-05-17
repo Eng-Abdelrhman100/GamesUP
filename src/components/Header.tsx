@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, ShoppingCart, Menu, X, Sun, Moon, Package, Heart, Info, Headset, Store, ShoppingBag, Gamepad2, User } from 'lucide-react';
 import { AppView } from '../types';
@@ -16,6 +16,9 @@ interface HeaderProps {
 export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClick, onViewChange, currentView }: HeaderProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
 
   const navLinks: { label: string; view: AppView; icon: any }[] = [
     { label: 'Intelligence HQ', view: 'home', icon: Store },
@@ -33,8 +36,41 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
     setIsMobileMenuOpen(false);
   };
 
+  useEffect(() => {
+    lastScrollYRef.current = window.scrollY || 0;
+
+    const onScroll = () => {
+      if (rafRef.current != null) return;
+      rafRef.current = window.requestAnimationFrame(() => {
+        const y = window.scrollY || 0;
+        const last = lastScrollYRef.current;
+
+        if (y <= 10) {
+          setIsHeaderVisible(true);
+        } else if (y > last + 8) {
+          setIsHeaderVisible(false);
+        } else if (y < last - 8) {
+          setIsHeaderVisible(true);
+        }
+
+        lastScrollYRef.current = y;
+        rafRef.current = null;
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const shouldShowHeader = isMobileMenuOpen || isHeaderVisible;
+
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-[var(--glass-bg)] backdrop-blur-md border-b border-border-subtle transition-all duration-300">
+    <header
+      className={`fixed top-0 left-0 w-full z-50 bg-[var(--glass-bg)] backdrop-blur-md border-b border-border-subtle transition-transform duration-300 transform-gpu will-change-transform ${shouldShowHeader ? 'translate-y-0' : '-translate-y-full'}`}
+    >
       <div className="w-full border-b border-border-subtle bg-bg-card/40">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-2">
           <div className="text-center text-[10px] md:text-[11px] font-black uppercase tracking-[0.25em] italic text-text-secondary">

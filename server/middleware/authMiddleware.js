@@ -8,6 +8,15 @@ function extractBearerToken(req) {
   return token;
 }
 
+function normalizeRole(role) {
+  const r = String(role || '').trim().toLowerCase();
+  if (!r) return 'staff';
+  if (r === 'mgr' || r === 'managerial' || r.startsWith('manager')) return 'manager';
+  if (r === 'employee') return 'staff';
+  if (r === 'superadmin' || r === 'super_admin' || r === 'administrator') return 'admin';
+  return r;
+}
+
 export async function authMiddleware(req, res, next) {
   try {
     const token = extractBearerToken(req);
@@ -32,10 +41,26 @@ export async function authMiddleware(req, res, next) {
         permissions = userRow.permissions;
       }
     }
+    if (!permissions) {
+      const roleName = normalizeRole(userRow.role);
+      const [roleRows] = await pool.query('SELECT permissions FROM roles WHERE name = ? LIMIT 1', [roleName]);
+      const rolePerms = roleRows?.[0]?.permissions;
+      if (rolePerms) {
+        if (typeof rolePerms === 'string') {
+          try {
+            permissions = JSON.parse(rolePerms);
+          } catch {
+            permissions = null;
+          }
+        } else {
+          permissions = rolePerms;
+        }
+      }
+    }
     req.user = {
       id: userRow.id,
       email: userRow.email,
-      role: userRow.role,
+      role: normalizeRole(userRow.role),
       name: userRow.name,
       theme: userRow.theme,
       permissions,
@@ -53,10 +78,11 @@ export function requireAuth(req, res, next) {
 }
 
 export function requireRoles(allowedRoles) {
-  const allowed = new Set(allowedRoles);
+  const allowed = new Set((allowedRoles || []).map((r) => String(r || '').trim().toLowerCase()));
   return function roleMiddleware(req, res, next) {
     if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
-    if (allowed.has(req.user.role)) return next();
+    const role = normalizeRole(req.user.role);
+    if (allowed.has(role)) return next();
     return res.status(403).json({ success: false, error: 'Forbidden' });
   };
 }

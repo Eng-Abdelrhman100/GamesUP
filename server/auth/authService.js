@@ -12,25 +12,36 @@ function getJwtExpiresIn() {
   return process.env.JWT_EXPIRES_IN || '7d';
 }
 
-function toSupabaseLikeUser(row) {
-  let permissions = null;
-  if (row.permissions) {
-    if (typeof row.permissions === 'string') {
-      try {
-        permissions = JSON.parse(row.permissions);
-      } catch {
-        permissions = null;
-      }
-    } else {
-      permissions = row.permissions;
+function normalizeRole(role) {
+  const r = String(role || '').trim().toLowerCase();
+  if (!r) return null;
+  if (r === 'mgr' || r === 'managerial' || r.startsWith('manager')) return 'manager';
+  if (r === 'employee') return 'staff';
+  if (r === 'superadmin' || r === 'super_admin' || r === 'administrator') return 'admin';
+  return r;
+}
+
+function parsePermissions(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
     }
   }
+  return raw;
+}
+
+function toSupabaseLikeUser(row, permissionsOverride) {
+  const permissions = permissionsOverride !== undefined ? permissionsOverride : parsePermissions(row.permissions);
+  const normalizedRole = normalizeRole(row.role);
   return {
     id: row.id,
     email: row.email,
     user_metadata: {
       name: row.name || null,
-      role: row.role || null,
+      role: normalizedRole,
       theme: row.theme || null,
       permissions,
       phone: row.phone || null,
@@ -59,9 +70,11 @@ export async function register({ email, password, name, role = 'customer', phone
     throw err;
   }
 
+  const normalizedRole = normalizeRole(role) || String(role || 'customer').trim().toLowerCase();
+
   const [result] = await pool.query(
     'INSERT INTO users (email, password_hash, name, role, phone) VALUES (?, ?, ?, ?, ?)',
-    [normalizedEmail, passwordHash, name || null, role, phone]
+    [normalizedEmail, passwordHash, name || null, normalizedRole, phone]
   );
 
   const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [result.insertId]);
@@ -98,7 +111,13 @@ export async function login({ email, password }) {
     { expiresIn: getJwtExpiresIn() }
   );
 
-  const user = toSupabaseLikeUser(userRow);
+  const roleName = normalizeRole(userRow.role);
+  let effectivePermissions = parsePermissions(userRow.permissions);
+  if (!effectivePermissions && roleName) {
+    const [roleRows] = await pool.query('SELECT permissions FROM roles WHERE name = ? LIMIT 1', [roleName]);
+    effectivePermissions = parsePermissions(roleRows?.[0]?.permissions);
+  }
+  const user = toSupabaseLikeUser(userRow, effectivePermissions);
   return {
     token,
     user,

@@ -69,7 +69,10 @@ async function requestJson<T>(path: string, options?: { method?: string; body?: 
       }
     }
     const message = typeof data === 'object' && data && 'error' in data ? (data as any).error : String(data || res.statusText);
-    throw new Error(message);
+    const err: any = new Error(message);
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
 
   return data as T;
@@ -206,21 +209,76 @@ export const tasksAPI = {
 // Team API
 export const teamAPI = {
   getAll: async () => {
-    const data = await requestJson<any[]>(`/admin/users`, { auth: 'admin' });
-    return (data || []).map((u: any) => ({
-      ...u,
-      avatar: u.avatar,
-    }));
+    try {
+      const data = await requestJson<any[]>(`/admin/users`, { auth: 'admin' });
+      return (data || []).map((u: any) => ({
+        ...u,
+        avatar: u.avatar,
+      }));
+    } catch (err: any) {
+      if (err?.status !== 404) throw err;
+
+      const employees = await requestJson<any[]>(`/employees`, { auth: 'admin' });
+      return (employees || []).map((e: any) => ({
+        id: String(e.id),
+        name: String(e.name || ''),
+        email: String(e.email || ''),
+        role: String(e.role || 'staff'),
+        job_title: e.department ? String(e.department) : undefined,
+        phone: e.phone ? String(e.phone) : undefined,
+        avatar: e.image ? String(e.image) : undefined,
+        identity_document: undefined,
+        created_at: e.created_at,
+      }));
+    }
   },
   create: async (member: any) => {
-    return requestJson<any>(`/admin/users`, { method: 'POST', body: member, auth: 'admin' });
+    try {
+      return await requestJson<any>(`/admin/users`, { method: 'POST', body: member, auth: 'admin' });
+    } catch (err: any) {
+      if (err?.status !== 404) throw err;
+      const payload = {
+        name: member?.name,
+        email: member?.email,
+        password: member?.password,
+        role: member?.role,
+        job_title: member?.job_title,
+        department: member?.department,
+        phone: member?.phone,
+        avatar: member?.avatar,
+        identity_document: member?.identity_document,
+      };
+      return await requestJson<any>(`/employees`, { method: 'POST', body: payload, auth: 'admin' });
+    }
   },
   update: async (id: string | number, member: any) => {
-    return requestJson<any>(`/admin/users/${id}`, { method: 'PUT', body: member, auth: 'admin' });
+    try {
+      return await requestJson<any>(`/admin/users/${id}`, { method: 'PUT', body: member, auth: 'admin' });
+    } catch (err: any) {
+      if (err?.status !== 404) throw err;
+      const payload = {
+        name: member?.name,
+        email: member?.email,
+        password: member?.password,
+        role: member?.role,
+        job_title: member?.job_title,
+        department: member?.department,
+        phone: member?.phone,
+        avatar: member?.avatar,
+        identity_document: member?.identity_document,
+      };
+      return await requestJson<any>(`/employees/${id}`, { method: 'PUT', body: payload, auth: 'admin' });
+    }
   },
   delete: async (id: string | number) => {
-    await requestJson(`/admin/users/${id}`, { method: 'DELETE', auth: 'admin' });
-    return true;
+    try {
+      await requestJson(`/admin/users/${id}`, { method: 'DELETE', auth: 'admin' });
+      return true;
+    } catch (err: any) {
+      if (err?.status !== 404) throw err;
+      await requestJson(`/employees/${id}`, { method: 'DELETE', auth: 'admin' });
+      return true;
+    }
   },
 };
 
