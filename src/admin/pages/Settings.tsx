@@ -23,7 +23,7 @@ import { authAPI, uploadAPI } from '../../utils/api';
 // import { BASE_URL, authAPI } from '../../utils/api';
 
 export function Settings() {
-  const { settings, updateSettings } = useStoreSettings();
+  const { settings, updateSettings, loading: settingsLoading } = useStoreSettings();
   const [activeTab, setActiveTab] = useState('store');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   
@@ -492,221 +492,261 @@ export function Settings() {
       {/* Categories */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          <Card className="p-8 bg-bg-dark border border-border-subtle relative overflow-hidden rounded-[2rem]">
-            <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-brand-red/5 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="p-8 bg-[#0f0f0f] border border-white/10 relative overflow-hidden rounded-[2rem]">
+            <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none"></div>
             
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
                 <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Home Categories</h3>
-                <p className="text-sm text-gray-400 mt-1 font-bold uppercase tracking-wider">Configure the homepage deployment sectors and category cards</p>
+                <p className="text-sm text-gray-400 mt-1 font-bold uppercase tracking-wider">
+                  Configure the homepage deployment sectors and category cards
+                </p>
               </div>
-              <Button
-                onClick={() => {
-                  const newId = `custom_${Date.now()}`;
-                  setFormData(prev => ({
-                    ...prev,
-                    homepage_categories: [
-                      ...prev.homepage_categories,
-                      {
-                        id: newId,
-                        title: 'NEW CATEGORY',
-                        desc: 'Add descriptive details for this homepage category sector.',
-                        image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
-                        icon: 'Gamepad',
-                        count: '0 ASSETS'
-                      }
-                    ]
-                  }));
-                }}
-                className="bg-brand-red hover:bg-brand-red-hover text-white font-black uppercase italic tracking-wider px-6 py-3 rounded-xl transition-all duration-300"
-              >
-                <Plus className="w-4 h-4 mr-2" /> Add Category
-              </Button>
+              <div className="flex gap-3">
+                {formData.homepage_categories.length === 0 && !settingsLoading && (
+                  <button
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        homepage_categories: [
+                          { id: 'rpg', title: 'ACTION & RPG', desc: 'Immersion protocols engaged. Explore vast digital frontiers.', image: 'https://images.unsplash.com/photo-1605898399789-19794336e181?q=80&w=1000&auto=format&fit=crop', icon: 'Swords', count: '24 ASSETS' },
+                          { id: 'sports', title: 'SPORTS & RACING', desc: 'Peak performance required. Master the field and the track.', image: 'https://images.unsplash.com/photo-1547941126-3d5322b218b0?q=80&w=1000&auto=format&fit=crop', icon: 'Zap', count: '18 ASSETS' },
+                          { id: 'shooter', title: 'WARFARE & FPS', desc: 'Tactical dominance. High-precision assets for elite operators.', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop', icon: 'Target', count: '32 ASSETS' },
+                          { id: 'horror', title: 'HORROR & SURVIVAL', desc: 'Nightmare scenarios. Survival is the only objective.', image: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop', icon: 'Shield', count: '12 ASSETS' },
+                        ]
+                      }));
+                    }}
+                    className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/20 text-white rounded-xl text-sm font-bold transition-all"
+                  >
+                    Load Defaults
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      homepage_categories: [
+                        ...prev.homepage_categories,
+                        {
+                          id: `custom_${Date.now()}`,
+                          title: 'NEW CATEGORY',
+                          desc: 'Add descriptive details for this homepage category sector.',
+                          image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
+                          icon: 'Gamepad',
+                          count: '0 ASSETS'
+                        }
+                      ]
+                    }));
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-black uppercase italic tracking-wider transition-all"
+                >
+                  <Plus className="w-4 h-4" /> Add Category
+                </button>
+              </div>
             </div>
 
-            {/* Categories List/Editor Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {formData.homepage_categories.map((cat, idx) => (
-                <div key={cat.id || idx} className="p-6 bg-white/5 border border-white/10 rounded-3xl relative overflow-hidden flex flex-col justify-between group">
-                  {/* Category Image Preview & Info */}
-                  <div className="space-y-4">
-                    <div className="relative h-[160px] rounded-2xl overflow-hidden border border-white/10">
-                      <img 
-                        src={cat.image} 
-                        alt={cat.title} 
-                        className="w-full h-full object-cover grayscale opacity-70 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                      <div className="absolute bottom-4 left-4 flex items-center gap-3">
-                        <div className="p-2 bg-brand-red text-white rounded-lg">
-                          {cat.icon === 'Swords' && <Swords className="w-5 h-5" />}
-                          {cat.icon === 'Zap' && <Zap className="w-5 h-5" />}
-                          {cat.icon === 'Target' && <Target className="w-5 h-5" />}
-                          {cat.icon === 'Shield' && <Shield className="w-5 h-5" />}
-                          {cat.icon === 'Gamepad' && <Gamepad className="w-5 h-5" />}
-                          {cat.icon === 'Trophy' && <Trophy className="w-5 h-5" />}
-                          {cat.icon === 'Flame' && <Flame className="w-5 h-5" />}
-                          {cat.icon === 'Skull' && <Skull className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <h4 className="text-lg font-black text-white italic uppercase tracking-tighter">{cat.title}</h4>
-                          <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{cat.count}</span>
-                        </div>
-                      </div>
-                    </div>
+            {/* Loading state */}
+            {settingsLoading && (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="ml-3 text-gray-400 font-bold uppercase text-sm tracking-wider">Loading categories...</span>
+              </div>
+            )}
 
-                    {/* Inputs */}
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category Title</label>
-                          <input 
-                            type="text"
-                            value={cat.title ?? ''}
-                            onChange={(e) => {
-                              setFormData(prev => {
-                                const updated = prev.homepage_categories.map((c, i) =>
-                                  i === idx ? { ...c, title: e.target.value } : c
-                                );
-                                return { ...prev, homepage_categories: updated };
-                              });
-                            }}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Assets Count Text</label>
-                          <input 
-                            type="text"
-                            value={cat.count ?? ''}
-                            onChange={(e) => {
-                              setFormData(prev => {
-                                const updated = prev.homepage_categories.map((c, i) =>
-                                  i === idx ? { ...c, count: e.target.value } : c
-                                );
-                                return { ...prev, homepage_categories: updated };
-                              });
-                            }}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Short Description</label>
-                        <textarea 
-                          value={cat.desc ?? ''}
-                          onChange={(e) => {
-                            setFormData(prev => {
-                              const updated = prev.homepage_categories.map((c, i) =>
-                                i === idx ? { ...c, desc: e.target.value } : c
-                              );
-                              return { ...prev, homepage_categories: updated };
-                            });
-                          }}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red resize-none"
-                          rows={2}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Lucide Icon</label>
-                          <select
-                            value={cat.icon ?? 'Gamepad'}
-                            onChange={(e) => {
-                              setFormData(prev => {
-                                const updated = prev.homepage_categories.map((c, i) =>
-                                  i === idx ? { ...c, icon: e.target.value } : c
-                                );
-                                return { ...prev, homepage_categories: updated };
-                              });
-                            }}
-                            className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
-                          >
-                            <option value="Swords">Swords</option>
-                            <option value="Zap">Zap</option>
-                            <option value="Target">Target</option>
-                            <option value="Shield">Shield</option>
-                            <option value="Gamepad">Gamepad</option>
-                            <option value="Trophy">Trophy</option>
-                            <option value="Flame">Flame</option>
-                            <option value="Skull">Skull</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Upload Art</label>
-                          <div className="flex gap-2">
-                            <input 
-                              type="file"
-                              accept="image/*"
-                              id={`art-upload-${cat.id || idx}`}
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  try {
-                                    const res = await uploadAPI.uploadImage(file);
-                                    // Use functional updater to avoid stale closure
-                                    setFormData(prev => {
-                                      const updated = prev.homepage_categories.map((c, i) =>
-                                        i === idx ? { ...c, image: res.url } : c
-                                      );
-                                      return { ...prev, homepage_categories: updated };
-                                    });
-                                  } catch (err) {
-                                    console.error('Image upload failed', err);
-                                    alert('Failed to upload image. Please check server connection.');
-                                  }
-                                }
-                              }}
-                            />
-                            <label 
-                              htmlFor={`art-upload-${cat.id || idx}`}
-                              className="w-full cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs font-bold"
-                            >
-                              <Upload className="w-3.5 h-3.5" /> Choose Image
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Image URL</label>
-                        <input 
-                          type="text"
-                          value={cat.image ?? ''}
-                          onChange={(e) => {
-                            setFormData(prev => {
-                              const updated = prev.homepage_categories.map((c, i) =>
-                                i === idx ? { ...c, image: e.target.value } : c
-                              );
-                              return { ...prev, homepage_categories: updated };
-                            });
-                          }}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-brand-red"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end mt-4 pt-4 border-t border-white/5">
-                    <Button
-                      onClick={() => {
-                        setFormData(prev => ({
-                          ...prev,
-                          homepage_categories: prev.homepage_categories.filter((_, cIdx) => cIdx !== idx)
-                        }));
-                      }}
-                      className="bg-red-950/40 hover:bg-red-900 border border-red-900/50 text-red-400 rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-1.5"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Remove Category
-                    </Button>
-                  </div>
+            {/* Empty state */}
+            {!settingsLoading && formData.homepage_categories.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                  <Gamepad className="w-8 h-8 text-gray-600" />
                 </div>
-              ))}
-            </div>
-          </Card>
+                <p className="text-white font-black uppercase text-lg italic">No Categories Yet</p>
+                <p className="text-gray-500 text-sm mt-1 mb-6">Click "Load Defaults" to restore the 4 default categories, or "Add Category" to create a new one.</p>
+              </div>
+            )}
+
+            {/* Categories Grid */}
+            {!settingsLoading && formData.homepage_categories.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {formData.homepage_categories.map((cat, idx) => (
+                  <div key={cat.id || idx} className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl flex flex-col gap-4">
+                    
+                    {/* Preview Image */}
+                    <div className="relative h-[140px] rounded-2xl overflow-hidden border border-white/10 group">
+                      <img
+                        src={cat.image ?? ''}
+                        alt={cat.title ?? 'Category'}
+                        className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                      <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                        <span className="px-2 py-1 bg-red-600/80 backdrop-blur-sm text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                          {cat.icon ?? 'Gamepad'}
+                        </span>
+                        <span className="text-sm font-black text-white italic uppercase tracking-tight truncate max-w-[160px]">
+                          {cat.title ?? ''}
+                        </span>
+                      </div>
+                      <span className="absolute top-3 right-3 text-[9px] font-black text-white/50 uppercase tracking-widest">
+                        {cat.count ?? ''}
+                      </span>
+                    </div>
+
+                    {/* Fields */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Category Title</label>
+                        <input
+                          type="text"
+                          value={cat.title ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              homepage_categories: prev.homepage_categories.map((c, i) =>
+                                i === idx ? { ...c, title: v } : c
+                              )
+                            }));
+                          }}
+                          placeholder="e.g. ACTION & RPG"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Assets Count</label>
+                        <input
+                          type="text"
+                          value={cat.count ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              homepage_categories: prev.homepage_categories.map((c, i) =>
+                                i === idx ? { ...c, count: v } : c
+                              )
+                            }));
+                          }}
+                          placeholder="e.g. 24 ASSETS"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Description</label>
+                      <textarea
+                        value={cat.desc ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setFormData(prev => ({
+                            ...prev,
+                            homepage_categories: prev.homepage_categories.map((c, i) =>
+                              i === idx ? { ...c, desc: v } : c
+                            )
+                          }));
+                        }}
+                        placeholder="Short tagline for this category..."
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors resize-none"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Icon</label>
+                        <select
+                          value={cat.icon ?? 'Gamepad'}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              homepage_categories: prev.homepage_categories.map((c, i) =>
+                                i === idx ? { ...c, icon: v } : c
+                              )
+                            }));
+                          }}
+                          className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
+                        >
+                          <option value="Swords">⚔️ Swords</option>
+                          <option value="Zap">⚡ Zap</option>
+                          <option value="Target">🎯 Target</option>
+                          <option value="Shield">🛡️ Shield</option>
+                          <option value="Gamepad">🎮 Gamepad</option>
+                          <option value="Trophy">🏆 Trophy</option>
+                          <option value="Flame">🔥 Flame</option>
+                          <option value="Skull">💀 Skull</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Upload Image</label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id={`cat-img-${cat.id || idx}`}
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              try {
+                                const res = await uploadAPI.uploadImage(file);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  homepage_categories: prev.homepage_categories.map((c, i) =>
+                                    i === idx ? { ...c, image: res.url } : c
+                                  )
+                                }));
+                              } catch {
+                                alert('Upload failed — check server connection.');
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`cat-img-${cat.id || idx}`}
+                            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                          >
+                            <Upload className="w-3.5 h-3.5" /> Choose Image
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Image URL</label>
+                      <input
+                        type="text"
+                        value={cat.image ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setFormData(prev => ({
+                            ...prev,
+                            homepage_categories: prev.homepage_categories.map((c, i) =>
+                              i === idx ? { ...c, image: v } : c
+                            )
+                          }));
+                        }}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                      />
+                    </div>
+
+                    {/* Remove */}
+                    <div className="flex justify-end pt-2 border-t border-white/5">
+                      <button
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          homepage_categories: prev.homepage_categories.filter((_, i) => i !== idx)
+                        }))}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900/40 text-red-400 hover:text-red-300 rounded-xl text-xs font-bold transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
