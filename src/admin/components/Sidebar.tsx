@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import type { Screen } from '../AdminApp';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 import logoBlack from '../../assets/games up word black.png';
+import logoWhite from '../../assets/games up word white.png';
 
 type PermissionValue = boolean | 'read' | 'write';
 
@@ -12,6 +13,7 @@ interface SidebarProps {
   onLogout: () => void;
   userRole?: string;
   userPermissions?: Record<string, PermissionValue>;
+  isDarkMode?: boolean;
 }
 
 interface MenuItem {
@@ -57,7 +59,7 @@ const menuItems: MenuItem[] = [
   { id: 'settings' as Screen, label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'admin', userPermissions }: SidebarProps) {
+export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'admin', userPermissions, isDarkMode }: SidebarProps) {
   const { settings } = useStoreSettings();
   // Helper to check permission
   const hasPermission = (item: MenuItem) => {
@@ -92,15 +94,15 @@ export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'adm
             <NavLink
               to={`/${item.id}`}
               end={!item.children}
-              className={({ isActive }) => `w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all ${
+              className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                 isActive
-                  ? 'bg-gradient-to-br from-red-500 to-red-700 text-white shadow-md'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-br hover:from-red-500 hover:to-red-700 hover:text-white'
-              } ${isChild ? 'text-sm' : ''}`}
+                  ? 'bg-brand-red text-white uppercase tracking-wider italic font-extrabold shadow-[0_0_15px_rgba(220,38,38,0.35)] scale-[1.02]'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-brand-red/10 uppercase tracking-wider font-bold italic'
+              } ${isChild ? 'text-xs pl-6' : 'text-sm'}`}
               title={collapsed ? item.label : undefined}
             >
-              <Icon className={`${isChild ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} />
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+              <Icon className={`${isChild ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0 transition-transform duration-300 group-hover:scale-110`} />
+              {!collapsed && <span className="font-display tracking-tight text-xs md:text-sm">{item.label}</span>}
             </NavLink>
             
             {item.children && item.children.length > 0 && !collapsed && (
@@ -114,18 +116,18 @@ export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'adm
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${
+      className={`bg-bg-secondary border-r border-border-subtle transition-all duration-300 flex flex-col ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-border-subtle">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <img
-              src={settings.website_logo || logoBlack}
+              src={settings.website_logo || (isDarkMode ? logoWhite : logoBlack)}
               alt={settings.website_title || settings.store_name || 'Admin'}
-              className="h-8 w-auto object-contain"
+              className="h-8 w-auto object-contain transition-all duration-300"
             />
           </div>
         )}
@@ -134,34 +136,34 @@ export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'adm
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-text-secondary hover:text-text-primary transition-colors duration-200"
             title="View Website"
           >
             <Eye className="w-5 h-5" />
           </a>
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-text-secondary hover:text-text-primary transition-colors duration-200"
           >
-            <ChevronLeft className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+            <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 py-4 px-2 overflow-y-auto">
+      <nav className="flex-1 py-4 px-2 overflow-y-auto space-y-1">
         {filteredMenuItems.map(item => renderMenuItem(item))}
       </nav>
 
       {/* Logout */}
-      <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-2 border-t border-border-subtle">
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-white bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-md hover:shadow-lg transition-all duration-200"
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-white bg-brand-red hover:bg-brand-red-hover shadow-lg hover:shadow-brand-red/35 active:scale-95 transition-all duration-300 uppercase tracking-wider font-extrabold italic"
           title={collapsed ? 'Logout' : undefined}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Logout</span>}
+          {!collapsed && <span className="text-xs font-display tracking-widest">Logout</span>}
         </button>
       </div>
     </div>

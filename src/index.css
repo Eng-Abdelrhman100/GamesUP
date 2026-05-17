@@ -14,6 +14,35 @@
   --color-border-subtle: var(--border-color);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  
+  /* Shadcn color mappings to variables */
+  --color-card: var(--bg-secondary);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--bg-secondary);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: #dc2626;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--bg-secondary);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--bg-secondary);
+  --color-muted-foreground: var(--text-secondary);
+  --color-accent: var(--bg-secondary);
+  --color-accent-foreground: var(--text-primary);
+  --color-border: var(--border-color);
+  --color-input: var(--border-color);
+  --color-ring: #dc2626;
+
+  /* Global Tailwind Gray Overrides for Admin Panel Auto-Styling */
+  --color-gray-50: var(--bg-secondary);
+  --color-gray-100: var(--bg-secondary);
+  --color-gray-200: var(--border-color);
+  --color-gray-300: var(--border-color);
+  --color-gray-400: var(--text-secondary);
+  --color-gray-500: var(--text-secondary);
+  --color-gray-600: var(--border-color);
+  --color-gray-700: var(--border-color);
+  --color-gray-800: var(--bg-secondary);
+  --color-gray-900: var(--bg-primary);
 }
 
 :root {
@@ -66,8 +95,10 @@ body {
   -webkit-text-stroke: 1.5px currentColor;
 }
 
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -81,4 +112,43 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #dc2626;
+}
+
+/* Global Premium Card Adjustments */
+[data-slot="card"] {
+  @apply rounded-[2rem] border border-border-subtle bg-bg-card transition-all duration-300 hover:border-brand-red/30 shadow-xl shadow-black/10;
+}
+
+/* Global Premium Table Styling */
+table {
+  @apply w-full border-collapse border-spacing-0 overflow-hidden rounded-[2rem];
+}
+
+th {
+  @apply text-[10px] font-black text-brand-red tracking-[0.25em] uppercase font-display py-4 px-5 bg-bg-secondary/70 border-b border-border-subtle transition-colors select-none text-left italic;
+}
+
+td {
+  @apply py-4 px-5 border-b border-border-subtle text-sm text-text-primary transition-colors font-medium;
+}
+
+tr {
+  @apply hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors duration-200;
+}
+
+tbody tr:last-child td {
+  @apply border-b-0;
+}
+
+/* Page Header & Title Helper Classes */
+.admin-page-header {
+  @apply flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-border-subtle pb-6 transition-colors;
+}
+
+.admin-page-title {
+  @apply text-4xl md:text-5xl font-black text-text-primary tracking-tighter font-display uppercase italic leading-none transition-colors;
+}
+
+.admin-page-subtitle {
+  @apply text-[10px] font-black text-brand-red tracking-[0.4em] uppercase mb-2 italic;
 }

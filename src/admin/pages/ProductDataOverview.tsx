@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Package, ShoppingCart, Key, Search, List, Tag, User } from 'lucide-react';
+import { Package, ShoppingCart, Key, Search, List, Tag, User, Plus, Mail, Shield, Lock, Globe } from 'lucide-react';
 import { Card } from '../../components/ui/card';
+import { Modal } from '../../components/ui/Modal';
 import { productsAPI, customersAPI, categoriesAPI } from '../../utils/api';
 
 interface ProductOverview {
@@ -46,9 +47,42 @@ export function ProductDataOverview() {
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ProductOverview | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'sold' | 'customers' | 'products_inventory'>('products_inventory');
+  const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'sold' | 'customers' | 'products_inventory' | 'all_products'>('products_inventory');
   const [allProductsInventory, setAllProductsInventory] = useState<any[]>([]);
   const [componentError, setComponentError] = useState<string | null>(null);
+
+  // Modals and form states for adding items
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    description: '',
+    category_slug: '',
+    sub_category_slug: '',
+    price: '',
+    cost: '',
+    image: '',
+    status: 'In Stock'
+  });
+
+  const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
+  const [newStock, setNewStock] = useState({
+    productId: '',
+    email: '',
+    password: '',
+    outlookEmail: '',
+    outlookPassword: '',
+    region: '',
+    onlineId: '',
+    backupCodes: '',
+    primaryPs4Code: '',
+    primaryPs5Code: '',
+    secondaryCode: '',
+    offlinePs4Code: '',
+    offlinePs5Code: ''
+  });
+
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [visibleSlots, setVisibleSlots] = useState<Record<string, boolean>>({
     'Primary ps4': true,
     'Primary ps5': true,
@@ -255,6 +289,148 @@ export function ProductDataOverview() {
     }
   };
 
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProduct.name || !newProduct.price) {
+      setFormError('Product Name and Price are required.');
+      return;
+    }
+
+    setFormSubmitting(true);
+    setFormError(null);
+    try {
+      const productData = {
+        name: newProduct.name,
+        description: newProduct.description,
+        category_slug: newProduct.category_slug || (categories[0]?.slug || 'games'),
+        sub_category_slug: newProduct.sub_category_slug || '',
+        price: parseFloat(newProduct.price) || 0,
+        cost: parseFloat(newProduct.cost) || 0,
+        image: newProduct.image || 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=100&h=100&fit=crop',
+        stock: 0,
+        status: 'Out of Stock',
+        digitalItems: []
+      };
+
+      await productsAPI.create(productData);
+      
+      setNewProduct({
+        name: '',
+        description: '',
+        category_slug: '',
+        sub_category_slug: '',
+        price: '',
+        cost: '',
+        image: '',
+        status: 'In Stock'
+      });
+      setIsAddProductModalOpen(false);
+      
+      await loadProducts();
+      await loadAllProductsInventory();
+    } catch (err: any) {
+      console.error('Error creating product:', err);
+      setFormError(err.message || 'Failed to create product.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const handleAddStockItemSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStock.productId) {
+      setFormError('Please select a product.');
+      return;
+    }
+
+    setFormSubmitting(true);
+    setFormError(null);
+    try {
+      console.log('Fetching latest product details for ID:', newStock.productId);
+      const prod = await productsAPI.getById(newStock.productId);
+      if (!prod) {
+        throw new Error('Product not found.');
+      }
+
+      const rawDigitalItems = prod.digitalItems || prod.digital_items;
+      const parsedItems = typeof rawDigitalItems === 'string' 
+        ? JSON.parse(rawDigitalItems) 
+        : (rawDigitalItems || []);
+
+      const slots: Record<string, any> = {};
+      const slotPricing = {
+        'Primary ps4': newStock.primaryPs4Code ? { sold: false, orderId: null, code: newStock.primaryPs4Code } : null,
+        'Primary ps5': newStock.primaryPs5Code ? { sold: false, orderId: null, code: newStock.primaryPs5Code } : null,
+        'Secondary': newStock.secondaryCode ? { sold: false, orderId: null, code: newStock.secondaryCode } : null,
+        'Offline ps4': newStock.offlinePs4Code ? { sold: false, orderId: null, code: newStock.offlinePs4Code } : null,
+        'Offline ps5': newStock.offlinePs5Code ? { sold: false, orderId: null, code: newStock.offlinePs5Code } : null,
+      };
+
+      let activeSlotsCount = 0;
+      Object.entries(slotPricing).forEach(([slotName, slotData]) => {
+        if (slotData) {
+          slots[slotName] = slotData;
+          activeSlotsCount++;
+        }
+      });
+
+      if (activeSlotsCount === 0 && !newStock.email) {
+        throw new Error('Please fill in at least one slot code or account email.');
+      }
+
+      const newItemPayload = {
+        id: crypto.randomUUID(),
+        email: newStock.email || '',
+        password: newStock.password || '',
+        outlookEmail: newStock.outlookEmail || '',
+        outlookPassword: newStock.outlookPassword || '',
+        region: newStock.region || '',
+        onlineId: newStock.onlineId || '',
+        backupCodes: newStock.backupCodes || '',
+        slots,
+        totalCodes: activeSlotsCount,
+        assignedGroup: 'All Groups'
+      };
+
+      const updatedDigitalItems = [...parsedItems, newItemPayload];
+
+      const updatedProductData = {
+        ...prod,
+        digitalItems: updatedDigitalItems,
+        stock: (prod.stock || 0) + activeSlotsCount
+      };
+
+      await productsAPI.update(newStock.productId, updatedProductData);
+
+      setNewStock({
+        productId: '',
+        email: '',
+        password: '',
+        outlookEmail: '',
+        outlookPassword: '',
+        region: '',
+        onlineId: '',
+        backupCodes: '',
+        primaryPs4Code: '',
+        primaryPs5Code: '',
+        secondaryCode: '',
+        offlinePs4Code: '',
+        offlinePs5Code: ''
+      });
+      setIsAddStockModalOpen(false);
+
+      await loadAllProductsInventory();
+      if (selectedProductId !== 'all') {
+        await loadOverview(selectedProductId);
+      }
+    } catch (err: any) {
+      console.error('Error adding stock item:', err);
+      setFormError(err.message || 'Failed to add stock item.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
   const renderProductDetails = () => {
     // If no product is selected (selectedProductId is 'all'), show a placeholder or summary
     // But we want to allow selecting a product.
@@ -419,6 +595,16 @@ export function ProductDataOverview() {
                 >
                   Products Inventory
                 </button>
+                <button
+                  onClick={() => setActiveTab('all_products')}
+                  className={`py-4 px-2 border-b-2 font-medium text-sm transition-all rounded-t-lg ${
+                    activeTab === 'all_products'
+                      ? 'border-red-600 text-red-600 bg-red-50 dark:bg-red-900/20'
+                      : 'border-transparent text-black hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400'
+                  }`}
+                >
+                  All Products List
+                </button>
               </nav>
             </div>
 
@@ -562,7 +748,37 @@ export function ProductDataOverview() {
               )}
 
               {activeTab === 'products_inventory' && (
-                <div className="overflow-x-auto">
+                <div>
+                  <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                    <span className="text-xs text-text-secondary uppercase tracking-wider font-bold">
+                      Digital Stock Accounts
+                    </span>
+                    <button
+                      onClick={() => {
+                        setFormError(null);
+                        setNewStock({
+                          productId: selectedProductId === 'all' ? '' : selectedProductId,
+                          email: '',
+                          password: '',
+                          outlookEmail: '',
+                          outlookPassword: '',
+                          region: '',
+                          onlineId: '',
+                          backupCodes: '',
+                          primaryPs4Code: '',
+                          primaryPs5Code: '',
+                          secondaryCode: '',
+                          offlinePs4Code: '',
+                          offlinePs5Code: ''
+                        });
+                        setIsAddStockModalOpen(true);
+                      }}
+                      className="text-xs text-white hover:bg-brand-red-dark font-black flex items-center bg-brand-red px-5 py-2 rounded-full transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Stock Item
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700/50">
                       <tr>
@@ -639,7 +855,9 @@ export function ProductDataOverview() {
                     </tbody>
                   </table>
                 </div>
-              )}
+              </div>
+            )}
+              {activeTab === 'all_products' && renderAllProducts()}
             </div>
           </>
         )}
@@ -649,11 +867,34 @@ export function ProductDataOverview() {
 
   const renderAllProducts = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">All Listed Products</h2>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          Total Products: {products.length}
+      <div className="flex justify-between items-center p-1">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            All Listed Products<span className="text-brand-red">.</span>
+          </h2>
+          <p className="text-xs text-text-secondary italic uppercase tracking-wider font-bold">
+            Total Products: {products.length}
+          </p>
         </div>
+        <button
+          onClick={() => {
+            setFormError(null);
+            setNewProduct({
+              name: '',
+              description: '',
+              category_slug: categories[0]?.slug || 'games',
+              sub_category_slug: '',
+              price: '',
+              cost: '',
+              image: '',
+              status: 'In Stock'
+            });
+            setIsAddProductModalOpen(true);
+          }}
+          className="text-xs text-white hover:bg-brand-red-dark font-black flex items-center bg-brand-red px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95 cursor-pointer"
+        >
+          <Plus className="w-4 h-4 mr-1.5" /> Add New Product
+        </button>
       </div>
       <Card className="overflow-hidden border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
@@ -915,6 +1156,327 @@ export function ProductDataOverview() {
       {view === 'all_products' && renderAllProducts()}
       {view === 'all_customers' && renderAllCustomers()}
       {view === 'categories' && renderCategories()}
+
+      {/* Add New Product Modal */}
+      <Modal
+        isOpen={isAddProductModalOpen}
+        onClose={() => setIsAddProductModalOpen(false)}
+        title="Add New Product"
+      >
+        <form onSubmit={handleCreateProduct} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-lg">
+              {formError}
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Product Name *</label>
+              <input
+                type="text"
+                required
+                value={newProduct.name}
+                onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="e.g. FIFA 26 Standard Edition"
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Category *</label>
+              <select
+                value={newProduct.category_slug}
+                onChange={e => setNewProduct({ ...newProduct, category_slug: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              >
+                {categories.map(c => (
+                  <option key={c.id} value={c.slug} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Description</label>
+            <textarea
+              value={newProduct.description}
+              onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white h-20 resize-none"
+              placeholder="Enter product description..."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Sub-Category Slug</label>
+              <input
+                type="text"
+                value={newProduct.sub_category_slug}
+                onChange={e => setNewProduct({ ...newProduct, sub_category_slug: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="e.g. ps5-games"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Image URL</label>
+              <input
+                type="text"
+                value={newProduct.image}
+                onChange={e => setNewProduct({ ...newProduct, image: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="e.g. https://domain.com/image.jpg"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Sale Price ($) *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={newProduct.price}
+                onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="0.00"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cost Price ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={newProduct.cost}
+                onChange={e => setNewProduct({ ...newProduct, cost: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setIsAddProductModalOpen(false)}
+              className="px-6 py-2.5 text-xs font-bold text-gray-400 hover:text-white transition-all bg-gray-700 hover:bg-gray-600 rounded-full active:scale-95 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={formSubmitting}
+              className="px-8 py-2.5 text-xs font-black text-white bg-brand-red hover:bg-brand-red-dark rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              {formSubmitting ? 'Creating...' : 'Create Product'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Stock Modal */}
+      <Modal
+        isOpen={isAddStockModalOpen}
+        onClose={() => setIsAddStockModalOpen(false)}
+        title="Add Digital Stock Item"
+      >
+        <form onSubmit={handleAddStockItemSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-lg">
+              {formError}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Target Product *</label>
+            <select
+              required
+              value={newStock.productId}
+              onChange={e => setNewStock({ ...newStock, productId: e.target.value })}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+            >
+              <option value="" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">-- Select Product --</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block flex items-center gap-1">
+                <Mail className="w-3 h-3 text-gray-500" /> PSN Email
+              </label>
+              <input
+                type="email"
+                value={newStock.email}
+                onChange={e => setNewStock({ ...newStock, email: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="account@email.com"
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block flex items-center gap-1">
+                <Lock className="w-3 h-3 text-gray-500" /> Sony Password
+              </label>
+              <input
+                type="text"
+                value={newStock.password}
+                onChange={e => setNewStock({ ...newStock, password: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block flex items-center gap-1">
+                <Mail className="w-3 h-3 text-gray-400" /> Outlook/Email Access
+              </label>
+              <input
+                type="email"
+                value={newStock.outlookEmail}
+                onChange={e => setNewStock({ ...newStock, outlookEmail: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="console.access@outlook.com"
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block flex items-center gap-1">
+                <Lock className="w-3 h-3 text-gray-400" /> Outlook Password
+              </label>
+              <input
+                type="text"
+                value={newStock.outlookPassword}
+                onChange={e => setNewStock({ ...newStock, outlookPassword: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="Outlook Password"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block flex items-center gap-1">
+                <Globe className="w-3 h-3 text-gray-500" /> Region
+              </label>
+              <input
+                type="text"
+                value={newStock.region}
+                onChange={e => setNewStock({ ...newStock, region: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="e.g. US, UK, EU"
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block flex items-center gap-1">
+                <Shield className="w-3 h-3 text-gray-500" /> Online ID (Nickname)
+              </label>
+              <input
+                type="text"
+                value={newStock.onlineId}
+                onChange={e => setNewStock({ ...newStock, onlineId: e.target.value })}
+                className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                placeholder="e.g. Sniper_Master_24"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Backup Codes (one per line)</label>
+            <textarea
+              value={newStock.backupCodes}
+              onChange={e => setNewStock({ ...newStock, backupCodes: e.target.value })}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white h-16 resize-none font-mono"
+              placeholder="e.g.&#10;1234-5678&#10;8765-4321"
+            />
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Slot Type Activation Codes</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-brand-red uppercase block">PS4 Primary Code</label>
+                <input
+                  type="text"
+                  value={newStock.primaryPs4Code}
+                  onChange={e => setNewStock({ ...newStock, primaryPs4Code: e.target.value })}
+                  className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                  placeholder="Code for PS4 Primary Slot"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-brand-red uppercase block">PS5 Primary Code</label>
+                <input
+                  type="text"
+                  value={newStock.primaryPs5Code}
+                  onChange={e => setNewStock({ ...newStock, primaryPs5Code: e.target.value })}
+                  className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                  placeholder="Code for PS5 Primary Slot"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-brand-red uppercase block">Secondary Slot Code</label>
+                <input
+                  type="text"
+                  value={newStock.secondaryCode}
+                  onChange={e => setNewStock({ ...newStock, secondaryCode: e.target.value })}
+                  className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                  placeholder="Code for Secondary Slot"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase block">PS4 Offline Code</label>
+                <input
+                  type="text"
+                  value={newStock.offlinePs4Code}
+                  onChange={e => setNewStock({ ...newStock, offlinePs4Code: e.target.value })}
+                  className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                  placeholder="Code for PS4 Offline Slot"
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase block">PS5 Offline Code</label>
+                <input
+                  type="text"
+                  value={newStock.offlinePs5Code}
+                  onChange={e => setNewStock({ ...newStock, offlinePs5Code: e.target.value })}
+                  className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+                  placeholder="Code for PS5 Offline Slot"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setIsAddStockModalOpen(false)}
+              className="px-6 py-2.5 text-xs font-bold text-gray-400 hover:text-white transition-all bg-gray-700 hover:bg-gray-600 rounded-full active:scale-95 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={formSubmitting}
+              className="px-8 py-2.5 text-xs font-black text-white bg-brand-red hover:bg-brand-red-dark rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              {formSubmitting ? 'Adding...' : 'Add Stock Item'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

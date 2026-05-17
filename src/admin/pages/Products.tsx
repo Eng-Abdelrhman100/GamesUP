@@ -1028,23 +1028,29 @@ const handleRemoveDigitalItem = (index: number) => {
 
       return (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="admin-page-header">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Products</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your product inventory</p>
+              <p className="admin-page-subtitle">Inventory</p>
+              <h1 className="admin-page-title">Products<span className="text-brand-red">.</span></h1>
             </div>
-            <Button
-              onClick={() => {
-                setEditingProduct(null);
-                const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
-                setFormData({ name: '', description: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
-                setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
-                setIsAddModalOpen(true);
-              }}
-              icon={Plus}
-            >
-              Add Product
-            </Button>
+            <div className="flex items-center gap-3 mt-4 md:mt-0">
+              <p className="hidden md:block text-xs font-bold text-text-secondary uppercase tracking-widest italic mr-2">
+                Manage your product inventory
+              </p>
+              <Button
+                onClick={() => {
+                  setEditingProduct(null);
+                  const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
+                  setFormData({ name: '', description: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                  setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
+                  setIsAddModalOpen(true);
+                }}
+                className="btn-primary"
+                icon={Plus}
+              >
+                Add Product
+              </Button>
+            </div>
           </div>
 
           <div className="inline-flex p-1 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">

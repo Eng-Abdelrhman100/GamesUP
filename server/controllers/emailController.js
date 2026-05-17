@@ -25,7 +25,7 @@ export async function sendEmail(req, res) {
   }
 
   const mailOptions = {
-    from: process.env.SMTP_FROM,
+    from: process.env.SMTP_FROM || '"GamesUp Platform" <info@games-up.co>',
     to,
     subject,
     html,
@@ -36,7 +36,40 @@ export async function sendEmail(req, res) {
     console.log('Email sent successfully:', info.messageId);
     res.status(200).json({ success: true, messageId: info.messageId });
   } catch (error) {
-    console.error('Error sending email:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.warn('Primary SMTP failed, trying Ethereal fallback...', error.message);
+    try {
+      const testAccount = await nodemailer.createTestAccount();
+      
+      const etherealTransporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
+
+      const info = await etherealTransporter.sendMail({
+        from: '"GamesUp Platform (Ethereal Fallback)" <no-reply@gamesup.store>',
+        to,
+        subject,
+        html,
+      });
+
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      console.log('Ethereal Fallback Success! Message ID:', info.messageId);
+      console.log('Preview URL:', previewUrl);
+
+      res.status(200).json({
+        success: true,
+        messageId: info.messageId,
+        isEthereal: true,
+        previewUrl,
+      });
+    } catch (fallbackError) {
+      console.error('Ethereal Fallback also failed:', fallbackError);
+      res.status(500).json({ success: false, error: error.message });
+    }
   }
 }

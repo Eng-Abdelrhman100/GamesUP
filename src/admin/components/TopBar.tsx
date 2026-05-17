@@ -98,15 +98,15 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
   };
 
   return (
-    <div className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
+    <div className="h-16 glass-morphism sticky top-0 z-40 flex items-center justify-between px-6">
       {/* Search */}
       <div className="flex-1 max-w-xl">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
           <input
             type="text"
             placeholder="Search anything..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border-subtle rounded-xl text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent transition-all duration-300"
           />
         </div>
       </div>
@@ -127,13 +127,13 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
 
           {/* Notifications Dropdown */}
           {isNotificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+            <div className="absolute right-0 mt-2 w-80 bg-bg-secondary border border-border-subtle rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-md transition-all duration-300">
+              <div className="px-4 py-3 border-b border-border-subtle flex justify-between items-center bg-bg-secondary/90">
+                <h3 className="text-sm font-semibold text-text-primary font-display uppercase italic tracking-wider">Notifications</h3>
                 {unreadCount > 0 && (
                   <button 
                     onClick={markAllAsRead}
-                    className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 font-medium"
+                    className="text-xs text-brand-red hover:text-brand-red-hover font-black uppercase tracking-wider italic"
                   >
                     Mark all read
                   </button>
@@ -187,28 +187,28 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors py-2 pr-2"
+            className="flex items-center gap-3 pl-4 border-l border-border-subtle hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all duration-300 py-2 pr-2 scale-100 active:scale-95 cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">{initials}</span>
+            <div className="w-10 h-10 rounded-full bg-brand-red shadow-[0_0_12px_rgba(220,38,38,0.5)] flex items-center justify-center transition-transform hover:scale-105 duration-300">
+              <span className="text-white font-black text-sm italic font-display">{initials}</span>
             </div>
             <div className="hidden md:block text-left">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">{userName}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{userRole}</div>
+              <div className="text-sm font-semibold text-text-primary">{userName}</div>
+              <div className="text-xs text-text-secondary capitalize">{userRole}</div>
             </div>
             <ChevronDown 
-              className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+              className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} 
             />
           </button>
 
           {/* Dropdown menu */}
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="absolute right-0 mt-2 w-56 bg-bg-secondary border border-border-subtle rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-md transition-all duration-300">
               {/* User info header */}
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                <div className="text-sm font-semibold text-gray-900 dark:text-white">{userName}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</div>
-                <div className="text-xs text-red-600 dark:text-red-400 font-medium mt-1 capitalize">
+              <div className="px-4 py-3 border-b border-border-subtle bg-bg-secondary/90">
+                <div className="text-sm font-semibold text-text-primary">{userName}</div>
+                <div className="text-xs text-text-secondary">{user?.email}</div>
+                <div className="text-xs text-brand-red font-black mt-1 capitalize font-display italic uppercase tracking-wider">
                   {userRole} Account
                 </div>
               </div>
@@ -234,11 +234,11 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
                 </button>
                 
                 {/* Divider */}
-                <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                <div className="border-t border-border-subtle my-1"></div>
                 
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-brand-red hover:bg-brand-red/10 transition-colors font-black uppercase tracking-wider italic font-display"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Logout</span>

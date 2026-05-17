@@ -65,9 +65,14 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Here is the summary of overall data</p>
+      <div className="admin-page-header">
+        <div>
+          <p className="admin-page-subtitle">Overview</p>
+          <h1 className="admin-page-title">Dashboard<span className="text-brand-red">.</span></h1>
+        </div>
+        <p className="text-xs font-bold text-text-secondary uppercase tracking-widest italic mt-2 md:mt-0">
+          Here is the summary of overall data
+        </p>
       </div>
 
       {/* KPI Cards */}

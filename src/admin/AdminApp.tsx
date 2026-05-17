@@ -185,13 +185,14 @@ export default function AdminApp() {
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''} admin-panel`}>
-      <div className="flex h-screen bg-white dark:bg-gray-900 transition-colors">
+      <div className="flex h-screen bg-bg-primary text-text-primary transition-colors duration-300">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           onLogout={handleLogout}
           userRole={currentRoleName}
           userPermissions={effectivePermissions}
+          isDarkMode={isDarkMode}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
           <TopBar
@@ -205,7 +206,7 @@ export default function AdminApp() {
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<ProtectedRoute id="dashboard"><Dashboard /></ProtectedRoute>} />
               <Route path="products" element={<ProtectedRoute id="products"><Products /></ProtectedRoute>} />
-              <Route path="data-overview" element={<ProtectedRoute id="data-overview"><OrderDataOverview /></ProtectedRoute>} />
+              <Route path="data-overview" element={<ProtectedRoute id="data-overview"><ProductDataOverview /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute id="orders"><Orders /></ProtectedRoute>} />
               <Route path="order-chats" element={<ProtectedRoute id="order-chats"><SupportChats /></ProtectedRoute>} />
               <Route path="sold-products" element={<ProtectedRoute id="sold-products"><SoldProducts /></ProtectedRoute>} />
