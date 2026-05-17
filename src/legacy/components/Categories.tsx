@@ -56,7 +56,7 @@ export const Categories = ({ onCategoryClick }: { onCategoryClick: (category: st
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories.map((cat, idx) => (
             <motion.div
               key={cat.id}
@@ -65,7 +65,7 @@ export const Categories = ({ onCategoryClick }: { onCategoryClick: (category: st
               transition={{ delay: idx * 0.1 }}
               viewport={{ once: true }}
               onClick={() => onCategoryClick(mapCategory(cat.id))}
-              className="group relative h-[500px] rounded-[2.5rem] overflow-hidden cursor-pointer border border-border-subtle"
+              className="group relative h-[320px] md:h-[420px] rounded-[2.5rem] overflow-hidden cursor-pointer border border-border-subtle"
             >
               <img
                 src={cat.image}
@@ -76,20 +76,20 @@ export const Categories = ({ onCategoryClick }: { onCategoryClick: (category: st
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
               <div className="absolute inset-0 bg-brand-red/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
-              <div className="absolute inset-0 p-8 flex flex-col justify-end">
-                <div className="mb-6">
-                  <div className="p-3 bg-brand-red/20 backdrop-blur-md border border-brand-red/30 rounded-2xl w-fit mb-6 group-hover:bg-brand-red group-hover:text-white transition-all duration-500">
+              <div className="absolute inset-0 p-5 md:p-8 flex flex-col justify-between">
+                <div className="pt-1 flex flex-col items-center md:items-start">
+                  <div className="p-3 bg-brand-red/20 backdrop-blur-md border border-brand-red/30 rounded-2xl w-fit mb-4 md:mb-6 text-brand-red group-hover:bg-brand-red group-hover:text-white transition-all duration-500">
                     <cat.icon className="h-6 w-6" />
                   </div>
-                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic leading-[0.9] mb-3 group-hover:text-brand-red transition-colors">
+                  <h3 className="text-lg md:text-3xl font-black text-white tracking-tighter uppercase italic leading-[0.95] mb-2 md:mb-3 group-hover:text-brand-red transition-colors text-center md:text-left">
                     {cat.title}
                   </h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                  <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
                     {cat.desc}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between pt-6 border-t border-white/10 mt-2">
+                <div className="flex items-center justify-between pt-5 border-t border-white/10">
                   <span className="text-[10px] font-black text-white/50 tracking-widest uppercase italic">{cat.count}</span>
                   <div className="p-2 rounded-full bg-white/5 group-hover:bg-brand-red transition-colors">
                     <ChevronRight className="h-4 w-4 text-white" />

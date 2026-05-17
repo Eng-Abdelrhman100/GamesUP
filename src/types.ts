@@ -1,4 +1,18 @@
-export type AppView = 'home' | 'product' | 'orders' | 'favorites' | 'about' | 'contact' | 'request' | 'dashboard' | 'shop' | 'checkout' | 'confirmation' | 'search';
+export type AppView =
+  | 'home'
+  | 'product'
+  | 'orders'
+  | 'favorites'
+  | 'about'
+  | 'contact'
+  | 'request'
+  | 'dashboard'
+  | 'shop'
+  | 'best_sellers'
+  | 'collection'
+  | 'checkout'
+  | 'confirmation'
+  | 'search';
 
 export type GameStatus = 'IN STOCK' | 'OUT OF STOCK' | 'LIMITED' | 'NEW';
 

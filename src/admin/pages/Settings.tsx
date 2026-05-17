@@ -29,6 +29,7 @@ export function Settings() {
   const [systemCategories, setSystemCategories] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
+  const [bestSellingSearch, setBestSellingSearch] = useState('');
   
   // Local state for password change
   const [passwordForm, setPasswordForm] = useState({
@@ -90,6 +91,7 @@ export function Settings() {
     coming_soon: false,
     homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string; system_category_slug?: string }[],
     homepage_sections: [] as { id: string; title: string; productIds: string[] }[],
+    best_selling_product_ids: [] as string[],
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
 
@@ -162,6 +164,9 @@ export function Settings() {
           title: s?.title == null ? '' : String(s.title),
           productIds: Array.isArray(s?.productIds) ? s.productIds.map((v: any) => String(v)) : [],
         })),
+        best_selling_product_ids: Array.isArray((settings as any).best_selling_product_ids)
+          ? (settings as any).best_selling_product_ids.map((v: any) => String(v))
+          : [],
       });
     }
   }, [settings]);
@@ -254,6 +259,15 @@ export function Settings() {
       alert('Failed to upload logo');
     }
   };
+
+  const bestSellingFilteredProducts = allProducts.filter((p: any) => {
+    const s = String(bestSellingSearch || '').toLowerCase();
+    if (!s) return true;
+    const name = String(p?.name || '').toLowerCase();
+    const id = String(p?.id || '').toLowerCase();
+    const cat = String(p?.category_slug || '').toLowerCase();
+    return name.includes(s) || id.includes(s) || cat.includes(s);
+  });
 
 
   const tabs = [
@@ -842,6 +856,76 @@ export function Settings() {
                 >
                   <Plus className="w-4 h-4" /> Add Section
                 </button>
+              </div>
+            </div>
+
+            <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl flex flex-col gap-4 mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-[11px] font-black text-white tracking-widest uppercase italic">Best Selling</h4>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+                    Select products for the homepage best selling row
+                  </p>
+                </div>
+                <div className="text-[10px] font-black text-white/50 uppercase tracking-widest">
+                  {formData.best_selling_product_ids.length} games
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Search Games</label>
+                  <input
+                    type="text"
+                    value={bestSellingSearch}
+                    onChange={(e) => setBestSellingSearch(e.target.value)}
+                    placeholder="Type to filter..."
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Selected</label>
+                  <div className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold">
+                    {formData.best_selling_product_ids.length} games
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-white/10 rounded-2xl overflow-hidden">
+                <div className="max-h-64 overflow-auto">
+                  {bestSellingFilteredProducts.length === 0 ? (
+                    <div className="p-4 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                      No matching games
+                    </div>
+                  ) : (
+                    bestSellingFilteredProducts.map((p: any) => {
+                      const pid = String(p?.id ?? '');
+                      const checked = (formData.best_selling_product_ids || []).includes(pid);
+                      return (
+                        <label key={pid} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/5 hover:bg-white/[0.03] cursor-pointer">
+                          <div className="min-w-0">
+                            <div className="text-white text-xs font-bold truncate">{p?.name || `#${pid}`}</div>
+                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">
+                              {p?.category_slug ? String(p.category_slug) : 'UNCATEGORIZED'}
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setFormData(prev => {
+                                const current = Array.isArray(prev.best_selling_product_ids) ? prev.best_selling_product_ids : [];
+                                const next = checked ? current.filter(x => x !== pid) : [...current, pid];
+                                return { ...prev, best_selling_product_ids: next };
+                              });
+                            }}
+                            className="h-4 w-4 accent-red-600"
+                          />
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
 

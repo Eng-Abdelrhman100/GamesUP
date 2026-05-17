@@ -1,12 +1,18 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { MessageSquare, Mail, Phone, ArrowLeft, Send } from 'lucide-react';
+import { useStoreSettings } from '../context/StoreSettingsContext';
 
 interface ContactPageProps {
   onBack: () => void;
 }
 
 export const ContactPage = ({ onBack }: ContactPageProps) => {
+  const { settings } = useStoreSettings();
+  const email = settings?.store_email ? String(settings.store_email) : 'support@games-up.co';
+  const phone = settings?.store_phone ? String(settings.store_phone) : '+20 100 848 0536';
+  const whatsappUrl = settings?.whatsapp_url ? String(settings.whatsapp_url) : 'https://wa.me/201008480536';
+
   return (
     <div className="min-h-screen bg-bg-dark pt-32 pb-20">
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
@@ -32,7 +38,12 @@ export const ContactPage = ({ onBack }: ContactPageProps) => {
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic mb-1">Direct Signal</p>
-                  <p className="text-lg font-black text-[var(--text-primary)] tracking-tighter uppercase italic">HQ@SAMURAI-STORE.EG</p>
+                  <a
+                    href={`mailto:${email}`}
+                    className="text-lg font-black text-[var(--text-primary)] tracking-tighter uppercase italic hover:text-brand-red transition-colors"
+                  >
+                    {email}
+                  </a>
                 </div>
               </div>
               <div className="flex items-center gap-6 group">
@@ -41,7 +52,14 @@ export const ContactPage = ({ onBack }: ContactPageProps) => {
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic mb-1">Live Intelligence</p>
-                  <p className="text-lg font-black text-[var(--text-primary)] tracking-tighter uppercase italic">M.ME/SAMURAI.STORE.EG</p>
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-lg font-black text-[var(--text-primary)] tracking-tighter uppercase italic hover:text-brand-red transition-colors"
+                  >
+                    WHATSAPP CHAT
+                  </a>
                 </div>
               </div>
               <div className="flex items-center gap-6 group">
@@ -50,7 +68,12 @@ export const ContactPage = ({ onBack }: ContactPageProps) => {
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic mb-1">Emergency Comms</p>
-                  <p className="text-lg font-black text-[var(--text-primary)] tracking-tighter uppercase italic">+20 0123 456 789</p>
+                  <a
+                    href={`tel:${phone.replace(/\s+/g, '')}`}
+                    className="text-lg font-black text-[var(--text-primary)] tracking-tighter uppercase italic hover:text-brand-red transition-colors"
+                  >
+                    {phone}
+                  </a>
                 </div>
               </div>
             </div>

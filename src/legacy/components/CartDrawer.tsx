@@ -95,7 +95,7 @@ export const CartDrawer = ({ isOpen, onClose, items, onRemove, onCheckout }: Car
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <p className="text-[9px] text-center mt-6 text-text-secondary font-bold uppercase tracking-widest italic">
-                  Encrypted Deployment via Samurai Store Egypt
+                  Encrypted Deployment via GamesUp
                 </p>
               </div>
             )}

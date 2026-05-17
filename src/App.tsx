@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -36,12 +36,14 @@ export default function App() {
   const [games, setGames] = useState<Game[]>(GAMES_DATA);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [view, setView] = useState<AppView>('home');
+  const [collection, setCollection] = useState<{ title: string; productIds: string[] } | null>(null);
   const [shopCategory, setShopCategory] = useState<string>('ALL');
   const [isDark, setIsDark] = useState(true);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const pendingUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -110,9 +112,301 @@ export default function App() {
       .filter((s: any) => s.title && Array.isArray(s.games) && s.games.length > 0);
   }, [(settings as any)?.homepage_sections, games]);
 
+  const bestSellingIds = useMemo(() => {
+    const raw = (settings as any)?.best_selling_product_ids;
+    return Array.isArray(raw) ? raw.map((v: any) => String(v)) : [];
+  }, [(settings as any)?.best_selling_product_ids]);
+
+  const bestSellingGames = useMemo(() => {
+    if (!bestSellingIds.length) return [];
+    const byId = new Map<string, Game>(games.map((g) => [String(g.id), g]));
+    return bestSellingIds.map((id) => byId.get(String(id))).filter(Boolean) as Game[];
+  }, [bestSellingIds, games]);
+
+  const collectionGames = useMemo(() => {
+    const ids = collection?.productIds;
+    if (!Array.isArray(ids) || !ids.length) return [];
+    const byId = new Map<string, Game>(games.map((g) => [String(g.id), g]));
+    return ids.map((id) => byId.get(String(id))).filter(Boolean) as Game[];
+  }, [collection?.productIds, games]);
+
+  const slugify = (input: string) => {
+    return String(input || '')
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, 'and')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  };
+
+  const buildProductSlug = (game: Game) => `${slugify(game.title)}-${String(game.id)}`;
+
+  const trySyncFromUrl = (url: string): boolean => {
+    const [pathname, search] = String(url || '/').split('?');
+    const path = String(pathname || '/');
+    if (path === '/' || path === '') {
+      setView('home');
+      setSelectedGame(null);
+      setShopCategory('ALL');
+      setCollection(null);
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path.startsWith('/product/')) {
+      const slug = decodeURIComponent(path.slice('/product/'.length));
+      const idMatch = slug.match(/-([a-z0-9]+)$/i);
+      const id = idMatch ? idMatch[1] : null;
+      const found = id ? games.find((g) => String(g.id) === String(id)) : null;
+      if (found) {
+        setSelectedGame(found);
+        setView('product');
+        setCollection(null);
+        window.scrollTo(0, 0);
+        return true;
+      }
+      return false;
+    }
+
+    if (path === '/shop' || path.startsWith('/shop/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setShopCategory('ALL');
+      setView('shop');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/best-sellers' || path === '/best-selling' || path.startsWith('/best-sellers/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setShopCategory('ALL');
+      setView('best_sellers');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/about' || path.startsWith('/about/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('about');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/contact' || path.startsWith('/contact/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('contact');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/favorites' || path.startsWith('/favorites/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('favorites');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/orders' || path.startsWith('/orders/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('orders');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/request-game' || path === '/request' || path.startsWith('/request')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('request');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/dashboard' || path.startsWith('/dashboard/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('dashboard');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/search' || path.startsWith('/search/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('search');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/checkout' || path.startsWith('/checkout/')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('checkout');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/order-confirmation' || path === '/confirmation' || path.startsWith('/confirmation')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('confirmation');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/collection' || path.startsWith('/collection/')) {
+      const params = new URLSearchParams(search || '');
+      const ids = (params.get('ids') || '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+      if (!ids.length) return false;
+      const title = params.get('title') ? String(params.get('title')) : 'Selected Products';
+      setCollection({ title, productIds: ids });
+      setSelectedGame(null);
+      setShopCategory('ALL');
+      setView('collection');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    return false;
+  };
+
+  useEffect(() => {
+    if (pendingUrlRef.current != null) return;
+    pendingUrlRef.current = `${window.location.pathname || '/'}${window.location.search || ''}`;
+
+    const onPopState = () => {
+      pendingUrlRef.current = `${window.location.pathname || '/'}${window.location.search || ''}`;
+      const ok = trySyncFromUrl(pendingUrlRef.current);
+      if (ok) pendingUrlRef.current = null;
+    };
+
+    window.addEventListener('popstate', onPopState);
+    onPopState();
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (settingsLoading) return;
+    if (settings?.coming_soon) return;
+    if (pendingUrlRef.current == null) return;
+    const ok = trySyncFromUrl(pendingUrlRef.current);
+    if (ok) pendingUrlRef.current = null;
+  }, [games, settingsLoading, settings?.coming_soon]);
+
+  const navigateView = (nextView: AppView) => {
+    if (nextView === 'home') return handleBackToHome();
+    if (nextView === 'shop') return handleSeeAll();
+    if (nextView === 'best_sellers') return openBestSellers();
+    if (nextView === 'about') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('about');
+      window.history.pushState({}, '', '/about');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'contact') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('contact');
+      window.history.pushState({}, '', '/contact');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'favorites') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('favorites');
+      window.history.pushState({}, '', '/favorites');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'orders') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('orders');
+      window.history.pushState({}, '', '/orders');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'request') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('request');
+      window.history.pushState({}, '', '/request-game');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'search') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('search');
+      window.history.pushState({}, '', '/search');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'dashboard') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('dashboard');
+      window.history.pushState({}, '', '/dashboard');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'checkout') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('checkout');
+      window.history.pushState({}, '', '/checkout');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'confirmation') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('confirmation');
+      window.history.pushState({}, '', '/confirmation');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'product') {
+      if (selectedGame) {
+        setCollection(null);
+        setView('product');
+        window.history.pushState({}, '', `/product/${buildProductSlug(selectedGame)}`);
+        window.scrollTo(0, 0);
+        return;
+      }
+      return handleBackToHome();
+    }
+    if (nextView === 'collection') {
+      if (collection && Array.isArray(collection.productIds) && collection.productIds.length > 0) {
+        setSelectedGame(null);
+        setShopCategory('ALL');
+        setView('collection');
+        const params = new URLSearchParams();
+        params.set('title', collection.title || 'Selected Products');
+        params.set('ids', collection.productIds.join(','));
+        window.history.pushState({}, '', `/collection?${params.toString()}`);
+        window.scrollTo(0, 0);
+        return;
+      }
+      return handleBackToHome();
+    }
+  };
+
   const handleProductClick = (game: Game) => {
     setSelectedGame(game);
     setView('product');
+    window.history.pushState({}, '', `/product/${buildProductSlug(game)}`);
     window.scrollTo(0, 0);
   };
 
@@ -120,25 +414,55 @@ export default function App() {
     setView('home');
     setSelectedGame(null);
     setShopCategory('ALL');
+    setCollection(null);
+    window.history.pushState({}, '', '/');
     window.scrollTo(0, 0);
   };
 
   const handleCategoryClick = (category: string) => {
     setShopCategory(category);
     setView('shop');
+    setCollection(null);
+    window.history.pushState({}, '', '/shop');
     window.scrollTo(0, 0);
   };
   
+  const openCollection = (title: string, productIds: string[]) => {
+    const ids = Array.isArray(productIds) ? productIds.map((v) => String(v)) : [];
+    if (!ids.length) return;
+    setCollection({ title: String(title || ''), productIds: ids });
+    setSelectedGame(null);
+    setView('collection');
+    const params = new URLSearchParams();
+    params.set('title', String(title || 'Selected Products'));
+    params.set('ids', ids.join(','));
+    window.history.pushState({}, '', `/collection?${params.toString()}`);
+    window.scrollTo(0, 0);
+  };
+
   const handleShopNow = () => {
     setSelectedGame(null);
     setShopCategory('ALL');
     setView('shop');
+    setCollection(null);
+    window.history.pushState({}, '', '/shop');
+    window.scrollTo(0, 0);
+  };
+
+  const openBestSellers = () => {
+    setSelectedGame(null);
+    setShopCategory('ALL');
+    setCollection(null);
+    setView('best_sellers');
+    window.history.pushState({}, '', '/best-sellers');
     window.scrollTo(0, 0);
   };
 
   const handleSeeAll = () => {
     setShopCategory('ALL');
     setView('shop');
+    setCollection(null);
+    window.history.pushState({}, '', '/shop');
     window.scrollTo(0, 0);
   };
 
@@ -162,12 +486,14 @@ export default function App() {
 
   const handleCheckout = () => {
     setView('checkout');
+    window.history.pushState({}, '', '/checkout');
     window.scrollTo(0, 0);
   };
 
   const handleConfirmOrder = () => {
     setCartItems([]);
     setView('confirmation');
+    window.history.pushState({}, '', '/confirmation');
     window.scrollTo(0, 0);
   };
 
@@ -186,6 +512,16 @@ export default function App() {
           <>
             <Hero onShopNow={handleShopNow} />
             <Stats />
+            {bestSellingGames.length > 0 && (
+              <CategoryRow
+                title="BEST SELLING"
+                games={bestSellingGames}
+                onProductClick={handleProductClick}
+                onSeeAll={openBestSellers}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
+              />
+            )}
             <Categories onCategoryClick={handleCategoryClick} />
             
             {homepageSections.length > 0 ? (
@@ -195,7 +531,7 @@ export default function App() {
                   title={sec.title}
                   games={sec.games}
                   onProductClick={handleProductClick}
-                  onSeeAll={handleSeeAll}
+                  onSeeAll={() => openCollection(sec.title, (sec.games || []).map((g: any) => String(g.id)))}
                   favorites={favorites}
                   onToggleFavorite={toggleFavorite}
                 />
@@ -248,6 +584,34 @@ export default function App() {
             onToggleFavorite={toggleFavorite}
           />
         );
+      case 'best_sellers':
+        return (
+          <ShopPage
+            games={bestSellingGames}
+            onProductClick={handleProductClick}
+            onBack={handleBackToHome}
+            initialCategory="ALL"
+            pageTitle="BEST SELLERS"
+            pageSubtitle="Best Selling Products"
+            hideCategoriesBar
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+          />
+        );
+      case 'collection':
+        return (
+          <ShopPage
+            games={collectionGames}
+            onProductClick={handleProductClick}
+            onBack={handleBackToHome}
+            initialCategory="ALL"
+            pageTitle={collection?.title || 'Selected Products'}
+            pageSubtitle="Selected Products"
+            hideCategoriesBar
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+          />
+        );
       case 'product':
         return selectedGame ? (
           <ProductPage 
@@ -276,11 +640,11 @@ export default function App() {
       case 'request':
         return <RequestGamePage onBack={handleBackToHome} />;
       case 'dashboard':
-        return <DashboardPage onBack={handleBackToHome} onViewChange={setView} />;
+        return <DashboardPage onBack={handleBackToHome} onViewChange={navigateView} />;
       case 'checkout':
-        return <CheckoutPage cart={cartItems} onBack={() => setView('home')} onConfirm={handleConfirmOrder} />;
+        return <CheckoutPage cart={cartItems} onBack={() => navigateView('home')} onConfirm={handleConfirmOrder} />;
       case 'confirmation':
-        return <OrderConfirmationPage onBackToHome={handleBackToHome} onViewOrders={() => setView('orders')} />;
+        return <OrderConfirmationPage onBackToHome={handleBackToHome} onViewOrders={() => navigateView('orders')} />;
       case 'search':
         return (
           <SearchPage 
@@ -381,7 +745,7 @@ export default function App() {
         cartCount={cartItems.length}
         onCartClick={() => setIsCartOpen(true)}
         onLogoClick={handleBackToHome}
-        onViewChange={setView}
+        onViewChange={navigateView}
         currentView={view}
       />
       

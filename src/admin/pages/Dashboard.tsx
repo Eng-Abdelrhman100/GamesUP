@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { DollarSign, ShoppingCart, Users, Percent } from 'lucide-react';
+import { DollarSign, ShoppingCart, Users, Percent, Instagram, Facebook, MessageCircle, Twitter } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { KPICard } from '../../components/ui/KPICard';
 import { Card } from '../../components/ui/card';
@@ -7,7 +7,7 @@ import { useStoreSettings } from '../../context/StoreSettingsContext';
 import { adminAPI } from '../../utils/api';
 
 export function Dashboard() {
-  const { formatPrice } = useStoreSettings();
+  const { formatPrice, settings } = useStoreSettings();
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [category, setCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -214,6 +214,46 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+
+      <Card className="p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="font-semibold text-text-primary">Social Links</h3>
+            <p className="text-sm text-text-secondary">Quick access to the store social channels</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { key: 'instagram', label: 'Instagram', Icon: Instagram, url: (settings as any)?.instagram_url },
+            { key: 'facebook', label: 'Facebook', Icon: Facebook, url: (settings as any)?.facebook_url },
+            { key: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle, url: (settings as any)?.whatsapp_url },
+            { key: 'twitter', label: 'X', Icon: Twitter, url: (settings as any)?.twitter_url },
+          ].map(({ key, label, Icon, url }) => (
+            <a
+              key={key}
+              href={url ? String(url) : '#'}
+              target={url ? '_blank' : undefined}
+              rel={url ? 'noreferrer' : undefined}
+              onClick={(e) => {
+                if (!url) e.preventDefault();
+              }}
+              className={`flex items-center gap-3 p-4 rounded-xl border transition-colors ${
+                url
+                  ? 'border-border-subtle bg-bg-primary hover:border-brand-red/40'
+                  : 'border-border-subtle bg-bg-primary opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <div className="h-10 w-10 rounded-xl bg-brand-red/10 flex items-center justify-center text-brand-red">
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-text-primary">{label}</div>
+                <div className="text-xs text-text-secondary truncate">{url ? String(url) : 'Not set'}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </Card>
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

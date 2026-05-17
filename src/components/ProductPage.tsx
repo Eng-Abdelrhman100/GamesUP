@@ -18,7 +18,16 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
     window.scrollTo(0, 0);
   }, []);
 
-  const activeOption = game.accountTypes[selectedTier];
+  const visibleAccountTypes = game.accountTypes.filter((opt) => {
+    const t = String((opt as any)?.tier || '').toLowerCase();
+    if (!t) return true;
+    if (t.includes('offline')) return false;
+    return true;
+  });
+
+  const hasOptions = visibleAccountTypes.length > 0;
+  const safeSelectedTier = hasOptions ? Math.min(Math.max(0, selectedTier), visibleAccountTypes.length - 1) : 0;
+  const activeOption = hasOptions ? visibleAccountTypes[safeSelectedTier] : null;
 
   return (
     <div className="min-h-screen bg-bg-dark pt-32 pb-20 transition-colors duration-300">
@@ -105,20 +114,20 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                 
                 {/* Account Tiers */}
                 <div className="grid grid-cols-1 gap-4">
-                  {game.accountTypes.map((option, idx) => (
+                  {visibleAccountTypes.map((option, idx) => (
                     <button 
                       key={idx}
                       onClick={() => option.isAvailable && setSelectedTier(idx)}
                       className={`group relative p-6 rounded-3xl text-left border-2 transition-all flex items-center gap-6 ${
                         !option.isAvailable 
                           ? 'border-border-subtle bg-black/5 dark:bg-white/[0.01] cursor-not-allowed opacity-30 shadow-none' 
-                          : selectedTier === idx 
+                          : safeSelectedTier === idx 
                             ? 'border-brand-red bg-brand-red/[0.03] shadow-[0_0_30px_-10px_rgba(235,59,59,0.1)]' 
                             : 'border-border-subtle hover:border-brand-red/30 bg-black/5 dark:bg-white/[0.02] shadow-none'
                       }`}
                       disabled={!option.isAvailable}
                     >
-                      <div className={`p-4 rounded-2xl transition-all ${selectedTier === idx ? 'bg-brand-red text-white scale-110 shadow-lg shadow-brand-red/30' : 'bg-bg-dark text-text-secondary'}`}>
+                      <div className={`p-4 rounded-2xl transition-all ${safeSelectedTier === idx ? 'bg-brand-red text-white scale-110 shadow-lg shadow-brand-red/30' : 'bg-bg-dark text-text-secondary'}`}>
                         <span className="text-2xl">{option.icon}</span>
                       </div>
                       <div className="flex-1">
@@ -130,13 +139,18 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                           {option.price} <span className="text-xs text-text-secondary">L.E</span>
                         </div>
                       </div>
-                      {selectedTier === idx && (
+                      {safeSelectedTier === idx && (
                         <div className="bg-brand-red text-white p-2 rounded-full shadow-lg shadow-brand-red/20">
                           <Check className="h-4 w-4" />
                         </div>
                       )}
                     </button>
                   ))}
+                  {!hasOptions && (
+                    <div className="p-6 rounded-3xl border border-border-subtle bg-black/5 dark:bg-white/[0.01] text-text-secondary text-xs font-bold uppercase tracking-widest italic">
+                      No tiers available
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -147,14 +161,20 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                 <div className="flex items-baseline gap-2 h-16">
                   <AnimatePresence mode="wait">
                     <motion.div
-                      key={selectedTier}
+                      key={safeSelectedTier}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       className="text-5xl md:text-6xl font-black text-[var(--text-primary)] tracking-tighter font-display italic transition-colors"
                     >
-                      {activeOption.price} <span className="text-xl text-text-secondary font-sans not-italic ml-1">L.E</span>
+                      {activeOption ? (
+                        <>
+                          {activeOption.price} <span className="text-xl text-text-secondary font-sans not-italic ml-1">L.E</span>
+                        </>
+                      ) : (
+                        <>N/A</>
+                      )}
                     </motion.div>
                   </AnimatePresence>
                 </div>
@@ -162,15 +182,17 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button 
-                  onClick={() => onAddToCart(game, activeOption)}
+                  onClick={() => activeOption && onAddToCart(game, activeOption)}
                   className="py-6 rounded-3xl font-black tracking-[0.2em] text-sm flex items-center justify-center gap-3 transition-all uppercase italic bg-[var(--text-primary)] text-bg-dark hover:scale-[1.02] active:scale-95 group shadow-2xl"
+                  disabled={!activeOption}
                 >
                   Add to Inventory
                   <ShoppingCart className="h-5 w-5 group-hover:rotate-12 transition-transform" />
                 </button>
                 <button 
-                  onClick={() => onAddToCart(game, activeOption)}
+                  onClick={() => activeOption && onAddToCart(game, activeOption)}
                   className="py-6 rounded-3xl font-black tracking-[0.2em] text-sm flex items-center justify-center gap-3 transition-all uppercase italic bg-brand-red text-white hover:scale-[1.02] active:scale-95 group shadow-2xl shadow-brand-red/20"
+                  disabled={!activeOption}
                 >
                   Instant Buy 
                   <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />

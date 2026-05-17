@@ -41,12 +41,16 @@ export const Hero = ({ onShopNow }: { onShopNow?: () => void }) => (
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="flex flex-col sm:flex-row gap-6 items-center"
+        className="flex flex-row gap-4 sm:gap-6 items-center w-full sm:w-auto"
       >
-        <button className="btn-primary h-14 px-12 text-sm" onClick={onShopNow}>
+        <button className="btn-primary h-14 px-6 sm:px-12 text-sm flex-1 sm:flex-none" onClick={onShopNow}>
           SHOP NOW
         </button>
-        <button className="btn-secondary h-14 px-12 text-sm italic">
+        <button
+          className="btn-secondary h-14 px-6 sm:px-12 text-sm italic flex-1 sm:flex-none"
+          onClick={() => window.open('https://wa.me/201008480536', '_blank', 'noreferrer')}
+          type="button"
+        >
           WHATSAPP SUPPORT
         </button>
       </motion.div>

@@ -35,6 +35,7 @@ interface StoreSettings {
     title: string;
     productIds: string[];
   }[];
+  best_selling_product_ids?: string[];
 }
 
 interface StoreSettingsContextType {
@@ -63,6 +64,7 @@ const defaultSettings: StoreSettings = {
   business_hours: [],
   payment_methods: [],
   coming_soon: false,
+  best_selling_product_ids: [],
   homepage_categories: [
     {
       id: 'rpg',
@@ -143,6 +145,11 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         homepage_sections = data.homepage_sections ? JSON.parse(data.homepage_sections) : [];
       } catch (e) {}
 
+      let best_selling_product_ids: any[] = [];
+      try {
+        best_selling_product_ids = data.best_selling_product_ids ? JSON.parse(data.best_selling_product_ids) : [];
+      } catch (e) {}
+
       setSettings({
         currency_code: data.currency_code || 'EGP',
         currency_symbol: data.currency_symbol || 'EGP',
@@ -164,6 +171,7 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         default_banners,
         homepage_categories: (homepage_categories && homepage_categories.length > 0) ? homepage_categories : defaultSettings.homepage_categories,
         homepage_sections: Array.isArray(homepage_sections) ? homepage_sections : [],
+        best_selling_product_ids: Array.isArray(best_selling_product_ids) ? best_selling_product_ids.map((v: any) => String(v)) : [],
         coming_soon: data.coming_soon === true || data.coming_soon === 'true',
       });
     } catch (error) {
@@ -195,6 +203,9 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
       }
       if (serverData.homepage_sections) {
         serverData.homepage_sections = JSON.stringify(serverData.homepage_sections);
+      }
+      if (serverData.best_selling_product_ids) {
+        serverData.best_selling_product_ids = JSON.stringify(serverData.best_selling_product_ids);
       }
 
       await settingsAPI.update(serverData);

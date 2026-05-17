@@ -20,17 +20,16 @@ export const AboutPage = ({ onBack }: AboutPageProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
           <div>
             <h1 className="text-5xl md:text-8xl font-black tracking-[-0.05em] text-[var(--text-primary)] uppercase font-display leading-[0.8] italic mb-12">
-              THE<br />SAMURAI<br />
+              THE<br />GAMES<span className="text-brand-red">UP</span><br />
               <span className="text-brand-red">WAY.</span>
             </h1>
             <div className="space-y-6 text-text-secondary text-lg leading-relaxed font-medium italic">
               <p>
-                Founded in the digital trenches of Egypt, Samurai Store was born from a singular mission: to provide the elite gaming community
-                with the most secure and rapid asset deployment in the territory.
+                GamesUp was built for gamers who want fast delivery, secure transactions, and a smooth way to level up their library. We focus on
+                PlayStation digital accounts (Full, Primary &amp; Secondary), PS Plus subscriptions, game top-ups, Steam accounts, and more.
               </p>
               <p>
-                We don't just sell accounts; we provide keys to new dimensions. Every mission we undertake is backed by our triple-layer security
-                protocol, ensuring your digital honor remains intact.
+                Every order is handled with clear processes and support-first service so you can buy with confidence and get back to playing.
               </p>
             </div>
           </div>
@@ -60,7 +59,7 @@ export const AboutPage = ({ onBack }: AboutPageProps) => {
               </div>
               <h3 className="text-xl font-black text-[var(--text-primary)] uppercase italic mb-3 tracking-tighter">PRECISION SERVICE</h3>
               <p className="text-xs text-text-secondary font-bold uppercase tracking-widest leading-loose">
-                Dedicated Egyptian operators standing by 24/7 to ensure your mission success.
+                Support that helps you choose the right option and solves issues quickly.
               </p>
             </div>
           </div>

@@ -8,6 +8,7 @@ export type AppView =
   | 'request'
   | 'dashboard'
   | 'shop'
+  | 'collection'
   | 'checkout'
   | 'confirmation'
   | 'search';

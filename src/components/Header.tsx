@@ -183,7 +183,7 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
 
               <div className="mt-auto p-6 border-t border-border-subtle">
                 <div className="flex items-center gap-4 text-[10px] font-black text-text-secondary uppercase tracking-widest italic">
-                  <Package className="h-4 w-4" /> Samurai HQ: Locked
+                  <Package className="h-4 w-4" /> GamesUp HQ: Locked
                 </div>
               </div>
             </motion.div>

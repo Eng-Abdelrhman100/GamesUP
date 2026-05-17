@@ -8,6 +8,9 @@ interface ShopPageProps {
   onProductClick: (game: Game) => void;
   onBack: () => void;
   initialCategory?: string;
+  pageTitle?: string;
+  pageSubtitle?: string;
+  hideCategoriesBar?: boolean;
   favorites?: string[];
   onToggleFavorite?: (id: string) => void;
 }
@@ -17,6 +20,9 @@ export const ShopPage = ({
   onProductClick, 
   onBack, 
   initialCategory = 'ALL',
+  pageTitle,
+  pageSubtitle,
+  hideCategoriesBar = false,
   favorites = [],
   onToggleFavorite
 }: ShopPageProps) => {
@@ -73,9 +79,20 @@ export const ShopPage = ({
               Return To Base
             </button>
             <h1 className="text-5xl md:text-8xl font-black tracking-[-0.05em] text-[var(--text-primary)] uppercase font-display leading-[0.8] italic mb-4 transition-colors">
-              THE<br />ARMORY<span className="text-brand-red">.</span>
+              {pageTitle ? (
+                <>
+                  {pageTitle}
+                  <span className="text-brand-red">.</span>
+                </>
+              ) : (
+                <>
+                  THE<br />ARMORY<span className="text-brand-red">.</span>
+                </>
+              )}
             </h1>
-            <p className="text-text-secondary text-sm font-black uppercase tracking-[0.3em] italic">Full Tactical Asset Inventory</p>
+            <p className="text-text-secondary text-sm font-black uppercase tracking-[0.3em] italic">
+              {pageSubtitle || 'Full Tactical Asset Inventory'}
+            </p>
           </div>
 
           <div className="w-full md:w-auto flex flex-col gap-4">
@@ -111,22 +128,23 @@ export const ShopPage = ({
           </div>
         </div>
 
-        {/* Categories Bar */}
-        <div className="flex gap-2 md:gap-4 overflow-x-auto scrollbar-hide pb-10 mb-10 border-b border-border-subtle/50">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(String(cat).toUpperCase())}
-              className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic whitespace-nowrap transition-all ${
-                activeCategory === cat 
-                  ? 'bg-brand-red text-white shadow-lg shadow-brand-red/20' 
-                  : 'bg-bg-card border border-border-subtle text-text-secondary hover:border-brand-red/30'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+        {!hideCategoriesBar && (
+          <div className="flex gap-2 md:gap-4 overflow-x-auto scrollbar-hide pb-10 mb-10 border-b border-border-subtle/50">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(String(cat).toUpperCase())}
+                className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic whitespace-nowrap transition-all ${
+                  activeCategory === cat 
+                    ? 'bg-brand-red text-white shadow-lg shadow-brand-red/20' 
+                    : 'bg-bg-card border border-border-subtle text-text-secondary hover:border-brand-red/30'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Advanced Filters Panel */}
         <AnimatePresence>
