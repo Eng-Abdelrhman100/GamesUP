@@ -15,6 +15,8 @@ interface CategoryRowProps {
 export const CategoryRow = ({ title, games, onProductClick, onSeeAll, favorites = [], onToggleFavorite }: CategoryRowProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const placeholdersCount = Math.max(0, 4 - (games?.length || 0));
+
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
       const { scrollLeft, clientWidth } = scrollRef.current;
@@ -102,7 +104,7 @@ export const CategoryRow = ({ title, games, onProductClick, onSeeAll, favorites 
                 </div>
 
                 <div className="absolute bottom-6 left-6 right-6">
-                  <h3 className="text-xl font-black text-white tracking-tighter uppercase italic leading-none mb-2">
+                  <h3 className="text-xl font-black text-white tracking-tighter uppercase italic leading-none mb-2 line-clamp-2 min-h-[2.5rem]">
                     {game.title}
                   </h3>
                   <div className="flex items-center gap-2">
@@ -114,6 +116,29 @@ export const CategoryRow = ({ title, games, onProductClick, onSeeAll, favorites 
                 </div>
               </div>
             </motion.div>
+          ))}
+
+          {Array.from({ length: placeholdersCount }).map((_, i) => (
+            <div key={`placeholder-${i}`} className="min-w-[280px] md:min-w-[320px] snap-start">
+              <div className="relative aspect-[4/5] rounded-3xl overflow-hidden bg-bg-card border border-border-subtle cursor-default select-none">
+                <div className="absolute inset-0 animate-pulse">
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-transparent dark:from-white/[0.04]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-transparent to-transparent opacity-70" />
+                </div>
+
+                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                  <span className="bg-black/30 backdrop-blur-md text-white/70 text-[8px] font-black tracking-[0.2em] px-3 py-1 rounded-full uppercase italic border border-white/10">
+                    COMING SOON
+                  </span>
+                </div>
+
+                <div className="absolute bottom-6 left-6 right-6">
+                  <div className="h-5 w-3/4 bg-white/10 rounded-md mb-2" />
+                  <div className="h-5 w-1/2 bg-white/10 rounded-md mb-3" />
+                  <div className="h-3 w-28 bg-white/10 rounded-md" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>

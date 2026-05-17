@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -93,6 +93,23 @@ export default function App() {
 
   const toggleTheme = () => setIsDark(!isDark);
 
+  const homepageSections = useMemo(() => {
+    const raw = Array.isArray((settings as any)?.homepage_sections) ? (settings as any).homepage_sections : [];
+    if (!raw.length) return [];
+    const byId = new Map<string, Game>(games.map((g) => [String(g.id), g]));
+    return raw
+      .map((s: any) => {
+        const productIds = Array.isArray(s?.productIds) ? s.productIds : [];
+        const picked = productIds.map((id: any) => byId.get(String(id))).filter(Boolean) as Game[];
+        return {
+          id: String(s?.id ?? ''),
+          title: s?.title == null ? '' : String(s.title),
+          games: picked,
+        };
+      })
+      .filter((s: any) => s.title && Array.isArray(s.games) && s.games.length > 0);
+  }, [(settings as any)?.homepage_sections, games]);
+
   const handleProductClick = (game: Game) => {
     setSelectedGame(game);
     setView('product');
@@ -164,31 +181,46 @@ export default function App() {
             <Stats />
             <Categories onCategoryClick={handleCategoryClick} />
             
-            {/* Category Sliders */}
-            <CategoryRow 
-              title="ACTION MISSIONS" 
-              games={games.filter(g => g.category?.toUpperCase() === 'ACTION')} 
-              onProductClick={handleProductClick}
-              onSeeAll={handleSeeAll}
-              favorites={favorites}
-              onToggleFavorite={toggleFavorite}
-            />
-            <CategoryRow 
-              title="SPORTS ARENA" 
-              games={games.filter(g => g.category?.toUpperCase() === 'SPORTS')} 
-              onProductClick={handleProductClick}
-              onSeeAll={handleSeeAll}
-              favorites={favorites}
-              onToggleFavorite={toggleFavorite}
-            />
-            <CategoryRow 
-              title="RPG FRONTIERS" 
-              games={games.filter(g => g.category?.toUpperCase() === 'RPG')} 
-              onProductClick={handleProductClick}
-              onSeeAll={handleSeeAll}
-              favorites={favorites}
-              onToggleFavorite={toggleFavorite}
-            />
+            {homepageSections.length > 0 ? (
+              homepageSections.map((sec: any) => (
+                <CategoryRow
+                  key={sec.id}
+                  title={sec.title}
+                  games={sec.games}
+                  onProductClick={handleProductClick}
+                  onSeeAll={handleSeeAll}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))
+            ) : (
+              <>
+                <CategoryRow 
+                  title="ACTION MISSIONS" 
+                  games={games.filter(g => g.category?.toUpperCase() === 'ACTION')} 
+                  onProductClick={handleProductClick}
+                  onSeeAll={handleSeeAll}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                />
+                <CategoryRow 
+                  title="SPORTS ARENA" 
+                  games={games.filter(g => g.category?.toUpperCase() === 'SPORTS')} 
+                  onProductClick={handleProductClick}
+                  onSeeAll={handleSeeAll}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                />
+                <CategoryRow 
+                  title="RPG FRONTIERS" 
+                  games={games.filter(g => g.category?.toUpperCase() === 'RPG')} 
+                  onProductClick={handleProductClick}
+                  onSeeAll={handleSeeAll}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                />
+              </>
+            )}
 
             <StoreSection 
               games={games}

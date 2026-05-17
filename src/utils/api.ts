@@ -23,6 +23,16 @@ function getAccessToken(scope: AuthScope) {
   return admin || customer || null;
 }
 
+function clearAuth(scope: AuthScope) {
+  if (scope === 'admin' || scope === 'any') {
+    localStorage.removeItem('session');
+    localStorage.removeItem('user');
+  }
+  if (scope === 'customer' || scope === 'any') {
+    localStorage.removeItem('customerSession');
+  }
+}
+
 function coerceArray(data: any) {
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data.categories)) return data.categories;
@@ -52,6 +62,12 @@ async function requestJson<T>(path: string, options?: { method?: string; body?: 
   const data = contentType.includes('application/json') ? await res.json() : await res.text();
 
   if (!res.ok) {
+    if (res.status === 401 && auth !== 'none') {
+      clearAuth(auth);
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    }
     const message = typeof data === 'object' && data && 'error' in data ? (data as any).error : String(data || res.statusText);
     throw new Error(message);
   }

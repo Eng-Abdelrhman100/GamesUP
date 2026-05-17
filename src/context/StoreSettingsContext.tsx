@@ -30,6 +30,11 @@ interface StoreSettings {
     count: string;
     system_category_slug?: string;
   }[];
+  homepage_sections?: {
+    id: string;
+    title: string;
+    productIds: string[];
+  }[];
 }
 
 interface StoreSettingsContextType {
@@ -133,6 +138,11 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         homepage_categories = data.homepage_categories ? JSON.parse(data.homepage_categories) : [];
       } catch (e) {}
 
+      let homepage_sections: any[] = [];
+      try {
+        homepage_sections = data.homepage_sections ? JSON.parse(data.homepage_sections) : [];
+      } catch (e) {}
+
       setSettings({
         currency_code: data.currency_code || 'EGP',
         currency_symbol: data.currency_symbol || 'EGP',
@@ -153,6 +163,7 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         payment_methods,
         default_banners,
         homepage_categories: (homepage_categories && homepage_categories.length > 0) ? homepage_categories : defaultSettings.homepage_categories,
+        homepage_sections: Array.isArray(homepage_sections) ? homepage_sections : [],
         coming_soon: data.coming_soon === true || data.coming_soon === 'true',
       });
     } catch (error) {
@@ -181,6 +192,9 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
       }
       if (serverData.homepage_categories) {
         serverData.homepage_categories = JSON.stringify(serverData.homepage_categories);
+      }
+      if (serverData.homepage_sections) {
+        serverData.homepage_sections = JSON.stringify(serverData.homepage_sections);
       }
 
       await settingsAPI.update(serverData);

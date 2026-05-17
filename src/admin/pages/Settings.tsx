@@ -19,7 +19,7 @@ import {
   Skull 
 } from 'lucide-react';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
-import { authAPI, categoriesAPI, uploadAPI } from '../../utils/api';
+import { authAPI, categoriesAPI, productsAPI, uploadAPI } from '../../utils/api';
 // import { BASE_URL, authAPI } from '../../utils/api';
 
 export function Settings() {
@@ -27,6 +27,8 @@ export function Settings() {
   const [activeTab, setActiveTab] = useState('store');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [systemCategories, setSystemCategories] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
   
   // Local state for password change
   const [passwordForm, setPasswordForm] = useState({
@@ -87,6 +89,7 @@ export function Settings() {
     payment_methods: [] as { name: string; enabled: boolean }[],
     coming_soon: false,
     homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string; system_category_slug?: string }[],
+    homepage_sections: [] as { id: string; title: string; productIds: string[] }[],
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
 
@@ -98,6 +101,16 @@ export function Settings() {
       })
       .catch(() => {
         setSystemCategories([]);
+      });
+  }, []);
+
+  useEffect(() => {
+    productsAPI.getAll()
+      .then((res: any) => {
+        setAllProducts(Array.isArray(res?.products) ? res.products : []);
+      })
+      .catch(() => {
+        setAllProducts([]);
       });
   }, []);
 
@@ -143,6 +156,11 @@ export function Settings() {
         homepage_categories: (settings.homepage_categories || []).map((c: any) => ({
           ...c,
           system_category_slug: c?.system_category_slug ?? '',
+        })),
+        homepage_sections: (Array.isArray((settings as any).homepage_sections) ? (settings as any).homepage_sections : []).map((s: any) => ({
+          id: String(s?.id ?? `sec_${Date.now()}`),
+          title: s?.title == null ? '' : String(s.title),
+          productIds: Array.isArray(s?.productIds) ? s.productIds.map((v: any) => String(v)) : [],
         })),
       });
     }
@@ -241,6 +259,7 @@ export function Settings() {
   const tabs = [
     { id: 'store', label: 'Store Info' },
     { id: 'categories', label: 'Home Categories' },
+    { id: 'home-sections', label: 'Home Sections' },
     { id: 'payments', label: 'Payments' },
     { id: 'shipping', label: 'Shipping' },
     { id: 'notifications', label: 'Notifications' },
@@ -788,6 +807,166 @@ export function Settings() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Home Sections */}
+      {activeTab === 'home-sections' && (
+        <div className="space-y-6">
+          <div className="p-8 bg-[#0f0f0f] border border-white/10 relative overflow-hidden rounded-[2rem]">
+            <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Home Sections</h3>
+                <p className="text-sm text-gray-400 mt-1 font-bold uppercase tracking-wider">
+                  Add homepage rows (title + selected games)
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    const id = `sec_${Date.now()}`;
+                    setFormData(prev => ({
+                      ...prev,
+                      homepage_sections: [
+                        ...prev.homepage_sections,
+                        { id, title: 'NEW SECTION', productIds: [] }
+                      ]
+                    }));
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-black uppercase italic tracking-wider transition-all"
+                >
+                  <Plus className="w-4 h-4" /> Add Section
+                </button>
+              </div>
+            </div>
+
+            {formData.homepage_sections.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                  <Gamepad className="w-8 h-8 text-gray-600" />
+                </div>
+                <p className="text-white font-black uppercase text-lg italic">No Sections Yet</p>
+                <p className="text-gray-500 text-sm mt-1 mb-6">Click “Add Section” to create a new homepage row.</p>
+              </div>
+            )}
+
+            {formData.homepage_sections.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {formData.homepage_sections.map((sec, idx) => {
+                  const q = sectionSearch[sec.id] || '';
+                  const filteredProducts = allProducts.filter((p: any) => {
+                    const name = String(p?.name || '').toLowerCase();
+                    const id = String(p?.id || '').toLowerCase();
+                    const cat = String(p?.category_slug || '').toLowerCase();
+                    const s = q.toLowerCase();
+                    if (!s) return true;
+                    return name.includes(s) || id.includes(s) || cat.includes(s);
+                  });
+
+                  return (
+                    <div key={sec.id || idx} className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">SECTION</span>
+                          <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              homepage_sections: prev.homepage_sections.filter((_, i) => i !== idx)
+                            }));
+                          }}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900/40 text-red-400 hover:text-red-300 rounded-xl text-xs font-bold transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Title</label>
+                        <input
+                          type="text"
+                          value={sec.title ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              homepage_sections: prev.homepage_sections.map((s, i) => i === idx ? { ...s, title: v } : s)
+                            }));
+                          }}
+                          placeholder="e.g. FEATURED DROPS"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Search Games</label>
+                          <input
+                            type="text"
+                            value={q}
+                            onChange={(e) => setSectionSearch(prev => ({ ...prev, [sec.id]: e.target.value }))}
+                            placeholder="Type to filter..."
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Selected</label>
+                          <div className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold">
+                            {sec.productIds?.length || 0} games
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border border-white/10 rounded-2xl overflow-hidden">
+                        <div className="max-h-64 overflow-auto">
+                          {filteredProducts.length === 0 ? (
+                            <div className="p-4 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                              No matching games
+                            </div>
+                          ) : (
+                            filteredProducts.map((p: any) => {
+                              const pid = String(p?.id ?? '');
+                              const checked = (sec.productIds || []).includes(pid);
+                              return (
+                                <label key={pid} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/5 hover:bg-white/[0.03] cursor-pointer">
+                                  <div className="min-w-0">
+                                    <div className="text-white text-xs font-bold truncate">{p?.name || `#${pid}`}</div>
+                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">
+                                      {p?.category_slug ? String(p.category_slug) : 'UNCATEGORIZED'}
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        homepage_sections: prev.homepage_sections.map((s, i) => {
+                                          if (i !== idx) return s;
+                                          const current = Array.isArray(s.productIds) ? s.productIds : [];
+                                          const next = checked ? current.filter(x => x !== pid) : [...current, pid];
+                                          return { ...s, productIds: next };
+                                        })
+                                      }));
+                                    }}
+                                    className="h-4 w-4 accent-red-600"
+                                  />
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
