@@ -15,6 +15,14 @@ interface Role {
   created_at?: string;
 }
 
+interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  created_at?: string;
+}
+
 const permissionKeys = [
   'dashboard', 'products', 'orders', 'pos', 'analytics', 
   'customers', 'banners', 'outlook', 'hr', 'tasks', 
@@ -42,6 +50,8 @@ const permissionLabels: { [key: string]: string } = {
 export function Roles() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
   
   // Role Modal State
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -64,6 +74,7 @@ export function Roles() {
 
   useEffect(() => {
     loadRoles();
+    loadUsers();
   }, []);
 
   const loadRoles = async () => {
@@ -75,6 +86,19 @@ export function Roles() {
       console.error('Error loading roles:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      setUsersLoading(true);
+      const result = (await rolesAPI.getAdminUsers()) as any;
+      setUsers(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -152,6 +176,7 @@ export function Roles() {
     try {
       await rolesAPI.createAdminUser(userFormData);
       alert('User created successfully');
+      await loadUsers();
       setIsUserModalOpen(false);
       setUserFormData({
         name: '',
@@ -362,10 +387,64 @@ export function Roles() {
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="outline" onClick={() => setIsUserModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateUser} className="bg-red-600 text-white hover:bg-red-700">Create Account</Button>
+            <Button
+              onClick={handleCreateUser}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={!userFormData.name.trim() || !userFormData.email.trim() || !userFormData.password || !userFormData.role}
+            >
+              Create Account
+            </Button>
           </div>
         </div>
       </Modal>
+
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">User Accounts</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Employees who can access the admin panel</p>
+          </div>
+          <Button onClick={() => setIsUserModalOpen(true)} variant="outline" className="flex items-center gap-2">
+            <UserPlus className="w-4 h-4" />
+            Create User Account
+          </Button>
+        </div>
+
+        {usersLoading ? (
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading users...</div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400">No users found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="text-left">Name</th>
+                  <th className="text-left">Email</th>
+                  <th className="text-left">Role</th>
+                  <th className="text-left">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="font-semibold">{u.name}</td>
+                    <td className="text-text-secondary">{u.email}</td>
+                    <td>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-bg-secondary border border-border-subtle">
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="text-text-secondary">
+                      {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

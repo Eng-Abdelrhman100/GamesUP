@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Upload, Send, Gamepad2, Info, X } from 'lucide-react';
+import { gameRequestsAPI, uploadAPI } from '../utils/api';
 
 interface RequestGamePageProps {
   onBack: () => void;
@@ -8,11 +9,20 @@ interface RequestGamePageProps {
 
 export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [title, setTitle] = useState('');
+  const [region, setRegion] = useState('EGYPT (PRIMARY)');
+  const [accountType, setAccountType] = useState('PLATINUM ACCESS');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -23,7 +33,48 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
 
   const removeImage = () => {
     setImagePreview(null);
+    setImageFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSuccess(null);
+    setError(null);
+    try {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        setError('Please enter the game title.');
+        setSubmitting(false);
+        return;
+      }
+
+      let imageUrl: string | null = null;
+      if (imageFile) {
+        const uploaded = await uploadAPI.uploadRequestImage(imageFile);
+        imageUrl = uploaded?.url ? String(uploaded.url) : null;
+      }
+
+      await gameRequestsAPI.create({
+        title: trimmedTitle,
+        region,
+        account_type: accountType,
+        notes: notes.trim() || null,
+        image_url: imageUrl,
+      });
+
+      setTitle('');
+      setRegion('EGYPT (PRIMARY)');
+      setAccountType('PLATINUM ACCESS');
+      setNotes('');
+      removeImage();
+      setSuccess('Request submitted successfully. Our team will review it shortly.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -65,12 +116,24 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
           </div>
 
           <div className="lg:col-span-7">
-            <form className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 md:p-16 space-y-8 shadow-2xl">
+            <form onSubmit={handleSubmit} className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 md:p-16 space-y-8 shadow-2xl">
+              {success && (
+                <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold uppercase tracking-widest italic">
+                  {success}
+                </div>
+              )}
+              {error && (
+                <div className="p-4 rounded-2xl bg-brand-red/10 border border-brand-red/20 text-brand-red text-xs font-bold uppercase tracking-widest italic">
+                  {error}
+                </div>
+              )}
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Game Title / Objective</label>
                 <input 
                   type="text" 
                   placeholder="E.G. ELDEN RING: SHADOW OF THE ERDTREE" 
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
                 />
               </div>
@@ -78,7 +141,11 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Preferred Region</label>
-                  <select className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all appearance-none cursor-pointer">
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all appearance-none cursor-pointer"
+                  >
                     <option>EGYPT (PRIMARY)</option>
                     <option>USA / GLOBAL</option>
                     <option>UK / EUROPE</option>
@@ -86,7 +153,11 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Account Type</label>
-                  <select className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all appearance-none cursor-pointer">
+                  <select
+                    value={accountType}
+                    onChange={(e) => setAccountType(e.target.value)}
+                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all appearance-none cursor-pointer"
+                  >
                     <option>PLATINUM ACCESS</option>
                     <option>GOLD ACCESS</option>
                     <option>SILVER ACCESS</option>
@@ -139,11 +210,20 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
 
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Additional Intel</label>
-                <textarea rows={4} placeholder="ANY SPECIFIC REQUIREMENTS OR QUESTIONS..." className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all resize-none"></textarea>
+                <textarea
+                  rows={4}
+                  placeholder="ANY SPECIFIC REQUIREMENTS OR QUESTIONS..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all resize-none"
+                ></textarea>
               </div>
 
-              <button className="w-full bg-brand-red text-white py-6 rounded-2xl font-black tracking-[0.3em] text-sm flex items-center justify-center gap-3 transition-all hover:bg-black uppercase italic shadow-xl shadow-brand-red/20">
-                Submit Target Request
+              <button
+                disabled={submitting}
+                className="w-full bg-brand-red text-white py-6 rounded-2xl font-black tracking-[0.3em] text-sm flex items-center justify-center gap-3 transition-all hover:bg-black uppercase italic shadow-xl shadow-brand-red/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Submitting...' : 'Submit Target Request'}
                 <Send className="h-4 w-4" />
               </button>
             </form>

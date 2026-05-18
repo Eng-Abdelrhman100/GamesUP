@@ -6,6 +6,31 @@ import { Modal } from '../../components/ui/Modal';
 import { bannersAPI, uploadAPI, productsAPI } from '../../utils/api';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 
+const PLACEHOLDER_IMG_SRC =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==';
+
+function normalizeImageSrc(raw: unknown) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value.startsWith('data:') || value.startsWith('blob:')) return value;
+
+  const slashes = value.replace(/\\/g, '/');
+
+  if (slashes.startsWith('/uploads/')) return slashes;
+  if (slashes.startsWith('uploads/')) return `/${slashes}`;
+  if (slashes.startsWith('/api/uploads/')) return slashes.slice(4);
+
+  const uploadsIdx = slashes.indexOf('/uploads/');
+  if (uploadsIdx >= 0) return slashes.slice(uploadsIdx);
+
+  try {
+    const u = new URL(slashes);
+    if (u.pathname.startsWith('/uploads/')) return `${u.pathname}${u.search || ''}`;
+  } catch {}
+
+  return slashes;
+}
+
 interface Banner {
   id: string | number;
   title: string;
@@ -107,7 +132,7 @@ export function Banners() {
             title: b.title,
             position: Number(b.position),
             isActive: b.is_active !== undefined ? b.is_active : b.isActive,
-            imageUrl: b.image_url || b.imageUrl,
+            imageUrl: normalizeImageSrc(b.image_url || b.imageUrl),
             link: url,
             subtitle: extendedData.subtitle || '',
             badge: extendedData.badge || ''
@@ -300,8 +325,8 @@ export function Banners() {
 
     try {
       setUploading(true);
-      const result = await uploadAPI.uploadImage(file);
-      setFormData({ ...formData, imageUrl: result.url });
+      const result = await uploadAPI.uploadBannerImage(file);
+      setFormData({ ...formData, imageUrl: normalizeImageSrc(result.url) });
       alert('Image uploaded successfully!');
     } catch (error: any) {
       console.error('Upload error:', error);
@@ -458,11 +483,12 @@ export function Banners() {
               {/* Banner Preview */}
               <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
                 <img 
-                  src={banner.imageUrl} 
+                  src={normalizeImageSrc(banner.imageUrl) || PLACEHOLDER_IMG_SRC} 
                   alt={banner.title}
                   className="w-full h-48 object-cover"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1557821552-17105176677c?w=800&h=400&fit=crop';
+                    const el = e.target as HTMLImageElement;
+                    if (el.src !== PLACEHOLDER_IMG_SRC) el.src = PLACEHOLDER_IMG_SRC;
                   }}
                 />
                 <div className="absolute top-3 right-3 flex gap-2">
@@ -578,11 +604,12 @@ export function Banners() {
               {formData.imageUrl && (
                 <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 h-32">
                   <img
-                    src={formData.imageUrl}
+                    src={normalizeImageSrc(formData.imageUrl) || PLACEHOLDER_IMG_SRC}
                     alt="Preview"
                     className="w-full h-full object-cover"
                     onError={(e: any) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
+                      const el = e.target as HTMLImageElement;
+                      if (el.src !== PLACEHOLDER_IMG_SRC) el.src = PLACEHOLDER_IMG_SRC;
                     }}
                   />
                 </div>
@@ -785,7 +812,7 @@ export function HeroSliderBanners() {
             id: b.id,
             title: String(b.title || ''),
             subtitle: meta.subtitle,
-            imageUrl: String(b.image_url || b.imageUrl || ''),
+            imageUrl: normalizeImageSrc(b.image_url || b.imageUrl || ''),
             isActive: b.is_active !== undefined ? Boolean(b.is_active) : Boolean(b.isActive),
             position: Number(b.position),
             linkType: meta.linkType,
@@ -856,8 +883,8 @@ export function HeroSliderBanners() {
 
     try {
       setUploading(true);
-      const result = await uploadAPI.uploadImage(file);
-      setFormData(prev => ({ ...prev, imageUrl: result.url }));
+      const result = await uploadAPI.uploadBannerImage(file);
+      setFormData(prev => ({ ...prev, imageUrl: normalizeImageSrc(result.url) }));
     } catch (err) {
       console.error('Upload failed:', err);
       alert('Failed to upload image');
@@ -1000,11 +1027,12 @@ export function HeroSliderBanners() {
             <div className="space-y-4">
               <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
                 <img
-                  src={slide.imageUrl}
+                  src={normalizeImageSrc(slide.imageUrl) || PLACEHOLDER_IMG_SRC}
                   alt={slide.title}
                   className="w-full h-52 object-cover"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1557821552-17105176677c?w=800&h=400&fit=crop';
+                    const el = e.target as HTMLImageElement;
+                    if (el.src !== PLACEHOLDER_IMG_SRC) el.src = PLACEHOLDER_IMG_SRC;
                   }}
                 />
                 <div className="absolute top-3 right-3 flex gap-2">
@@ -1136,7 +1164,15 @@ export function HeroSliderBanners() {
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelected} className="hidden" />
             {formData.imageUrl && (
               <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
-                <img src={formData.imageUrl} alt="Preview" className="w-full h-40 object-cover" />
+                <img
+                  src={normalizeImageSrc(formData.imageUrl) || PLACEHOLDER_IMG_SRC}
+                  alt="Preview"
+                  className="w-full h-40 object-cover"
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    if (el.src !== PLACEHOLDER_IMG_SRC) el.src = PLACEHOLDER_IMG_SRC;
+                  }}
+                />
               </div>
             )}
           </div>

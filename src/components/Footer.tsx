@@ -2,6 +2,34 @@ import React from 'react';
 import { MessageSquare, Twitter, Instagram, Facebook } from 'lucide-react';
 import { useStoreSettings } from '../context/StoreSettingsContext';
 
+function PaymentBadge({ label, className }: { label: string; className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 120 36"
+      role="img"
+      aria-label={label}
+      className={className}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <rect x="1" y="1" width="118" height="34" rx="8" fill="none" stroke="currentColor" strokeOpacity="0.25" />
+      <text
+        x="60"
+        y="23"
+        textAnchor="middle"
+        fontFamily="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+        fontSize="14"
+        fontWeight="800"
+        fill="currentColor"
+        fillOpacity="0.85"
+        letterSpacing="0.08em"
+      >
+        {label}
+      </text>
+    </svg>
+  );
+}
+
 export const Footer = ({ isDark }: { isDark: boolean }) => {
   const [logoError, setLogoError] = React.useState(false);
   const { settings } = useStoreSettings();
@@ -92,8 +120,8 @@ export const Footer = ({ isDark }: { isDark: boolean }) => {
            <span className="text-green-500">Ping: 24ms</span>
            <div className="h-4 w-[1px] bg-border-subtle"></div>
            <div className="flex gap-4 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer">
-             <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" className="h-3" alt="PayPal" />
-             <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" className="h-2.5" alt="Visa" />
+             <PaymentBadge label="PayPal" className="h-3 w-auto" />
+             <PaymentBadge label="VISA" className="h-3 w-auto" />
            </div>
         </div>
       </div>

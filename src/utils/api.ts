@@ -340,6 +340,10 @@ export const categoriesAPI = {
     const data = await requestJson<any>(`/categories`, { auth: 'none' });
     return coerceArray(data);
   },
+  getSubCategories: async () => {
+    const data = await requestJson<any>(`/sub-categories`, { auth: 'none' });
+    return coerceArray(data);
+  },
   getFooterTop: async (limit = 5) => {
     const data = await requestJson<any>(`/categories/footer-top?limit=${limit}`, { auth: 'none' });
     return coerceArray(data);
@@ -409,6 +413,9 @@ export const rolesAPI = {
   getAll: async () => {
     return requestJson<{ roles: any[] }>(`/roles`, { auth: 'admin' });
   },
+  getAdminUsers: async () => {
+    return requestJson<any[]>(`/admin/users`, { auth: 'admin' });
+  },
   create: async (role: any) => {
     return requestJson<any>(`/roles`, { method: 'POST', body: role, auth: 'admin' });
   },
@@ -448,6 +455,16 @@ export const uploadAPI = {
     fd.append('file', file);
     return requestForm<{ url: string }>(`/uploads/products`, fd, 'admin');
   },
+  uploadBannerImage: async (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return requestForm<{ url: string }>(`/uploads/banners`, fd, 'admin');
+  },
+  uploadRequestImage: async (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return requestForm<{ url: string }>(`/uploads/request-images`, fd, 'none');
+  },
   uploadChatImage: async (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
@@ -457,6 +474,18 @@ export const uploadAPI = {
     const fd = new FormData();
     fd.append('file', file);
     return requestForm<{ url: string }>(`/uploads/payment-proofs`, fd, 'none');
+  },
+};
+
+export const gameRequestsAPI = {
+  create: async (payload: any) => {
+    return requestJson<any>(`/game-requests`, { method: 'POST', body: payload, auth: 'none' });
+  },
+  getAll: async (limit = 50) => {
+    return requestJson<any>(`/admin/game-requests?limit=${limit}`, { auth: 'any' });
+  },
+  update: async (id: string | number, payload: any) => {
+    return requestJson<any>(`/admin/game-requests/${id}`, { method: 'PUT', body: payload, auth: 'any' });
   },
 };
 

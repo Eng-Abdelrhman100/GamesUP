@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-const port = process.env.PORT ? Number.parseInt(String(process.env.PORT), 10) : 3005;
+const port = process.env.PORT ? Number.parseInt(String(process.env.PORT), 10) : 5174;
 
 // Middleware
 app.use(cors({ origin: true }));
@@ -59,6 +59,27 @@ const defaultHomepageCategories = [
   },
 ];
 
+async function ensureGameRequestsTableExists() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS game_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      region VARCHAR(64) NULL,
+      account_type VARCHAR(64) NULL,
+      notes TEXT NULL,
+      image_url VARCHAR(512) NULL,
+      customer_name VARCHAR(255) NULL,
+      customer_email VARCHAR(255) NULL,
+      customer_phone VARCHAR(64) NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'new',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_status_created (status, created_at),
+      INDEX idx_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+  );
+}
+
 async function ensureHomepageCategoriesSeeded() {
   const [rows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['homepage_categories']);
   const existing = rows?.[0]?.setting_value;
@@ -73,6 +94,7 @@ async function ensureHomepageCategoriesSeeded() {
 }
 
 async function bootstrap() {
+  await ensureGameRequestsTableExists();
   await ensureHomepageCategoriesSeeded();
   app.listen(port, () => {
     console.log(`API Server running at http://localhost:${port}`);

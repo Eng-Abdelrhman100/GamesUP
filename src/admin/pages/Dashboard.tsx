@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { DollarSign, ShoppingCart, Users, Percent, Instagram, Facebook, MessageCircle, Twitter } from 'lucide-react';
+import { DollarSign, ShoppingCart, Users, Percent, Instagram, Facebook, MessageCircle, Twitter, Gamepad2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { KPICard } from '../../components/ui/KPICard';
 import { Card } from '../../components/ui/card';
@@ -57,6 +57,7 @@ export function Dashboard() {
   const trafficData = data?.trafficData || [];
   const topProducts = data?.topProducts || [];
   const recentOrders = data?.recentOrders || [];
+  const gameRequests = data?.gameRequests || [];
   const categories = data?.categories || [];
 
   const totalSales = (charts.productSales || []).reduce((sum: number, p: any) => sum + (Number(p.sales) || 0), 0);
@@ -256,7 +257,7 @@ export function Dashboard() {
       </Card>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Products */}
         <Card className="p-8">
           <div className="flex items-center justify-between mb-6">
@@ -311,6 +312,45 @@ export function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+
+        <Card className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-text-primary">Game Requests</h3>
+            <div className="flex items-center gap-2 text-sm text-text-secondary">
+              <Gamepad2 className="h-4 w-4" />
+              Latest
+            </div>
+          </div>
+          <div className="space-y-3">
+            {(gameRequests || []).length === 0 ? (
+              <div className="text-sm text-text-secondary">No requests yet.</div>
+            ) : (
+              gameRequests.map((r: any) => (
+                <div key={r.id} className="p-3 rounded-lg border border-border-subtle bg-bg-primary hover:border-brand-red/30 transition-colors">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-text-primary truncate">{r.title}</div>
+                      <div className="text-xs text-text-secondary mt-0.5">
+                        {(r.region || '—')} • {(r.account_type || '—')} • {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
+                        String(r.status || '').toLowerCase() === 'new'
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                          : String(r.status || '').toLowerCase() === 'done' || String(r.status || '').toLowerCase() === 'completed'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      }`}
+                    >
+                      {r.status || 'new'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>

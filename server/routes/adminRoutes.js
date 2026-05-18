@@ -226,6 +226,19 @@ adminRoutes.get('/admin/dashboard', async (req, res) => {
         'SELECT slug, name FROM categories WHERE is_active = TRUE ORDER BY display_order ASC'
       );
 
+      let gameRequests = [];
+      try {
+        const [reqRows] = await pool.query(
+          `SELECT id, title, region, account_type, status, created_at
+           FROM game_requests
+           ORDER BY created_at DESC, id DESC
+           LIMIT 6`
+        );
+        gameRequests = reqRows || [];
+      } catch (e) {
+        gameRequests = [];
+      }
+
       return res.json({
         kpis: {
           revenue: totalRevenue,
@@ -251,6 +264,7 @@ adminRoutes.get('/admin/dashboard', async (req, res) => {
         trafficData,
         topProducts,
         recentOrders,
+        gameRequests,
         categories: categoryRows || [],
       });
     } catch (err) {

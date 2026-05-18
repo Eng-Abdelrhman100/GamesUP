@@ -27,13 +27,15 @@ import { CartDrawer } from './components/CartDrawer';
 import { Footer } from './components/Footer';
 import { Game, CartItem, AccountType, AppView } from './types';
 import { GAMES_DATA } from './constants';
-import { productsAPI } from './utils/api';
+import { categoriesAPI, productsAPI } from './utils/api';
 import { useStoreSettings } from './context/StoreSettingsContext';
 import { Facebook, Instagram, MessageCircle, Twitter } from 'lucide-react';
 
 export default function App() {
   const { settings, loading: settingsLoading } = useStoreSettings();
   const [games, setGames] = useState<Game[]>(GAMES_DATA);
+  const [catalogCategories, setCatalogCategories] = useState<any[]>([]);
+  const [catalogSubCategories, setCatalogSubCategories] = useState<any[]>([]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [view, setView] = useState<AppView>('home');
   const [collection, setCollection] = useState<{ title: string; productIds: string[] } | null>(null);
@@ -46,11 +48,29 @@ export default function App() {
   const pendingUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchCatalog() {
       if (settingsLoading) return;
       if (settings?.coming_soon) return;
       try {
-        const { products } = await productsAPI.getPublic();
+        const [cats, subs, productsResult] = await Promise.all([
+          categoriesAPI.getAll(),
+          categoriesAPI.getSubCategories(),
+          productsAPI.getPublic(),
+        ]);
+
+        const activeCats = Array.isArray(cats) ? cats.filter((c: any) => c && (c.is_active === undefined ? true : !!c.is_active)) : [];
+        const activeSubs = Array.isArray(subs) ? subs.filter((s: any) => s && (s.is_active === undefined ? true : !!s.is_active)) : [];
+        setCatalogCategories(activeCats);
+        setCatalogSubCategories(activeSubs);
+
+        const products = (productsResult as any)?.products || [];
+
+        const categoryNameBySlug = new Map<string, string>(
+          activeCats
+            .filter((c: any) => c?.slug)
+            .map((c: any) => [String(c.slug).trim().toLowerCase(), String(c.name || c.slug)]),
+        );
+
         if (products && products.length > 0) {
           const mappedGames: Game[] = products.map((p: any) => ({
             id: String(p.id),
@@ -59,7 +79,12 @@ export default function App() {
             banner: p.image || '',
             price: p.price || 0,
             basePrice: p.price || 0,
-            category: p.category_slug ? p.category_slug.charAt(0).toUpperCase() + p.category_slug.slice(1) : 'Action',
+            categorySlug: p.category_slug ? String(p.category_slug) : undefined,
+            subCategorySlug: p.sub_category_slug ? String(p.sub_category_slug) : undefined,
+            category: p.category_slug
+              ? (categoryNameBySlug.get(String(p.category_slug).trim().toLowerCase()) ||
+                  String(p.category_slug).replace(/[-_]/g, ' '))
+              : 'Uncategorized',
             tags: [],
             status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
             description: p.description || '',
@@ -82,7 +107,7 @@ export default function App() {
         console.error('Failed to fetch products:', error);
       }
     }
-    fetchProducts();
+    fetchCatalog();
   }, [settingsLoading, settings?.coming_soon]);
 
   useEffect(() => {
@@ -580,6 +605,8 @@ export default function App() {
             onProductClick={handleProductClick} 
             onBack={handleBackToHome}
             initialCategory={shopCategory}
+            categories={catalogCategories}
+            subCategories={catalogSubCategories}
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
           />

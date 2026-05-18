@@ -11,6 +11,8 @@ interface ShopPageProps {
   pageTitle?: string;
   pageSubtitle?: string;
   hideCategoriesBar?: boolean;
+  categories?: any[];
+  subCategories?: any[];
   favorites?: string[];
   onToggleFavorite?: (id: string) => void;
 }
@@ -23,10 +25,13 @@ export const ShopPage = ({
   pageTitle,
   pageSubtitle,
   hideCategoriesBar = false,
+  categories: catalogCategories,
+  subCategories: catalogSubCategories,
   favorites = [],
   onToggleFavorite
 }: ShopPageProps) => {
   const [activeCategory, setActiveCategory] = useState<string>(String(initialCategory || 'ALL').toUpperCase());
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [priceSort, setPriceSort] = useState<'LOW' | 'HIGH' | 'DEFAULT'| 'AZ' | 'ZA'>('DEFAULT');
   const [showFilters, setShowFilters] = useState(false);
@@ -35,28 +40,86 @@ export const ShopPage = ({
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
 
-  const categories = useMemo(() => {
+  React.useEffect(() => {
+    setActiveCategory(String(initialCategory || 'ALL').toUpperCase());
+    setActiveSubCategory('ALL');
+  }, [initialCategory]);
+
+  const categoryOptions = useMemo(() => {
+    if (Array.isArray(catalogCategories) && catalogCategories.length > 0) {
+      const active = catalogCategories.filter((c: any) => c && (c.is_active === undefined ? true : !!c.is_active));
+      const mapped = active
+        .map((c: any) => ({
+          value: String(c.slug || '').trim().toUpperCase(),
+          label: String(c.name || c.slug || '').trim(),
+        }))
+        .filter((x: any) => x.value && x.label);
+      return [{ value: 'ALL', label: 'ALL' }, ...mapped];
+    }
+
     const set = new Set<string>();
     for (const g of games) {
       const c = String((g as any)?.category || '').trim();
       if (c) set.add(c.toUpperCase());
     }
     const dynamic = Array.from(set).sort();
-    return ['ALL', ...dynamic];
-  }, [games]);
+    return [{ value: 'ALL', label: 'ALL' }, ...dynamic.map((v) => ({ value: v, label: v }))];
+  }, [catalogCategories, games]);
+
+  React.useEffect(() => {
+    const exists = categoryOptions.some((c: any) => String(c.value).toUpperCase() === String(activeCategory).toUpperCase());
+    if (!exists) setActiveCategory('ALL');
+  }, [activeCategory, categoryOptions]);
+
+  const subCategoryOptions = useMemo(() => {
+    if (activeCategory === 'ALL') return [{ value: 'ALL', label: 'ALL' }];
+    if (!Array.isArray(catalogCategories) || !Array.isArray(catalogSubCategories)) return [{ value: 'ALL', label: 'ALL' }];
+
+    const categoryIdBySlug = new Map<string, any>(
+      catalogCategories
+        .filter((c: any) => c && c.slug != null)
+        .map((c: any) => [String(c.slug).trim().toUpperCase(), c.id]),
+    );
+    const categoryId = categoryIdBySlug.get(activeCategory);
+    if (categoryId == null) return [{ value: 'ALL', label: 'ALL' }];
+
+    const mapped = catalogSubCategories
+      .filter((s: any) => s && (s.is_active === undefined ? true : !!s.is_active) && String(s.category_id) === String(categoryId))
+      .map((s: any) => ({
+        value: String(s.slug || s.name || '').trim().toUpperCase(),
+        label: String(s.name || s.slug || '').trim(),
+      }))
+      .filter((x: any) => x.value && x.label);
+
+    return [{ value: 'ALL', label: 'ALL' }, ...mapped];
+  }, [activeCategory, catalogCategories, catalogSubCategories]);
+
+  React.useEffect(() => {
+    setActiveSubCategory('ALL');
+  }, [activeCategory]);
+
   const statuses = ['ALL', 'IN STOCK', 'NEW', 'LIMITED', 'OUT OF STOCK'];
   const tiers = ['ALL', 'PLATINUM', 'GOLD', 'SILVER'];
 
   const filteredGames = games.filter(game => {
+    const gameCategorySlug = String((game as any)?.categorySlug || '').trim().toUpperCase();
     const matchesCategory =
-      activeCategory === 'ALL' || (game.category || '').toUpperCase().includes(String(activeCategory).toUpperCase());
+      activeCategory === 'ALL'
+        ? true
+        : gameCategorySlug
+          ? gameCategorySlug === activeCategory
+          : (game.category || '').toUpperCase().includes(String(activeCategory).toUpperCase());
+
+    const gameSubCategorySlug = String((game as any)?.subCategorySlug || '').trim().toUpperCase();
+    const matchesSubCategory =
+      activeSubCategory === 'ALL' ? true : !!gameSubCategorySlug && gameSubCategorySlug === activeSubCategory;
     const matchesSearch = game.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || game.status === statusFilter;
     const matchesTier = tierFilter === 'ALL' || game.accountTypes.some(t => t.tier === tierFilter && t.isAvailable);
     const matchesMinPrice = minPrice === '' || game.basePrice >= parseInt(minPrice);
     const matchesMaxPrice = maxPrice === '' || game.basePrice <= parseInt(maxPrice);
     
-    return matchesCategory && matchesSearch && matchesStatus && matchesTier && matchesMinPrice && matchesMaxPrice;
+    return matchesCategory && matchesSubCategory && matchesSearch && matchesStatus && matchesTier && matchesMinPrice && matchesMaxPrice;
   }).sort((a, b) => {
     if (priceSort === 'LOW') return a.basePrice - b.basePrice;
     if (priceSort === 'HIGH') return b.basePrice - a.basePrice;
@@ -129,20 +192,40 @@ export const ShopPage = ({
         </div>
 
         {!hideCategoriesBar && (
-          <div className="flex gap-2 md:gap-4 overflow-x-auto scrollbar-hide pb-10 mb-10 border-b border-border-subtle/50">
-            {categories.map((cat) => (
+          <div className="pb-10 mb-10 border-b border-border-subtle/50">
+            <div className="flex gap-2 md:gap-4 overflow-x-auto scrollbar-hide">
+              {categoryOptions.map((cat) => (
               <button
-                key={cat}
-                onClick={() => setActiveCategory(String(cat).toUpperCase())}
+                key={cat.value}
+                onClick={() => setActiveCategory(String(cat.value).toUpperCase())}
                 className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic whitespace-nowrap transition-all ${
-                  activeCategory === cat 
+                  activeCategory === cat.value 
                     ? 'bg-brand-red text-white shadow-lg shadow-brand-red/20' 
                     : 'bg-bg-card border border-border-subtle text-text-secondary hover:border-brand-red/30'
                 }`}
               >
-                {cat}
+                {cat.label}
               </button>
             ))}
+            </div>
+
+            {subCategoryOptions.length > 1 && (
+              <div className="mt-4 flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
+                {subCategoryOptions.map((sub) => (
+                  <button
+                    key={sub.value}
+                    onClick={() => setActiveSubCategory(String(sub.value).toUpperCase())}
+                    className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.2em] italic whitespace-nowrap transition-all ${
+                      activeSubCategory === sub.value
+                        ? 'bg-brand-red/20 text-brand-red border border-brand-red'
+                        : 'bg-bg-card/40 border border-border-subtle text-text-secondary hover:border-brand-red/30'
+                    }`}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

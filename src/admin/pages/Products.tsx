@@ -7,6 +7,31 @@ import { useStoreSettings } from '@/context/StoreSettingsContext';
 import { productsAPI, categoriesAPI, api, uploadAPI } from '@/utils/api';
 // import { productsAPI } from '@/utils/api';
 
+const PLACEHOLDER_IMG_SRC =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==';
+
+function normalizeImageSrc(raw: unknown) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value.startsWith('data:') || value.startsWith('blob:')) return value;
+
+  const slashes = value.replace(/\\/g, '/');
+
+  if (slashes.startsWith('/uploads/')) return slashes;
+  if (slashes.startsWith('uploads/')) return `/${slashes}`;
+  if (slashes.startsWith('/api/uploads/')) return slashes.slice(4);
+
+  const uploadsIdx = slashes.indexOf('/uploads/');
+  if (uploadsIdx >= 0) return slashes.slice(uploadsIdx);
+
+  try {
+    const u = new URL(slashes);
+    if (u.pathname.startsWith('/uploads/')) return `${u.pathname}${u.search || ''}`;
+  } catch {}
+
+  return slashes;
+}
+
 interface Product {
   id: string | number;
   name: string;
@@ -593,7 +618,7 @@ export function Products() {
 
     try {
       const { url } = await uploadAPI.uploadImage(file);
-      setFormData(prev => ({ ...prev, image: url }));
+      setFormData(prev => ({ ...prev, image: normalizeImageSrc(url) }));
     } catch (error) {
       console.error('Error uploading file:', error);
       alert('Failed to upload file. Please ensure you have created a "products" bucket in Supabase Storage and set it to Public.');
@@ -1141,9 +1166,13 @@ const handleRemoveDigitalItem = (index: number) => {
               <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className={`${product.category_slug === 'gift-cards' ? 'aspect-[3/4]' : 'aspect-square'} bg-gray-100 dark:bg-gray-800 relative`}>
                         <img
-                          src={product.image}
+                          src={normalizeImageSrc(product.image) || PLACEHOLDER_IMG_SRC}
                           alt={product.name}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement;
+                            if (el.src !== PLACEHOLDER_IMG_SRC) el.src = PLACEHOLDER_IMG_SRC;
+                          }}
                         />
                   <div className="absolute top-2 right-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -1278,7 +1307,15 @@ const handleRemoveDigitalItem = (index: number) => {
                       <div className="aspect-video w-full bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 overflow-hidden flex items-center justify-center relative group">
                         {formData.image ? (
                           <>
-                            <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                            <img
+                              src={normalizeImageSrc(formData.image) || PLACEHOLDER_IMG_SRC}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const el = e.target as HTMLImageElement;
+                                if (el.src !== PLACEHOLDER_IMG_SRC) el.src = PLACEHOLDER_IMG_SRC;
+                              }}
+                            />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button onClick={() => setFormData({ ...formData, image: '' })} className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">
                                 <Trash2 className="w-4 h-4" />

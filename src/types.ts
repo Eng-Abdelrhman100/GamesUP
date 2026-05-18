@@ -27,6 +27,8 @@ export interface Game {
   status: GameStatus;
   description: string;
   category?: string;
+  categorySlug?: string;
+  subCategorySlug?: string;
   accountTypes: AccountType[];
 }
 

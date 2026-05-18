@@ -6,9 +6,10 @@ import logoIcon from '../../assets/games up icon white.png';
 
 interface LoginProps {
   onLogin: (user: any, session: any) => void;
+  mode?: 'admin' | 'employee';
 }
 
-export function Login({ onLogin }: LoginProps) {
+export function Login({ onLogin, mode = 'admin' }: LoginProps) {
   const { settings } = useStoreSettings();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +36,15 @@ export function Login({ onLogin }: LoginProps) {
     }
   }, []);
 
+  const normalizeRole = (role: any) => {
+    const r = String(role || '').trim().toLowerCase();
+    if (!r) return 'staff';
+    if (r === 'mgr' || r === 'managerial' || r.startsWith('manager')) return 'manager';
+    if (r === 'employee') return 'staff';
+    if (r === 'superadmin' || r === 'super_admin' || r === 'administrator') return 'admin';
+    return r;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -44,7 +54,18 @@ export function Login({ onLogin }: LoginProps) {
       const result = await authAPI.login(email, password);
       console.log('Login successful');
       if (result.session) {
-            onLogin(result.user, result.session);
+        const role = normalizeRole(result?.user?.user_metadata?.role);
+        if (mode === 'admin' && role !== 'admin' && role !== 'manager') {
+          setError('This account is not allowed in Admin Portal. Use Employee Access.');
+          setLoading(false);
+          return;
+        }
+        if (mode === 'employee' && (role === 'admin' || role === 'manager')) {
+          setError('This account is for Admin Portal. Use Admin Portal login.');
+          setLoading(false);
+          return;
+        }
+        onLogin(result.user, result.session);
       } else {
           setError('Login failed. No session returned.');
       }
@@ -71,7 +92,9 @@ export function Login({ onLogin }: LoginProps) {
           <h1 className="text-3xl font-black text-white font-display uppercase italic tracking-tight leading-none mb-1">
             {settings.website_title || settings.store_name || 'Admin'}<span className="text-brand-red">.</span>
           </h1>
-          <p className="text-[10px] font-black text-brand-red tracking-[0.4em] uppercase italic">Admin Portal</p>
+          <p className="text-[10px] font-black text-brand-red tracking-[0.4em] uppercase italic">
+            {mode === 'employee' ? 'Employee Access' : 'Admin Portal'}
+          </p>
         </div>
 
         {/* Login Form */}
@@ -81,7 +104,7 @@ export function Login({ onLogin }: LoginProps) {
               Welcome Back<span className="text-brand-red">.</span>
             </h2>
             <p className="text-xs font-bold text-text-secondary uppercase tracking-widest italic">
-              Sign in to manage your system.
+              {mode === 'employee' ? 'Sign in to access your tools.' : 'Sign in to manage your system.'}
             </p>
           </div>
 
@@ -140,6 +163,19 @@ export function Login({ onLogin }: LoginProps) {
               )}
             </button>
           </form>
+
+          <div className="mt-6 flex items-center justify-between text-[10px] font-black uppercase tracking-widest italic">
+            {mode === 'employee' ? (
+              <a href="/login" className="text-text-secondary hover:text-brand-red transition-colors">
+                Admin Portal
+              </a>
+            ) : (
+              <a href="/employee-login" className="text-text-secondary hover:text-brand-red transition-colors">
+                Employee Access
+              </a>
+            )}
+            <span className="text-text-secondary/60">Use the correct portal for your role.</span>
+          </div>
         </div>
 
         {/* Landing Page Redirect Button */}

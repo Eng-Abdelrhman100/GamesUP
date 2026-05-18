@@ -210,7 +210,12 @@ export default function AdminApp() {
   };
 
   if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <Routes>
+        <Route path="/employee-login" element={<Login onLogin={handleLogin} mode="employee" />} />
+        <Route path="*" element={<Login onLogin={handleLogin} mode="admin" />} />
+      </Routes>
+    );
   }
 
   return (

@@ -25,12 +25,33 @@ function createStorage(subdir) {
 }
 
 const productsUpload = multer({ storage: createStorage('products') });
+const bannersUpload = multer({ storage: createStorage('banners') });
 const chatUpload = multer({ storage: createStorage('chat_images') });
 const paymentProofUpload = multer({ storage: createStorage('payment_proofs') });
+const requestImagesUpload = multer({
+  storage: createStorage('request_images'),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file && typeof file.mimetype === 'string' && file.mimetype.startsWith('image/')) return cb(null, true);
+    return cb(new Error('Only image files are allowed'));
+  },
+});
 
 uploadRoutes.post('/uploads/products', requireRoles(['admin', 'manager']), productsUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
   const url = `/uploads/products/${req.file.filename}`;
+  return res.json({ url });
+});
+
+uploadRoutes.post('/uploads/banners', requireRoles(['admin', 'manager']), bannersUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+  const url = `/uploads/banners/${req.file.filename}`;
+  return res.json({ url });
+});
+
+uploadRoutes.post('/uploads/request-images', requestImagesUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+  const url = `/uploads/request_images/${req.file.filename}`;
   return res.json({ url });
 });
 

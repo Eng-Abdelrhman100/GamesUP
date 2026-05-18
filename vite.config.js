@@ -6,6 +6,8 @@ import fs from 'fs';
 
 // Admin routes — any URL starting with these prefixes belongs to the admin app
 const ADMIN_ROUTES = [
+  '/login',
+  '/employee-login',
   '/dashboard', '/products', '/data-overview', '/orders', '/sold-products',
   '/order-chats', '/analytics', '/customers', '/tasks', '/team', '/settings',
   '/roles', '/outlook', '/banners', '/hero-slider', '/hr', '/pos', '/system',
@@ -84,17 +86,17 @@ export default defineConfig({
   },
   server: {
     host: true, // Expose to network
-    port: 5174,
+    port: 5173,
     strictPort: false,
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3005',
+        target: 'http://localhost:5174',
         changeOrigin: true,
         secure: false,
       },
       '/uploads': {
-        target: 'http://localhost:3005',
+        target: 'http://localhost:5174',
         changeOrigin: true,
         secure: false,
       },
@@ -124,4 +126,3 @@ export default defineConfig({
     },
   },
 });
-

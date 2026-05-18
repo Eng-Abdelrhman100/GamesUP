@@ -37,6 +37,23 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
   };
 
   useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
     lastScrollYRef.current = window.scrollY || 0;
 
     const onScroll = () => {
@@ -152,38 +169,79 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 top-[73px] md:top-[89px] bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
             />
             <motion.div 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-[73px] md:top-[89px] bottom-0 w-full max-w-xs bg-white dark:bg-[#050505] border-l border-border-subtle z-50 flex flex-col pt-10 shadow-2xl"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-[var(--glass-bg)] backdrop-blur-xl border-l border-border-subtle z-[70] flex flex-col shadow-2xl shadow-black/40"
             >
-              <div className="px-6 mb-8">
-                <p className="text-[10px] font-black text-text-secondary uppercase tracking-[0.3em] mb-6 italic">Navigation Protocols</p>
+              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border-subtle">
+                <button
+                  onClick={onLogoClick}
+                  className="h-8 flex items-center gap-3 select-none active:scale-95 transition-transform"
+                >
+                  {!logoError ? (
+                    <img
+                      src={isDark ? "/logo-dark.png" : "/logo-light.png"}
+                      alt="GAMES UP"
+                      className="h-full w-auto object-contain"
+                      referrerPolicy="no-referrer"
+                      onError={() => setLogoError(true)}
+                    />
+                  ) : (
+                    <span className="text-lg font-black italic tracking-tighter text-[var(--text-primary)] font-display uppercase">
+                      GAMES<span className="text-brand-red">UP</span>
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2.5 rounded-full border border-border-subtle bg-bg-card/30 text-text-secondary hover:text-brand-red hover:border-brand-red/40 transition-all active:scale-95"
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-[0.3em] italic">Navigation</p>
+              </div>
+
+              <div className="px-6 pb-6">
                 <div className="space-y-2">
                   {navLinks.map((link) => (
                     <button
                       key={link.view}
                       onClick={() => handleLinkClick(link.view)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${
-                        currentView === link.view 
-                          ? 'bg-brand-red text-white shadow-lg shadow-brand-red/20' 
-                          : 'text-text-secondary hover:bg-bg-secondary hover:text-[var(--text-primary)]'
+                      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all border ${
+                        currentView === link.view
+                          ? 'bg-brand-red text-white border-brand-red shadow-[0_18px_40px_rgba(220,38,38,0.25)]'
+                          : 'bg-bg-card/20 text-text-secondary border-border-subtle hover:bg-bg-card/40 hover:text-[var(--text-primary)]'
                       }`}
                     >
-                      <link.icon className="h-5 w-5" />
-                      <span className="text-sm font-black uppercase tracking-widest italic">{link.label}</span>
+                      <span className={`h-10 w-10 rounded-2xl flex items-center justify-center border ${
+                        currentView === link.view
+                          ? 'border-white/20 bg-white/10'
+                          : 'border-border-subtle bg-bg-card/20'
+                      }`}>
+                        <link.icon className="h-5 w-5" />
+                      </span>
+                      <span className="flex-1 text-left text-[11px] font-black uppercase tracking-widest italic">{link.label}</span>
+                      <span className={`h-2 w-2 rounded-full ${currentView === link.view ? 'bg-white' : 'bg-brand-red/50'}`} />
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-auto p-6 border-t border-border-subtle">
-                <div className="flex items-center gap-4 text-[10px] font-black text-text-secondary uppercase tracking-widest italic">
-                  <Package className="h-4 w-4" /> GamesUp HQ: Locked
+              <div className="mt-auto p-6 border-t border-border-subtle bg-bg-card/10">
+                <div className="flex items-center gap-3 text-[10px] font-black text-text-secondary uppercase tracking-widest italic">
+                  <Package className="h-4 w-4" />
+                  <span className="flex-1">GamesUp HQ: Online</span>
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
                 </div>
               </div>
             </motion.div>
