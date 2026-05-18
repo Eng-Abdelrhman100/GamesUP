@@ -69,12 +69,69 @@ interface DigitalItem {
   totalCodes?: number;
 }
 
+function countAvailableSlots(digitalItems: any[]) {
+  if (!Array.isArray(digitalItems)) return 0;
+  let count = 0;
+  for (const item of digitalItems) {
+    if (!item || !item.slots) continue;
+    for (const slot of Object.values(item.slots)) {
+      const code = (slot as any)?.code ? String((slot as any).code).trim() : '';
+      if (code && !(slot as any)?.sold) count += 1;
+    }
+  }
+  return count;
+}
+
+function countAvailableForSlot(digitalItems: any[], slotName: string) {
+  if (!Array.isArray(digitalItems) || !slotName) return 0;
+  let count = 0;
+  for (const item of digitalItems) {
+    const slot = item?.slots?.[slotName];
+    if (!slot) continue;
+    const code = slot?.code ? String(slot.code).trim() : '';
+    if (code && !slot.sold) count += 1;
+  }
+  return count;
+}
+
+function countAvailableFullAccounts(digitalItems: any[], slotNames: string[]) {
+  if (!Array.isArray(digitalItems) || !Array.isArray(slotNames) || !slotNames.length) return 0;
+  let count = 0;
+  for (const item of digitalItems) {
+    if (!item?.slots) continue;
+    const anySlotSold = Object.values(item.slots).some((s: any) => !!s?.sold);
+    if (anySlotSold || item.fullAccountSold) continue;
+    const hasAllCodes = slotNames.every((name) => {
+      const s = item.slots?.[name];
+      const code = s?.code ? String(s.code).trim() : '';
+      return !!code;
+    });
+    if (hasAllCodes) count += 1;
+  }
+  return count;
+}
+
 const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, settings, formData, onAddStockItem, groupItems, onRemoveItem, isAdmin }: any) => {
   const isOffline = groupName.toLowerCase().includes('offline');
   const [localGroupName, setLocalGroupName] = React.useState(groupName === 'General' ? '' : groupName);
   const [newItem, setNewItem] = React.useState({ 
-    email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
+    email: '', password: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
   });
+  const [slotCodes, setSlotCodes] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    setSlotCodes((prev) => {
+      const next: Record<string, string> = { ...prev };
+      const names = (slotsInGroup || []).map((s: any) => String(s?.name || '')).filter(Boolean);
+      for (const n of names) {
+        if (next[n] === undefined) next[n] = '';
+      }
+      for (const key of Object.keys(next)) {
+        if (!names.includes(key)) delete next[key];
+      }
+      return next;
+    });
+  }, [slotsInGroup]);
 
   const handleGroupNameBlur = () => {
     if (localGroupName === (groupName === 'General' ? '' : groupName)) return;
@@ -93,8 +150,13 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
   };
 
   const submitStock = () => {
-    onAddStockItem(groupName, newItem);
-    setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '' });
+    onAddStockItem(groupName, { ...newItem, slotCodes });
+    setNewItem({ email: '', password: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '' });
+    setSlotCodes((prev) => {
+      const cleared: Record<string, string> = {};
+      for (const k of Object.keys(prev)) cleared[k] = '';
+      return cleared;
+    });
   };
 
   return (
@@ -287,14 +349,46 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
             <div className={`p-2 rounded-xl ${isOffline ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
               <Hash className="w-4 h-4" />
             </div>
-            <label className={`text-xs font-black uppercase tracking-widest ${isOffline ? 'text-white' : 'text-gray-900'}`}>Game Codes (one per line)</label>
+            <label className={`text-xs font-black uppercase tracking-widest ${isOffline ? 'text-white' : 'text-gray-900'}`}>Attribute Codes</label>
           </div>
-          <textarea value={newItem.code} onChange={e => setNewItem({...newItem, code: e.target.value})} rows={3} className={`w-full px-5 py-4 text-sm border rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500 font-mono break-all transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder={"GAME-001\nGAME-002"} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(slotsInGroup || []).map((slot: any) => {
+              const parts = String(slot.name || '').split(' - ');
+              const subName = parts.length > 1 ? parts.slice(1).join(' - ') : String(slot.name || '');
+              return (
+                <div key={slot.id || slot.name} className="space-y-1.5">
+                  <label className={`block text-[10px] font-bold uppercase tracking-widest ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>{subName}</label>
+                  <input
+                    type="text"
+                    value={slotCodes[String(slot.name || '')] || ''}
+                    onChange={(e) => setSlotCodes((prev) => ({ ...prev, [String(slot.name || '')]: e.target.value }))}
+                    className={`w-full px-4 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-mono break-all transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+                    placeholder="CODE-XXXX"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4">
+            <label className={`block text-[10px] font-bold uppercase tracking-widest mb-2 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>Backup Codes (one per line)</label>
+            <textarea
+              value={newItem.backupCodes}
+              onChange={(e) => setNewItem({ ...newItem, backupCodes: e.target.value })}
+              rows={3}
+              className={`w-full px-5 py-4 text-sm border rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500 font-mono break-all transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+              placeholder={'REC-001\nREC-002'}
+            />
+          </div>
         </div>
 
         <button 
           type="button" onClick={submitStock} 
-          disabled={!newItem.email && !newItem.password && !newItem.code} 
+          disabled={
+            !newItem.email &&
+            !newItem.password &&
+            !Object.values(slotCodes || {}).some((v) => String(v || '').trim()) &&
+            !String(newItem.backupCodes || '').trim()
+          } 
           className={`w-full text-base py-4.5 ${isOffline ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-[0_0_30px_rgba(255,255,255,0.15)]' : 'bg-red-600 hover:bg-red-700 text-white'} rounded-full font-black shadow-2xl disabled:opacity-50 transition-all flex items-center justify-center active:scale-[0.97] hover:-translate-y-0.5 group`}
         >
            <Plus className={`w-5 h-5 mr-2.5 transition-transform group-hover:rotate-90 ${isOffline ? 'text-red-600' : 'text-white'}`} /> 
@@ -520,11 +614,11 @@ export function Products() {
   });
 
   const [customSlots, setCustomSlots] = useState<{ id: string; originalName: string; name: string; price: string; cost: string }[]>([
-    { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS4 - Primary', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS5 - Primary', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
     { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS4', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS5', price: '', cost: '' }
+    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
+    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
   ]);
 
   useEffect(() => {
@@ -699,7 +793,7 @@ export function Products() {
     setFormData(prev => ({
       ...prev,
       digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData],
-      stock: prev.stock + targetSlots.length
+      stock: countAvailableSlots([...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData] as any[])
     }));
     setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
     setCustomSlots(customSlots.map(s => ({ ...s, price: '', cost: '' })));
@@ -708,21 +802,16 @@ export function Products() {
   
   const handleRemoveDigitalItemById = (id: string) => {
     setFormData(prev => {
-        const itemToRemove = prev.digitalItems?.find((i: any) => i.id === id);
-        const slotsCount = itemToRemove?.slots ? Object.keys(itemToRemove.slots).length : 1;
-        return {
-            ...prev,
-            digitalItems: prev.digitalItems?.filter((i: any) => i.id !== id) || [],
-            stock: Math.max(0, prev.stock - slotsCount)
-        };
+      const nextItems = prev.digitalItems?.filter((i: any) => i.id !== id) || [];
+      return {
+        ...prev,
+        digitalItems: nextItems,
+        stock: countAvailableSlots(nextItems as any[])
+      };
     });
   };
 
   const handleAddGroupStock = (targetGroupName: string, localNewItem: any) => {
-    if (!localNewItem.email && !localNewItem.password && !localNewItem.code) return;
-    
-    const codes = localNewItem.code.split('\n').map((c: string) => c.trim()).filter(Boolean);
-    
     const targetSlots = customSlots.filter(slot => {
         const parts = slot.name.split(' - ');
         const group = parts.length > 1 ? parts[0].trim() : 'General';
@@ -733,50 +822,51 @@ export function Products() {
       alert('No sub-attributes found for this group. Add sub-attributes first.');
       return;
     }
-
-    const mainCodes = codes.slice(0, targetSlots.length);
-    const backupCodes = codes.slice(targetSlots.length);
     
     const slots: Record<string, any> = {};
-    targetSlots.forEach((slot, index) => {
+    targetSlots.forEach((slot) => {
+      const code = localNewItem?.slotCodes?.[slot.name] ? String(localNewItem.slotCodes[slot.name]).trim() : '';
       slots[slot.name] = {
-        sold: false, orderId: null, code: mainCodes[index] || '',
+        sold: false, orderId: null, code,
         price: parseFloat(slot.price) || parseFloat(formData.price as unknown as string) || 0,
         cost: parseFloat(slot.cost) || parseFloat(formData.cost as unknown as string) || 0
       };
     });
+    const firstCode = Object.values(slots).find((s: any) => s?.code)?.code || '';
 
     const newItemData = {
       ...localNewItem,
       id: crypto.randomUUID(),
-      code: mainCodes[0] || localNewItem.code,
+      code: firstCode,
       slots,
-      backupCodes: backupCodes.join('\n'),
-      totalCodes: codes.length,
+      backupCodes: String(localNewItem.backupCodes || ''),
+      totalCodes: Object.values(slots).filter((s: any) => s?.code).length + (String(localNewItem.backupCodes || '').trim() ? String(localNewItem.backupCodes).split('\n').filter((x: string) => x.trim()).length : 0),
       assignedGroup: targetGroupName
     };
 
-    setFormData(prev => ({
-      ...prev,
-      digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData],
-      stock: (prev.stock || 0) + targetSlots.length
-    }));
+    setFormData(prev => {
+      const nextItems = [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData];
+      return {
+        ...prev,
+        digitalItems: nextItems,
+        stock: countAvailableSlots(nextItems as any[])
+      };
+    });
   };
 
 const handleRemoveDigitalItem = (index: number) => {
     setFormData(prev => {
-        const item = prev.digitalItems?.[index];
-        const slotsCount = item?.slots ? Object.keys(item.slots).length : 1;
-        return {
-            ...prev,
-            digitalItems: (Array.isArray(prev.digitalItems) ? prev.digitalItems : []).filter((_, i) => i !== index),
-            stock: Math.max(0, prev.stock - slotsCount)
-        };
+      const nextItems = (Array.isArray(prev.digitalItems) ? prev.digitalItems : []).filter((_, i) => i !== index);
+      return {
+        ...prev,
+        digitalItems: nextItems,
+        stock: countAvailableSlots(nextItems as any[])
+      };
     });
   };
 
   const handleExportCSVTemplate = () => {
-    const headers = ['Email,Password,Code,OutlookEmail,OutlookPassword,Birthdate,Region,OnlineID,BackupCodes'];
+    const headers = ['Email,Password,PrimaryPS4,PrimaryPS5,Secondary,OfflinePS4,OfflinePS5,OutlookEmail,OutlookPassword,Birthdate,Region,OnlineID,BackupCodes'];
     const csvContent = headers.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -796,43 +886,86 @@ const handleRemoveDigitalItem = (index: number) => {
       const text = event.target?.result as string;
       const lines = text.split('\n');
       const newItems: Product['digitalItems'] = [];
+      const header = (lines[0] || '').split(',').map((x) => x.trim());
+      const normalizeKey = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const indexOf = (name: string) => header.findIndex((h) => normalizeKey(h) === normalizeKey(name));
+      const idxEmail = indexOf('Email');
+      const idxPassword = indexOf('Password');
+      const idxCodeLegacy = indexOf('Code');
+      const idxOutlookEmail = indexOf('OutlookEmail');
+      const idxOutlookPassword = indexOf('OutlookPassword');
+      const idxBirthdate = indexOf('Birthdate');
+      const idxRegion = indexOf('Region');
+      const idxOnlineId = indexOf('OnlineID');
+      const idxBackupCodes = indexOf('BackupCodes');
+      const idxPrimaryPS4 = indexOf('PrimaryPS4');
+      const idxPrimaryPS5 = indexOf('PrimaryPS5');
+      const idxSecondary = indexOf('Secondary');
+      const idxOfflinePS4 = indexOf('OfflinePS4');
+      const idxOfflinePS5 = indexOf('OfflinePS5');
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
         const parts = line.split(',').map(item => item.trim());
-        const [email, password, code, outlookEmail, outlookPassword, birthdate, region, onlineId, ...rest] = parts;
-        
-        const backupCodes = rest.join(',');
+        const email = idxEmail >= 0 ? parts[idxEmail] : parts[0];
+        const password = idxPassword >= 0 ? parts[idxPassword] : parts[1];
+        const outlookEmail = idxOutlookEmail >= 0 ? parts[idxOutlookEmail] : '';
+        const outlookPassword = idxOutlookPassword >= 0 ? parts[idxOutlookPassword] : '';
+        const birthdate = idxBirthdate >= 0 ? parts[idxBirthdate] : '';
+        const region = idxRegion >= 0 ? parts[idxRegion] : '';
+        const onlineId = idxOnlineId >= 0 ? parts[idxOnlineId] : '';
+        const backupCodes = idxBackupCodes >= 0 ? parts[idxBackupCodes] : '';
 
-        if (email || password || code) {
+        const slots: Record<string, any> = {};
+        const slotNameList = customSlots.map((s) => s.name);
+        for (const slotName of slotNameList) {
+          slots[slotName] = { sold: false, orderId: null, code: '' };
+        }
+
+        const hasNewColumns =
+          idxPrimaryPS4 >= 0 || idxPrimaryPS5 >= 0 || idxSecondary >= 0 || idxOfflinePS4 >= 0 || idxOfflinePS5 >= 0;
+
+        if (hasNewColumns) {
+          const setIf = (idx: number, slotName: string) => {
+            if (idx >= 0 && parts[idx]) slots[slotName] = { ...slots[slotName], code: String(parts[idx] || '').trim() };
+          };
+          setIf(idxPrimaryPS4, 'Primary PS4');
+          setIf(idxPrimaryPS5, 'Primary PS5');
+          setIf(idxSecondary, 'Secondary');
+          setIf(idxOfflinePS4, 'Offline PS4');
+          setIf(idxOfflinePS5, 'Offline PS5');
+        } else if (idxCodeLegacy >= 0 && parts[idxCodeLegacy]) {
+          const legacyCode = String(parts[idxCodeLegacy] || '').trim();
+          if (customSlots[0]?.name) slots[customSlots[0].name] = { ...slots[customSlots[0].name], code: legacyCode };
+        }
+
+        const anyCode = Object.values(slots).some((s: any) => String(s?.code || '').trim());
+        if (email || password || anyCode || String(backupCodes || '').trim()) {
           newItems.push({
             email, 
             password, 
-            code,
             outlookEmail,
             outlookPassword,
             birthdate,
             region,
             onlineId,
             backupCodes,
-            slots: {
-                'Primary ps4': { sold: false, orderId: null },
-                'Primary ps5': { sold: false, orderId: null },
-                'Secondary': { sold: false, orderId: null },
-                'Offline ps4': { sold: false, orderId: null },
-                'Offline ps5': { sold: false, orderId: null }
-            }
+            slots,
+            code: Object.values(slots).find((s: any) => s?.code)?.code || '',
           });
         }
       }
 
-      setFormData(prev => ({
-        ...prev,
-        digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), ...newItems],
-        stock: prev.stock + (newItems.length * 5)
-      }));
+      setFormData(prev => {
+        const nextItems = [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), ...newItems];
+        return {
+          ...prev,
+          digitalItems: nextItems,
+          stock: countAvailableSlots(nextItems as any[])
+        };
+      });
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -840,15 +973,6 @@ const handleRemoveDigitalItem = (index: number) => {
 
   const handleSaveProduct = async () => {
     try {
-      const status =
-        formData.category === 'gift-cards'
-          ? formData.stock > 0
-            ? 'In Stock'
-            : 'Out of Stock'
-          : formData.stock > 10
-            ? 'In Stock'
-            : 'Low Stock';
-            
       // Map slot prices to all digital items before saving
       let finalDigitalItems = formData.digitalItems;
       
@@ -879,6 +1003,27 @@ const handleRemoveDigitalItem = (index: number) => {
         });
       }
 
+      const computedStock =
+        formData.category === 'gift-cards'
+          ? (Array.isArray(finalDigitalItems) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : 0)
+          : countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : []);
+
+      const fullAccountStock =
+        formData.category === 'gift-cards' || !formData.fullAccountPrice
+          ? 0
+          : countAvailableFullAccounts(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], customSlots.map((s) => s.name));
+
+      const availabilityStock = Math.max(computedStock, fullAccountStock);
+
+      const status =
+        formData.category === 'gift-cards'
+          ? availabilityStock > 0
+            ? 'In Stock'
+            : 'Out of Stock'
+          : availabilityStock > 10
+            ? 'In Stock'
+            : 'Low Stock';
+
       // Map frontend fields to database fields
       // Ensure category_slug and sub_category_slug are set
       const productData: any = {
@@ -888,7 +1033,7 @@ const handleRemoveDigitalItem = (index: number) => {
         sub_category_slug: formData.subCategory, // This is the slug/name from subcats
         price: parseFloat(formData.price as any) || 0,
         cost: parseFloat(formData.cost as any) || 0,
-        stock: parseInt(formData.stock as any) || 0,
+        stock: computedStock,
         image: formData.image || 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=100&h=100&fit=crop',
         status,
         attributes: formData.attributes || {},
@@ -897,7 +1042,8 @@ const handleRemoveDigitalItem = (index: number) => {
         product_variants: customSlots.map(slot => ({
           name: slot.name,
           price: slot.price ? parseFloat(slot.price) : null,
-          cost: slot.cost ? parseFloat(slot.cost) : null
+          cost: slot.cost ? parseFloat(slot.cost) : null,
+          stock: formData.category === 'gift-cards' ? 0 : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name)
         })),
         sendEmailEnabled: formData.sendEmailEnabled || false,
         emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : (formData.emailTemplate || ''),
@@ -911,7 +1057,8 @@ const handleRemoveDigitalItem = (index: number) => {
         productData.product_variants.push({
           name: 'Full Account',
           price: parseFloat(formData.fullAccountPrice as any),
-          cost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null
+          cost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null,
+          stock: fullAccountStock
         });
       }
 
@@ -927,11 +1074,11 @@ const handleRemoveDigitalItem = (index: number) => {
       setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
       setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
       setCustomSlots([
-        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS4 - Primary', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS5 - Primary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
         { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS4', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS5', price: '', cost: '' }
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
       ]);
     } catch (error) {
       console.error('Error saving product:', error);
@@ -991,11 +1138,11 @@ const handleRemoveDigitalItem = (index: number) => {
     
     if (newCustomSlots.length === 0) {
       newCustomSlots.push(
-        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS4 - Primary', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Platform: PS5 - Primary', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
         { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS4', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline - PS5', price: '', cost: '' }
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
       );
     }
 
@@ -1008,7 +1155,7 @@ const handleRemoveDigitalItem = (index: number) => {
       subCategory: product.sub_category_slug,
       price: product.price.toString().replace('$', ''),
       cost: product.cost ? product.cost.toString().replace('$', '') : '',
-      stock: product.stock,
+      stock: product.category_slug === 'gift-cards' ? product.stock : countAvailableSlots(parsedDigitalItems as any[]),
       image: product.image,
       attributes: (product.attributes || {}) as Record<string, any>,
       digitalItems: parsedDigitalItems,
@@ -1068,6 +1215,13 @@ const handleRemoveDigitalItem = (index: number) => {
                   const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
                   setFormData({ name: '', description: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
                   setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
+                  setCustomSlots([
+                    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+                    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
+                    { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
+                    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
+                    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
+                  ]);
                   setIsAddModalOpen(true);
                 }}
                 className="btn-primary"
@@ -1776,11 +1930,12 @@ const handleRemoveDigitalItem = (index: number) => {
                         <button
                           type="button"
                           onClick={() => {
+                            const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
                             const offlineSlots = [
-                              { id: crypto.randomUUID(), originalName: '', name: `Offline - PS4`, price: '', cost: '' },
-                              { id: crypto.randomUUID(), originalName: '', name: `Offline - PS5`, price: '', cost: '' }
-                            ];
-                            setCustomSlots([...customSlots, ...offlineSlots]);
+                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS4`, price: '', cost: '' },
+                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS5`, price: '', cost: '' }
+                            ].filter((s) => !existing.has(String(s.name).toLowerCase()));
+                            if (offlineSlots.length) setCustomSlots([...customSlots, ...offlineSlots]);
                           }}
                           className="text-xs text-white hover:bg-indigo-700 font-black flex items-center bg-indigo-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
                         >
@@ -1811,6 +1966,13 @@ const handleRemoveDigitalItem = (index: number) => {
                     setIsAddModalOpen(false);
                     setEditingProduct(null);
                     setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                    setCustomSlots([
+                      { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+                      { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
+                      { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
+                      { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
+                      { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
+                    ]);
                   }}
                   className="px-8 py-3 rounded-full font-black text-gray-500 hover:text-gray-700 transition-all border-2 active:scale-95"
                 >

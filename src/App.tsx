@@ -73,12 +73,32 @@ export default function App() {
 
         if (products && products.length > 0) {
           const mappedGames: Game[] = products.map((p: any) => ({
+            // basePrice should show the lowest available attribute/variant price (excluding "Full Account")
             id: String(p.id),
             title: p.name,
             image: p.image || '',
             banner: p.image || '',
-            price: p.price || 0,
-            basePrice: p.price || 0,
+            price: (() => {
+              const base = Number(p.price);
+              return Number.isFinite(base) ? base : 0;
+            })(),
+            basePrice: (() => {
+              const variants = Array.isArray(p.product_variants) ? p.product_variants : [];
+              const toPrice = (v: any) => {
+                const n = Number(v?.price);
+                return Number.isFinite(n) && n > 0 ? n : null;
+              };
+
+              const usable = variants.filter((v: any) => String(v?.name || '').trim().toLowerCase() !== 'full account');
+              const inStock = usable.filter((v: any) => Number(v?.stock) > 0).map(toPrice).filter((x: any) => x != null) as number[];
+              const any = usable.map(toPrice).filter((x: any) => x != null) as number[];
+
+              const prices = inStock.length ? inStock : any;
+              if (prices.length) return Math.min(...prices);
+
+              const fallback = Number(p.price);
+              return Number.isFinite(fallback) ? fallback : 0;
+            })(),
             categorySlug: p.category_slug ? String(p.category_slug) : undefined,
             subCategorySlug: p.sub_category_slug ? String(p.sub_category_slug) : undefined,
             category: p.category_slug
@@ -91,14 +111,14 @@ export default function App() {
             accountTypes: Array.isArray(p.product_variants) && p.product_variants.length > 0
               ? p.product_variants.map((v: any) => ({
                   tier: v.name.toUpperCase(),
-                  price: v.price,
+                  price: Number(v.price) || 0,
                   save: '0%',
                   status: v.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
                   icon: v.name.toUpperCase().includes('PLATINUM') ? '💎' : v.name.toUpperCase().includes('GOLD') ? '🥇' : '🥈',
                   isAvailable: v.stock > 0
                 }))
               : [
-                  { price: p.price, tier: 'SILVER', save: '0%', status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK', icon: '🥈', isAvailable: p.stock > 0 }
+                  { price: Number(p.price) || 0, tier: 'SILVER', save: '0%', status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK', icon: '🥈', isAvailable: p.stock > 0 }
                 ]
           }));
           setGames(mappedGames);

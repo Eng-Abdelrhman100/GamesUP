@@ -24,10 +24,11 @@ import { SoldProducts } from './pages/SoldProducts';
 import { EmailTemplates } from './pages/EmailTemplates';
 import { Expenses } from './pages/Expenses';
 import { SupportChats } from './pages/SupportChats';
+import { GameRequests } from './pages/GameRequests';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests';
 
 export default function AdminApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -249,6 +250,7 @@ export default function AdminApp() {
               <Route path="analytics" element={<ProtectedRoute id="analytics"><Analytics /></ProtectedRoute>} />
               <Route path="customers" element={<ProtectedRoute id="customers"><Customers /></ProtectedRoute>} />
               <Route path="expenses" element={<ProtectedRoute id="expenses"><Expenses /></ProtectedRoute>} />
+              <Route path="game-requests" element={<ProtectedRoute id="game-requests"><GameRequests /></ProtectedRoute>} />
               <Route path="banners" element={<ProtectedRoute id="banners"><Banners /></ProtectedRoute>} />
               <Route path="hero-slider" element={<ProtectedRoute id="hero-slider"><HeroSliderBanners /></ProtectedRoute>} />
               <Route path="outlook" element={<ProtectedRoute id="outlook"><Outlook /></ProtectedRoute>} />

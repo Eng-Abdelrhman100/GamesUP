@@ -59,6 +59,14 @@ const defaultHomepageCategories = [
   },
 ];
 
+const defaultAccountSlotAttributes = [
+  { name: 'Primary PS4', type: 'text', display_order: 1 },
+  { name: 'Primary PS5', type: 'text', display_order: 2 },
+  { name: 'Secondary', type: 'text', display_order: 3 },
+  { name: 'Offline PS4', type: 'text', display_order: 4 },
+  { name: 'Offline PS5', type: 'text', display_order: 5 },
+];
+
 async function ensureGameRequestsTableExists() {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS game_requests (
@@ -80,6 +88,27 @@ async function ensureGameRequestsTableExists() {
   );
 }
 
+async function ensureProductAttributesSeeded() {
+  const [rows] = await pool.query('SELECT name FROM product_attributes');
+  const existingNames = new Set((rows || []).map((r) => String(r.name || '').trim().toLowerCase()).filter(Boolean));
+  const missing = defaultAccountSlotAttributes.filter((a) => !existingNames.has(a.name.toLowerCase()));
+  if (!missing.length) return;
+
+  const values = [];
+  const placeholders = missing
+    .map((a) => {
+      values.push(a.name, a.type, null, false, a.display_order, true);
+      return '(?, ?, ?, ?, ?, ?)';
+    })
+    .join(', ');
+
+  await pool.query(
+    `INSERT INTO product_attributes (name, type, options, is_required, display_order, is_active)
+     VALUES ${placeholders}`,
+    values
+  );
+}
+
 async function ensureHomepageCategoriesSeeded() {
   const [rows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['homepage_categories']);
   const existing = rows?.[0]?.setting_value;
@@ -95,6 +124,7 @@ async function ensureHomepageCategoriesSeeded() {
 
 async function bootstrap() {
   await ensureGameRequestsTableExists();
+  await ensureProductAttributesSeeded();
   await ensureHomepageCategoriesSeeded();
   app.listen(port, () => {
     console.log(`API Server running at http://localhost:${port}`);
