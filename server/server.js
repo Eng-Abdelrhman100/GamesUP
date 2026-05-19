@@ -122,10 +122,33 @@ async function ensureHomepageCategoriesSeeded() {
   }
 }
 
+async function ensureSystemCategoriesSeeded() {
+  const defaultSystemCategories = [
+    { name: 'Consoles', slug: 'consoles', icon: '🎮', display_order: 1, is_active: true },
+    { name: 'Digital Games', slug: 'digital-games', icon: '🎯', display_order: 2, is_active: true },
+    { name: 'Accessories', slug: 'accessories', icon: '🎧', display_order: 3, is_active: true },
+    { name: 'Gift Cards', slug: 'gift-cards', icon: '💳', display_order: 4, is_active: true }
+  ];
+
+  const [rows] = await pool.query('SELECT slug FROM categories');
+  const existingSlugs = new Set((rows || []).map(r => String(r.slug || '').trim().toLowerCase()));
+  
+  for (const cat of defaultSystemCategories) {
+    if (!existingSlugs.has(cat.slug.toLowerCase())) {
+      console.log(`Seeding system category: ${cat.name}`);
+      await pool.query(
+        'INSERT INTO categories (name, slug, icon, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
+        [cat.name, cat.slug, cat.icon, cat.display_order, cat.is_active]
+      );
+    }
+  }
+}
+
 async function bootstrap() {
   await ensureGameRequestsTableExists();
   await ensureProductAttributesSeeded();
   await ensureHomepageCategoriesSeeded();
+  await ensureSystemCategoriesSeeded();
   app.listen(port, () => {
     console.log(`API Server running at http://localhost:${port}`);
   });

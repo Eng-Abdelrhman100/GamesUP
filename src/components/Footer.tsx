@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquare, Twitter, Instagram, Facebook } from 'lucide-react';
 import { useStoreSettings } from '../context/StoreSettingsContext';
+import { AppView } from '../types';
 
 function PaymentBadge({ label, className }: { label: string; className?: string }) {
   return (
@@ -30,7 +31,12 @@ function PaymentBadge({ label, className }: { label: string; className?: string 
   );
 }
 
-export const Footer = ({ isDark }: { isDark: boolean }) => {
+interface FooterProps {
+  isDark: boolean;
+  onViewChange?: (view: AppView) => void;
+}
+
+export const Footer = ({ isDark, onViewChange }: FooterProps) => {
   const [logoError, setLogoError] = React.useState(false);
   const { settings } = useStoreSettings();
   const whatsappUrl = settings?.whatsapp_url ? String(settings.whatsapp_url) : 'https://wa.me/201008480536';
@@ -59,73 +65,100 @@ export const Footer = ({ isDark }: { isDark: boolean }) => {
             <p className="text-xs text-text-secondary leading-relaxed font-black uppercase tracking-wider max-w-xs italic transition-colors">
               The most trusted digital game store in Egypt. Established in 2021 to provide elite digital experiences.
             </p>
-          <div className="flex gap-4">
-            {[Instagram, Facebook, Twitter].map((Icon, i) => (
-              <a key={i} href="#" className="h-10 w-10 border border-border-subtle flex items-center justify-center text-text-secondary hover:text-[var(--text-primary)] hover:border-brand-red transition-all bg-bg-card active:scale-95">
-                <Icon className="h-4 w-4" />
-              </a>
-            ))}
+            <div className="flex gap-4">
+              {[Instagram, Facebook, Twitter].map((Icon, i) => (
+                <a key={i} href="#" className="h-10 w-10 border border-border-subtle flex items-center justify-center text-text-secondary hover:text-[var(--text-primary)] hover:border-brand-red transition-all bg-bg-card active:scale-95">
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-black text-brand-red tracking-[0.3em] mb-8 uppercase italic underline decoration-2 underline-offset-8">Quick Links</h4>
+            <ul className="space-y-4 text-[10px] font-black uppercase tracking-[0.2em] text-text-secondary italic">
+              {[
+                { label: 'The Catalog', action: () => onViewChange?.('shop') },
+                { label: 'Special Offers', action: () => onViewChange?.('shop') },
+                { label: 'Best Sellers', action: () => onViewChange?.('best_sellers') },
+                { label: 'New Missions', action: () => onViewChange?.('shop') },
+                { label: 'About GamesUp', action: () => onViewChange?.('about') },
+              ].map(l => (
+                <li key={l.label}>
+                  <button 
+                    onClick={l.action} 
+                    className="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left uppercase font-black"
+                  >
+                    {l.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.3em] mb-8 uppercase italic transition-colors">Information</h4>
+            <ul className="space-y-4 text-[10px] font-black uppercase tracking-[0.2em] text-text-secondary italic">
+              {[
+                { label: 'Instructions for PS4', action: () => onViewChange?.('instructions_ps4') },
+                { label: 'Instructions for PS5', action: () => onViewChange?.('instructions_ps5') },
+                { label: 'Terms of Combat', action: () => onViewChange?.('contact') },
+                { label: 'Refund Policy', action: () => onViewChange?.('contact') },
+                { label: 'Deployment Log', action: () => onViewChange?.('orders') },
+                { label: 'Support Desk', action: () => onViewChange?.('contact') },
+              ].map(l => (
+                <li key={l.label}>
+                  <button 
+                    onClick={l.action} 
+                    className="hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left uppercase font-black"
+                  >
+                    {l.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+             <h4 className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.3em] mb-8 uppercase italic transition-colors">Support Desk</h4>
+             <div className="space-y-6">
+                <p className="text-[10px] text-text-secondary font-bold leading-relaxed uppercase tracking-widest italic transition-colors">
+                  Need help with your purchase? <br />
+                  Our team is available 24/7 via WhatsApp.
+                </p>
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full bg-bg-card border border-border-subtle p-5 flex items-center gap-4 group hover:border-brand-red/50 transition-all italic"
+                >
+                  <div className="bg-brand-red/10 p-3 rounded group-hover:bg-brand-red transition-colors">
+                    <MessageSquare className="h-5 w-5 text-brand-red group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[10px] font-black text-text-secondary tracking-widest uppercase transition-colors">WhatsApp Support</div>
+                    <div className="text-[var(--text-primary)] font-black text-sm tracking-tighter transition-colors">{phone}</div>
+                  </div>
+                </a>
+             </div>
           </div>
         </div>
 
-        <div>
-          <h4 className="text-[10px] font-black text-brand-red tracking-[0.3em] mb-8 uppercase italic underline decoration-2 underline-offset-8">Quick Links</h4>
-          <ul className="space-y-4 text-[10px] font-black uppercase tracking-[0.2em] text-text-secondary italic">
-            {['The Catalog', 'Special Offers', 'Best Sellers', 'New Missions', 'About GamesUp'].map(l => (
-              <li key={l}><a href="#" className="hover:text-[var(--text-primary)] transition-colors">{l}</a></li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.3em] mb-8 uppercase italic transition-colors">Information</h4>
-          <ul className="space-y-4 text-[10px] font-black uppercase tracking-[0.2em] text-text-secondary italic">
-            {['Terms of Combat', 'Refund Policy', 'Deployment Log', 'Support Desk', 'Mission FAQs'].map(l => (
-              <li key={l}><a href="#" className="hover:text-[var(--text-primary)] transition-colors">{l}</a></li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-           <h4 className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.3em] mb-8 uppercase italic transition-colors">Support Desk</h4>
-           <div className="space-y-6">
-              <p className="text-[10px] text-text-secondary font-bold leading-relaxed uppercase tracking-widest italic transition-colors">
-                Need help with your purchase? <br />
-                Our team is available 24/7 via WhatsApp.
-              </p>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full bg-bg-card border border-border-subtle p-5 flex items-center gap-4 group hover:border-brand-red/50 transition-all italic"
-              >
-                <div className="bg-brand-red/10 p-3 rounded group-hover:bg-brand-red transition-colors">
-                  <MessageSquare className="h-5 w-5 text-brand-red group-hover:text-white transition-colors" />
-                </div>
-                <div className="text-left">
-                  <div className="text-[10px] font-black text-text-secondary tracking-widest uppercase transition-colors">WhatsApp Support</div>
-                  <div className="text-[var(--text-primary)] font-black text-sm tracking-tighter transition-colors">{phone}</div>
-                </div>
-              </a>
-           </div>
+        <div className="pt-12 border-t border-border-subtle flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] italic transition-colors">
+          <div className="flex gap-6">
+            <span>&copy; 2024 GamesUp</span>
+            <span className="text-[var(--text-primary)]/20">System: Online</span>
+          </div>
+          <div className="flex items-center gap-8">
+             <span className="text-green-500">Ping: 24ms</span>
+             <div className="h-4 w-[1px] bg-border-subtle"></div>
+             <div className="flex gap-4 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer">
+               <PaymentBadge label="PayPal" className="h-3 w-auto" />
+               <PaymentBadge label="VISA" className="h-3 w-auto" />
+             </div>
+          </div>
         </div>
       </div>
-
-      <div className="pt-12 border-t border-border-subtle flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] italic transition-colors">
-        <div className="flex gap-6">
-          <span>&copy; 2024 GamesUp</span>
-          <span className="text-[var(--text-primary)]/20">System: Online</span>
-        </div>
-        <div className="flex items-center gap-8">
-           <span className="text-green-500">Ping: 24ms</span>
-           <div className="h-4 w-[1px] bg-border-subtle"></div>
-           <div className="flex gap-4 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer">
-             <PaymentBadge label="PayPal" className="h-3 w-auto" />
-             <PaymentBadge label="VISA" className="h-3 w-auto" />
-           </div>
-        </div>
-      </div>
-    </div>
-  </footer>
+    </footer>
   );
 };

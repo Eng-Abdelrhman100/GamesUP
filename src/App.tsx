@@ -22,6 +22,8 @@ import { DashboardPage } from './components/DashboardPage';
 import { CheckoutPage } from './components/CheckoutPage';
 import { OrderConfirmationPage } from './components/OrderConfirmationPage';
 import { SearchPage } from './components/SearchPage';
+import { InstructionsPS4Page } from './components/InstructionsPS4Page';
+import { InstructionsPS5Page } from './components/InstructionsPS5Page';
 import { Preloader } from './components/Preloader';
 import { CartDrawer } from './components/CartDrawer';
 import { Footer } from './components/Footer';
@@ -273,6 +275,22 @@ export default function App() {
       return true;
     }
 
+    if (path === '/instructions-for-ps4' || path === '/instructions-ps4' || path.startsWith('/instructions-for-ps4')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('instructions_ps4');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/instructions-for-ps5' || path === '/instructions-ps5' || path.startsWith('/instructions-for-ps5')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('instructions_ps5');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
     if (path === '/dashboard' || path.startsWith('/dashboard/')) {
       setSelectedGame(null);
       setCollection(null);
@@ -388,6 +406,22 @@ export default function App() {
       setCollection(null);
       setView('request');
       window.history.pushState({}, '', '/request-game');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'instructions_ps4') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('instructions_ps4');
+      window.history.pushState({}, '', '/instructions-for-ps4');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'instructions_ps5') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('instructions_ps5');
+      window.history.pushState({}, '', '/instructions-for-ps5');
       window.scrollTo(0, 0);
       return;
     }
@@ -687,6 +721,10 @@ export default function App() {
         return <ContactPage onBack={handleBackToHome} />;
       case 'request':
         return <RequestGamePage onBack={handleBackToHome} />;
+      case 'instructions_ps4':
+        return <InstructionsPS4Page onBack={handleBackToHome} />;
+      case 'instructions_ps5':
+        return <InstructionsPS5Page onBack={handleBackToHome} />;
       case 'dashboard':
         return <DashboardPage onBack={handleBackToHome} onViewChange={navigateView} />;
       case 'checkout':
@@ -801,7 +839,7 @@ export default function App() {
         {renderView()}
       </main>
 
-      <Footer isDark={isDark} />
+      <Footer isDark={isDark} onViewChange={navigateView} />
 
       <CartDrawer 
         isOpen={isCartOpen}

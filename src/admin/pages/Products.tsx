@@ -85,7 +85,7 @@ function countAvailableFullAccounts(digitalItems: any[], slotNames?: string[]) {
   return count;
 }
 
-const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, settings, formData, onAddStockItem, groupItems, onRemoveItem, isAdmin }: any) => {
+const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, settings, formData, onAddStockItem, groupItems, onRemoveItem, onUpdateItem, onUpdateItemSlot, isAdmin }: any) => {
   const isOffline = groupName.toLowerCase().includes('offline');
   const [localGroupName, setLocalGroupName] = React.useState(groupName === 'General' ? '' : groupName);
   const [newItem, setNewItem] = React.useState({ 
@@ -395,93 +395,111 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                   {groupItems.map((item: any, idx: number) => (
                     <tr key={item.id || idx} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                       {/* Account credentials */}
-                      <td className="px-3.5 py-3 align-top">
-                        <div className="font-bold text-gray-900 dark:text-white break-all">{item.email || '-'}</div>
-                        <div className="font-mono text-[10px] text-gray-500 dark:text-gray-400 select-all cursor-pointer truncate max-w-[140px] mt-0.5" title={item.password}>
-                          {item.password || '******'}
-                        </div>
-                        {item.onlineId && (
-                          <div className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">
-                            <span className="font-bold">ID:</span> {item.onlineId}
-                          </div>
-                        )}
+                      <td className="px-3.5 py-3 align-top min-w-[150px]">
+                        <input
+                          type="text"
+                          value={item.email || ''}
+                          onChange={(e) => onUpdateItem(item.id, { email: e.target.value })}
+                          className={`w-full bg-transparent border-b text-xs py-0.5 focus:border-red-500 focus:outline-none ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white'}`}
+                          placeholder="PSN Email"
+                        />
+                        <input
+                          type="text"
+                          value={item.password || ''}
+                          onChange={(e) => onUpdateItem(item.id, { password: e.target.value })}
+                          className={`w-full bg-transparent border-b text-[10px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5 font-mono ${isOffline ? 'border-gray-700 text-gray-400' : 'border-gray-300 dark:border-gray-700 text-gray-500'}`}
+                          placeholder="Password"
+                        />
+                        <input
+                          type="text"
+                          value={item.onlineId || ''}
+                          onChange={(e) => onUpdateItem(item.id, { onlineId: e.target.value })}
+                          className={`w-full bg-transparent border-b text-[9px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5 ${isOffline ? 'border-gray-700 text-gray-400' : 'border-gray-300 dark:border-gray-700 text-gray-500'}`}
+                          placeholder="Online ID"
+                        />
                       </td>
                       
                       {/* Recovery & Region */}
-                      <td className="px-3.5 py-3 align-top text-[10px] text-gray-600 dark:text-gray-400 space-y-1">
-                        {item.region && (
-                          <div>
-                            <span className="font-bold text-[9px] uppercase tracking-wider text-gray-400 mr-1">Region:</span>
-                            {item.region}
-                          </div>
-                        )}
-                        {item.outlookEmail && (
-                          <div className="break-all leading-tight">
-                            <span className="font-bold text-[9px] uppercase tracking-wider text-gray-400 mr-1">Mail:</span>
-                            {item.outlookEmail}
-                            {item.outlookPassword && <span className="text-gray-400 dark:text-gray-500"> ({item.outlookPassword})</span>}
-                          </div>
-                        )}
-                        {item.birthdate && (
-                          <div>
-                            <span className="font-bold text-[9px] uppercase tracking-wider text-gray-400 mr-1">Birth:</span>
-                            {item.birthdate}
-                          </div>
-                        )}
-                        {!item.region && !item.outlookEmail && !item.birthdate && <span className="text-gray-400 italic">None</span>}
+                      <td className="px-3.5 py-3 align-top text-[10px] space-y-1.5 min-w-[150px]">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase w-10">Reg:</span>
+                          <input
+                            type="text"
+                            value={item.region || ''}
+                            onChange={(e) => onUpdateItem(item.id, { region: e.target.value })}
+                            className={`flex-1 bg-transparent border-b text-[10px] py-0 focus:border-red-500 focus:outline-none ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                            placeholder="US"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase w-10">Mail:</span>
+                          <input
+                            type="text"
+                            value={item.outlookEmail || ''}
+                            onChange={(e) => onUpdateItem(item.id, { outlookEmail: e.target.value })}
+                            className={`flex-1 bg-transparent border-b text-[10px] py-0 focus:border-red-500 focus:outline-none font-mono ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                            placeholder="recovery@outlook.com"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase w-10">Pass:</span>
+                          <input
+                            type="text"
+                            value={item.outlookPassword || ''}
+                            onChange={(e) => onUpdateItem(item.id, { outlookPassword: e.target.value })}
+                            className={`flex-1 bg-transparent border-b text-[10px] py-0 focus:border-red-500 focus:outline-none font-mono ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                            placeholder="Outlook Pass"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase w-10">Birth:</span>
+                          <input
+                            type="text"
+                            value={item.birthdate || ''}
+                            onChange={(e) => onUpdateItem(item.id, { birthdate: e.target.value })}
+                            className={`flex-1 bg-transparent border-b text-[10px] py-0 focus:border-red-500 focus:outline-none ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                            placeholder="YYYY-MM-DD"
+                          />
+                        </div>
                       </td>
                       
                       {/* Slots status */}
                       {slotsInGroup.map((slot: any) => {
-                        const slotData = item.slots?.[slot.name];
-                        if (!slotData) {
-                          return (
-                            <td key={slot.id || slot.name} className="px-3.5 py-3 align-top text-gray-400 italic text-[10px]">
-                              -
-                            </td>
-                          );
-                        }
-                        
-                        const code = String(slotData.code || '').trim();
+                        const slotData = item.slots?.[slot.name] || { code: '', sold: false };
+                        const code = slotData.code || '';
                         const isSold = !!slotData.sold;
                         
                         return (
-                          <td key={slot.id || slot.name} className="px-3.5 py-3 align-top">
-                            {code ? (
-                              <div className="space-y-1">
-                                <div className="font-mono text-xs text-gray-700 dark:text-gray-300 break-all select-all font-semibold leading-tight">
-                                  {code}
-                                </div>
-                                <div>
-                                  {isSold ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" title={slotData.customerName || 'Sold'}>
-                                      Sold {slotData.customerName ? `(${slotData.customerName})` : ''}
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
-                                      Available
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400 italic text-[10px]">No Code</span>
-                            )}
+                          <td key={slot.id || slot.name} className="px-3.5 py-3 align-top min-w-[120px]">
+                            <input
+                              type="text"
+                              value={code}
+                              onChange={(e) => onUpdateItemSlot(item.id, slot.name, { code: e.target.value })}
+                              className={`w-full bg-transparent border-b text-xs py-0.5 focus:border-red-500 focus:outline-none font-mono ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white'}`}
+                              placeholder="CODE-XXXX"
+                            />
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <input
+                                type="checkbox"
+                                checked={isSold}
+                                onChange={(e) => onUpdateItemSlot(item.id, slot.name, { sold: e.target.checked })}
+                                className="w-3.5 h-3.5 text-red-600 focus:ring-red-500 border-gray-300 rounded dark:bg-gray-800"
+                              />
+                              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sold</span>
+                            </div>
                           </td>
                         );
                       })}
                       
                       {/* Backup Codes */}
-                      <td className="px-3.5 py-3 align-top">
-                        {item.backupCodes ? (
-                          <div className="max-h-16 overflow-y-auto text-[9px] font-mono text-gray-500 bg-gray-50 dark:bg-gray-800/40 p-1.5 rounded border border-gray-100 dark:border-gray-700/50 leading-tight">
-                            {item.backupCodes.split('\n').map((code: string, cidx: number) => (
-                              <div key={cidx} className="break-all">{code}</div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic text-[10px]">-</span>
-                        )}
+                      <td className="px-3.5 py-3 align-top min-w-[140px]">
+                        <textarea
+                          value={item.backupCodes || ''}
+                          onChange={(e) => onUpdateItem(item.id, { backupCodes: e.target.value })}
+                          rows={3}
+                          className={`w-full bg-transparent border text-[10px] p-1.5 focus:border-red-500 focus:outline-none font-mono rounded-lg ${isOffline ? 'border-gray-700 text-white bg-gray-900/40' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white bg-white dark:bg-gray-800/40'}`}
+                          placeholder="Codes (one per line)"
+                        />
                       </td>
                       
                       {/* Delete */}
@@ -898,7 +916,41 @@ export function Products() {
       return {
         ...prev,
         digitalItems: nextItems,
-        stock: countAvailableSlots(nextItems as any[])
+        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[])
+      };
+    });
+  };
+
+  const handleUpdateDigitalItem = (id: string, updates: any) => {
+    setFormData(prev => {
+      const nextItems = prev.digitalItems?.map((item: any) => {
+        if (item.id === id) {
+          return { ...item, ...updates };
+        }
+        return item;
+      }) || [];
+      return {
+        ...prev,
+        digitalItems: nextItems,
+        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[])
+      };
+    });
+  };
+
+  const handleUpdateDigitalItemSlot = (id: string, slotName: string, slotUpdates: any) => {
+    setFormData(prev => {
+      const nextItems = prev.digitalItems?.map((item: any) => {
+        if (item.id === id) {
+          const slots = { ...(item.slots || {}) };
+          slots[slotName] = { ...(slots[slotName] || {}), ...slotUpdates };
+          return { ...item, slots };
+        }
+        return item;
+      }) || [];
+      return {
+        ...prev,
+        digitalItems: nextItems,
+        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[])
       };
     });
   };
@@ -1920,7 +1972,18 @@ const handleRemoveDigitalItem = (index: number) => {
                           {(formData.digitalItems || []).map((item, index) => (
                             <tr key={item.id || index} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                               <td className="px-4 py-2 text-gray-500">{index + 1}</td>
-                              <td className="px-4 py-2 font-mono tracking-widest text-gray-900 dark:text-gray-300">{item.code}</td>
+                              <td className="px-4 py-2">
+                                <input
+                                  type="text"
+                                  value={item.code || ''}
+                                  onChange={(e) => {
+                                    const nextItems = [...(formData.digitalItems || [])];
+                                    nextItems[index] = { ...nextItems[index], code: e.target.value };
+                                    setFormData({ ...formData, digitalItems: nextItems });
+                                  }}
+                                  className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-xs py-0.5 focus:border-red-500 focus:outline-none font-mono"
+                                />
+                              </td>
                               <td className="px-4 py-2 text-right">
                                 <button
                                   type="button"
@@ -2048,6 +2111,8 @@ const handleRemoveDigitalItem = (index: number) => {
                               onAddStockItem={handleAddGroupStock}
                               groupItems={groupItems}
                               onRemoveItem={handleRemoveDigitalItemById}
+                              onUpdateItem={handleUpdateDigitalItem}
+                              onUpdateItemSlot={handleUpdateDigitalItemSlot}
                               isAdmin={isAdmin}
                             />
                           );

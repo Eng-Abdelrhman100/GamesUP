@@ -1,119 +1,154 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/Modal';
-import { productsAPI } from '@/utils/api';
+import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc } from '@/utils/api';
 import { 
   Search, Plus, Trash2, Save, RotateCcw, Download, Upload, 
-  ChevronDown, Check, AlertCircle, RefreshCw
+  ChevronDown, ChevronUp, Check, AlertCircle, RefreshCw, Eye, Edit
 } from 'lucide-react';
 
-interface GridRow {
-  _productId: string | number;
-  _itemId: string;
+interface ProductRow {
+  id: string | number;
+  name: string;
+  category_slug: string | null;
+  sub_category_slug: string | null;
+  price: number | null;
+  cost: number | null;
+  stock: number;
+  image: string | null;
+  description: string | null;
+  status: string;
+  productCode: string | null;
+  purchasedEmail: string | null;
+  purchasedPassword: string | null;
+  instructions: string | null;
+  sendEmailEnabled: boolean;
+  emailTemplate: string | null;
+  digitalItems: any[]; // Array of nested stock accounts
+
+  // Local state modifiers
   _isNew?: boolean;
-  _isDeleted?: boolean;
   _isModified?: boolean;
-  
-  productName: string;
-  email: string;
-  password?: string;
-  outlookEmail?: string;
-  outlookPassword?: string;
-  region?: string;
-  onlineId?: string;
-  backupCodes?: string;
-  
-  primaryPs4Code?: string;
-  primaryPs4Sold?: boolean;
-  primaryPs5Code?: string;
-  primaryPs5Sold?: boolean;
-  secondaryCode?: string;
-  secondarySold?: boolean;
-  offlinePs4Code?: string;
-  offlinePs4Sold?: boolean;
-  offlinePs5Code?: string;
-  offlinePs5Sold?: boolean;
+  _isDeleted?: boolean;
 }
 
 export function InventorySheet() {
   const [products, setProducts] = useState<any[]>([]);
-  const [originalRows, setOriginalRows] = useState<GridRow[]>([]);
-  const [rows, setRows] = useState<GridRow[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<any[]>([]);
+  
+  const [originalRows, setOriginalRows] = useState<ProductRow[]>([]);
+  const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Search & filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProductFilter, setSelectedProductFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'sold'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Selection states
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  // Expanded details states (Master-Detail expansion)
+  const [expandedProductIds, setExpandedProductIds] = useState<Set<string | number>>(new Set());
 
-  // Bulk action states
-  const [bulkReassignProductId, setBulkReassignProductId] = useState<string>('');
-  const [bulkRegion, setBulkRegion] = useState('');
+  // Selection states (for bulk operations)
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string | number>>(new Set());
 
-  // Importer states
+  // Bulk actions states
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkPriceChangeType, setBulkPriceChangeType] = useState<'set' | 'add' | 'multiply'>('set');
+  const [bulkPriceValue, setBulkPriceValue] = useState('');
+
+  // Importer states (Bulk Add modal)
   const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
   const [bulkAddProductId, setBulkAddProductId] = useState('');
   const [bulkAddRawText, setBulkAddRawText] = useState('');
   const [bulkAddFormat, setBulkAddFormat] = useState<'email:pass' | 'email:pass:outlook:outlookpass' | 'codes_only'>('email:pass');
   const [bulkAddSlot, setBulkAddSlot] = useState<'Primary ps4' | 'Primary ps5' | 'Secondary' | 'Offline ps4' | 'Offline ps5'>('Primary ps4');
 
-  // Load products and flatten digitalItems
+  // Description / Details modal state
+  const [editingDescriptionProdId, setEditingDescriptionProdId] = useState<string | number | null>(null);
+  const [descriptionModalData, setDescriptionModalData] = useState({
+    name: '',
+    description: '',
+    instructions: ''
+  });
+
+  const calculateProductStock = (row: ProductRow) => {
+    if (!row.digitalItems || row.digitalItems.length === 0) {
+      return row.stock; // If physical/giftcard without items, return manual stock value
+    }
+    let count = 0;
+    row.digitalItems.forEach(item => {
+      if (item && item.slots) {
+        Object.values(item.slots).forEach((slot: any) => {
+          if (slot && slot.code && !slot.sold) {
+            count++;
+          }
+        });
+      }
+    });
+    return count;
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await productsAPI.getAll();
-      const productList = res.products || res || [];
+
+      const [catsRes, subCatsRes, productsRes] = await Promise.all([
+        categoriesAPI.getAll(),
+        api.get('sub_categories'),
+        productsAPI.getAll()
+      ]);
+
+      setCategories(catsRes || []);
+      setSubCategories(subCatsRes || []);
+      
+      const productList = productsRes.products || productsRes || [];
       setProducts(productList);
 
-      const gridRows: GridRow[] = [];
-      for (const prod of productList) {
-        const rawDigitalItems = prod.digitalItems || prod.digital_items;
-        const digitalItems = typeof rawDigitalItems === 'string' 
-          ? JSON.parse(rawDigitalItems) 
-          : (rawDigitalItems || []);
-          
-        if (Array.isArray(digitalItems)) {
-          for (const item of digitalItems) {
-            gridRows.push({
-              _productId: String(prod.id),
-              _itemId: item.id || crypto.randomUUID(),
-              productName: prod.name,
-              email: item.email || '',
-              password: item.password || '',
-              outlookEmail: item.outlookEmail || '',
-              outlookPassword: item.outlookPassword || '',
-              region: item.region || '',
-              onlineId: item.onlineId || '',
-              backupCodes: item.backupCodes || '',
-              
-              primaryPs4Code: item.slots?.['Primary ps4']?.code || '',
-              primaryPs4Sold: !!item.slots?.['Primary ps4']?.sold,
-              primaryPs5Code: item.slots?.['Primary ps5']?.code || '',
-              primaryPs5Sold: !!item.slots?.['Primary ps5']?.sold,
-              secondaryCode: item.slots?.['Secondary']?.code || '',
-              secondarySold: !!item.slots?.['Secondary']?.sold,
-              offlinePs4Code: item.slots?.['Offline ps4']?.code || '',
-              offlinePs4Sold: !!item.slots?.['Offline ps4']?.sold,
-              offlinePs5Code: item.slots?.['Offline ps5']?.code || '',
-              offlinePs5Sold: !!item.slots?.['Offline ps5']?.sold,
-            });
+      const formatted: ProductRow[] = productList.map((p: any) => {
+        let items: any[] = [];
+        try {
+          const rawItems = p.digitalItems || p.digital_items;
+          if (rawItems) {
+            items = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
           }
+        } catch (e) {
+          console.error('Failed to parse digital items for product', p.id, e);
         }
-      }
 
-      setOriginalRows(JSON.parse(JSON.stringify(gridRows)));
-      setRows(gridRows);
-      setSelectedItemIds(new Set());
+        return {
+          id: p.id,
+          name: p.name || '',
+          category_slug: p.category_slug || null,
+          sub_category_slug: p.sub_category_slug || null,
+          price: p.price != null ? parseFloat(String(p.price)) : null,
+          cost: p.cost != null ? parseFloat(String(p.cost)) : null,
+          stock: p.stock != null ? parseInt(String(p.stock)) : 0,
+          image: p.image || null,
+          description: p.description || null,
+          status: p.status || 'In Stock',
+          productCode: p.productCode || null,
+          purchasedEmail: p.purchasedEmail || null,
+          purchasedPassword: p.purchasedPassword || null,
+          instructions: p.instructions || null,
+          sendEmailEnabled: !!p.sendEmailEnabled,
+          emailTemplate: p.emailTemplate || null,
+          digitalItems: items
+        };
+      });
+
+      setOriginalRows(JSON.parse(JSON.stringify(formatted)));
+      setRows(formatted);
+      setSelectedProductIds(new Set());
+      setExpandedProductIds(new Set());
     } catch (err: any) {
-      console.error('Failed to load inventory:', err);
-      setError(err.message || 'Failed to load inventory data');
+      console.error('Failed to load inventory data:', err);
+      setError(err.message || 'Failed to load store inventory data');
     } finally {
       setLoading(false);
     }
@@ -123,293 +158,593 @@ export function InventorySheet() {
     loadData();
   }, []);
 
-  // Check if there are unsaved changes
+  // Compute local unsaved changes count
   const unsavedChangesCount = useMemo(() => {
     let count = 0;
-    // Modified rows (excluding deleted new rows)
-    const modifiedCount = rows.filter(r => r._isModified && !r._isNew && !r._isDeleted).length;
-    // New active rows
-    const newCount = rows.filter(r => r._isNew && !r._isDeleted).length;
-    // Deleted existing rows
-    const deletedCount = rows.filter(r => r._isDeleted && !r._isNew).length;
-    
-    return modifiedCount + newCount + deletedCount;
+    rows.forEach(r => {
+      if (r._isNew && !r._isDeleted) count++;
+      else if (r._isDeleted && !r._isNew) count++;
+      else if (r._isModified && !r._isDeleted) count++;
+    });
+    return count;
   }, [rows]);
 
-  // Reset all local changes
   const handleReset = () => {
-    if (confirm('Discard all unsaved changes and reload data?')) {
+    if (confirm('Discard all unsaved changes and reload original data?')) {
       setRows(JSON.parse(JSON.stringify(originalRows)));
-      setSelectedItemIds(new Set());
+      setSelectedProductIds(new Set());
+      setExpandedProductIds(new Set());
     }
   };
 
-  // Modify individual cell value
-  const handleCellChange = (itemId: string, field: keyof GridRow, value: any) => {
+  // Modify cell value in product level
+  const handleCellChange = (productId: string | number, field: keyof ProductRow, value: any) => {
     setRows(prev => prev.map(row => {
-      if (row._itemId === itemId) {
+      if (row.id === productId) {
         const updated = { ...row, [field]: value, _isModified: true };
         
-        // If row is modified, check if it became identical to original to clean modified status
-        const original = originalRows.find(or => or._itemId === itemId);
-        if (original) {
-          let hasDiff = false;
-          for (const key of Object.keys(row) as Array<keyof GridRow>) {
-            if (key.startsWith('_')) continue;
-            if (key === 'productName') continue;
-            if (updated[key] !== original[key]) {
-              hasDiff = true;
-              break;
-            }
-          }
-          updated._isModified = hasDiff;
+        // Auto-calculate stock in case stock field was edited manually
+        if (field === 'stock') {
+          updated.stock = parseInt(value) || 0;
         }
+
+        // Auto change status if stock becomes 0 or vice versa
+        if (field === 'stock' || field === 'digitalItems') {
+          const sVal = calculateProductStock(updated);
+          updated.status = sVal > 0 ? 'In Stock' : 'Out of Stock';
+        }
+
         return updated;
       }
       return row;
     }));
   };
 
-  // Add a blank row
-  const handleAddRow = () => {
-    const defaultProduct = products[0];
-    if (!defaultProduct) {
-      alert('No products available to assign');
-      return;
-    }
+  // Modify digital item field inside a product
+  const handleDigitalItemChange = (productId: string | number, itemId: string, field: string, value: any) => {
+    setRows(prev => prev.map(row => {
+      if (row.id === productId) {
+        const updatedDigitalItems = (row.digitalItems || []).map(item => {
+          if (item.id === itemId) {
+            return { ...item, [field]: value };
+          }
+          return item;
+        });
 
-    const newRow: GridRow = {
-      _productId: String(defaultProduct.id),
-      _itemId: crypto.randomUUID(),
-      _isNew: true,
-      productName: defaultProduct.name,
-      email: '',
-      password: '',
-      outlookEmail: '',
-      outlookPassword: '',
-      region: '',
-      onlineId: '',
-      backupCodes: '',
-      primaryPs4Code: '',
-      primaryPs4Sold: false,
-      primaryPs5Code: '',
-      primaryPs5Sold: false,
-      secondaryCode: '',
-      secondarySold: false,
-      offlinePs4Code: '',
-      offlinePs4Sold: false,
-      offlinePs5Code: '',
-      offlinePs5Sold: false
+        const updated = { ...row, digitalItems: updatedDigitalItems, _isModified: true };
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
+      }
+      return row;
+    }));
+  };
+
+  // Modify slot settings inside a digital item
+  const handleDigitalItemSlotChange = (
+    productId: string | number, 
+    itemId: string, 
+    slotName: string, 
+    key: 'code' | 'sold', 
+    value: any
+  ) => {
+    setRows(prev => prev.map(row => {
+      if (row.id === productId) {
+        const updatedDigitalItems = (row.digitalItems || []).map(item => {
+          if (item.id === itemId) {
+            const slots = { ...(item.slots || {}) };
+            const slot = slots[slotName] || { sold: false, orderId: null, code: '' };
+            slots[slotName] = { ...slot, [key]: value };
+            
+            return {
+              ...item,
+              slots,
+              totalCodes: Object.keys(slots).length
+            };
+          }
+          return item;
+        });
+
+        const updated = { ...row, digitalItems: updatedDigitalItems, _isModified: true };
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
+      }
+      return row;
+    }));
+  };
+
+  // Add blank product row
+  const handleAddProductRow = () => {
+    const newProduct: ProductRow = {
+      id: 'new_' + crypto.randomUUID(),
+      name: '',
+      category_slug: categories[0]?.slug || null,
+      sub_category_slug: null,
+      price: 0,
+      cost: 0,
+      stock: 0,
+      image: '',
+      description: '',
+      status: 'In Stock',
+      productCode: '',
+      purchasedEmail: '',
+      purchasedPassword: '',
+      instructions: '',
+      sendEmailEnabled: false,
+      emailTemplate: '',
+      digitalItems: [],
+      _isNew: true
     };
-
-    setRows(prev => [newRow, ...prev]);
+    setRows(prev => [newProduct, ...prev]);
   };
 
-  // Delete selected rows (soft delete locally)
-  const handleDeleteSelected = () => {
-    if (selectedItemIds.size === 0) return;
-    if (!confirm(`Delete ${selectedItemIds.size} selected rows?`)) return;
-
+  // Add nested digital stock item row inside product
+  const handleAddDigitalItemRow = (productId: string | number) => {
     setRows(prev => prev.map(row => {
-      if (selectedItemIds.has(row._itemId)) {
-        return { ...row, _isDeleted: true };
-      }
-      return row;
-    }));
-    setSelectedItemIds(new Set());
-  };
-
-  // Bulk Reassign selected rows to another product
-  const handleBulkReassign = () => {
-    if (selectedItemIds.size === 0 || !bulkReassignProductId) return;
-    const targetProduct = products.find(p => String(p.id) === String(bulkReassignProductId));
-    if (!targetProduct) return;
-
-    setRows(prev => prev.map(row => {
-      if (selectedItemIds.has(row._itemId)) {
-        return { 
-          ...row, 
-          _productId: String(targetProduct.id), 
-          productName: targetProduct.name,
-          _isModified: true 
+      if (row.id === productId) {
+        const newItem = {
+          id: crypto.randomUUID(),
+          email: '',
+          password: '',
+          outlookEmail: '',
+          outlookPassword: '',
+          region: '',
+          onlineId: '',
+          backupCodes: '',
+          slots: {
+            'Primary ps4': { sold: false, orderId: null, code: '' },
+            'Primary ps5': { sold: false, orderId: null, code: '' },
+            'Secondary': { sold: false, orderId: null, code: '' },
+            'Offline ps4': { sold: false, orderId: null, code: '' },
+            'Offline ps5': { sold: false, orderId: null, code: '' }
+          },
+          totalCodes: 0,
+          assignedGroup: 'All Groups'
         };
-      }
-      return row;
-    }));
 
-    setSelectedItemIds(new Set());
-    setBulkReassignProductId('');
-    alert(`Reassigned selected items to "${targetProduct.name}"`);
-  };
-
-  // Bulk set region
-  const handleBulkSetRegion = () => {
-    if (selectedItemIds.size === 0 || !bulkRegion.trim()) return;
-
-    setRows(prev => prev.map(row => {
-      if (selectedItemIds.has(row._itemId)) {
-        return { ...row, region: bulkRegion.trim(), _isModified: true };
-      }
-      return row;
-    }));
-
-    setSelectedItemIds(new Set());
-    setBulkRegion('');
-  };
-
-  // Bulk mark sold/unsold
-  const handleBulkMarkSoldStatus = (sold: boolean) => {
-    if (selectedItemIds.size === 0) return;
-
-    setRows(prev => prev.map(row => {
-      if (selectedItemIds.has(row._itemId)) {
-        return { 
-          ...row, 
-          primaryPs4Sold: row.primaryPs4Code ? sold : row.primaryPs4Sold,
-          primaryPs5Sold: row.primaryPs5Code ? sold : row.primaryPs5Sold,
-          secondarySold: row.secondaryCode ? sold : row.secondarySold,
-          offlinePs4Sold: row.offlinePs4Code ? sold : row.offlinePs4Sold,
-          offlinePs5Sold: row.offlinePs5Code ? sold : row.offlinePs5Sold,
-          _isModified: true 
+        const updated = {
+          ...row,
+          digitalItems: [newItem, ...(row.digitalItems || [])],
+          _isModified: true
         };
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
       }
       return row;
     }));
 
-    setSelectedItemIds(new Set());
-  };
-
-  // Selection handlers
-  const handleToggleSelectRow = (itemId: string) => {
-    setSelectedItemIds(prev => {
+    // Auto expand row to show newly added item
+    setExpandedProductIds(prev => {
       const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
+      next.add(productId);
+      return next;
+    });
+  };
+
+  // Remove digital item from list
+  const handleDeleteDigitalItemRow = (productId: string | number, itemId: string) => {
+    if (!confirm('Remove this digital account set from product stock?')) return;
+
+    setRows(prev => prev.map(row => {
+      if (row.id === productId) {
+        const updatedItems = (row.digitalItems || []).filter(item => item.id !== itemId);
+        const updated = {
+          ...row,
+          digitalItems: updatedItems,
+          _isModified: true
+        };
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
+      }
+      return row;
+    }));
+  };
+
+  // Toggle expansion of a product row
+  const handleToggleExpandProduct = (productId: string | number) => {
+    setExpandedProductIds(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
       } else {
-        next.add(itemId);
+        next.add(productId);
       }
       return next;
     });
   };
 
+  // Toggle select checkbox for a row
+  const handleToggleSelectRow = (productId: string | number) => {
+    setSelectedProductIds(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  // Master checkbox selection handlers
+  const filteredRows = useMemo(() => {
+    return rows.filter(row => {
+      if (row._isDeleted) return false;
+
+      // Filter by category
+      if (categoryFilter !== 'all' && row.category_slug !== categoryFilter) {
+        return false;
+      }
+
+      // Filter by status
+      if (statusFilter !== 'all' && row.status !== statusFilter) {
+        return false;
+      }
+
+      // Filter by search text
+      if (searchTerm.trim() !== '') {
+        const s = searchTerm.toLowerCase();
+        const matches = 
+          row.name.toLowerCase().includes(s) ||
+          (row.category_slug || '').toLowerCase().includes(s) ||
+          (row.status || '').toLowerCase().includes(s) ||
+          (row.productCode || '').toLowerCase().includes(s) ||
+          (row.purchasedEmail || '').toLowerCase().includes(s) ||
+          (row.digitalItems || []).some((item: any) => 
+            (item.email || '').toLowerCase().includes(s) ||
+            (item.password || '').toLowerCase().includes(s) ||
+            (item.outlookEmail || '').toLowerCase().includes(s) ||
+            Object.values(item.slots || {}).some((slot: any) => 
+              (slot?.code || '').toLowerCase().includes(s)
+            )
+          );
+        
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+  }, [rows, categoryFilter, statusFilter, searchTerm]);
+
+  const isAllSelected = useMemo(() => {
+    if (filteredRows.length === 0) return false;
+    return filteredRows.every(row => selectedProductIds.has(row.id));
+  }, [filteredRows, selectedProductIds]);
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedProductIds(prev => {
+        const next = new Set(prev);
+        filteredRows.forEach(row => next.delete(row.id));
+        return next;
+      });
+    } else {
+      setSelectedProductIds(prev => {
+        const next = new Set(prev);
+        filteredRows.forEach(row => next.add(row.id));
+        return next;
+      });
+    }
+  };
+
+  // Bulk Actions
+  const handleBulkDelete = () => {
+    if (selectedProductIds.size === 0) return;
+    if (!confirm(`Soft-delete the ${selectedProductIds.size} selected products? (These will be deleted upon clicking Save Changes)`)) return;
+
+    setRows(prev => prev.map(row => {
+      if (selectedProductIds.has(row.id)) {
+        return { ...row, _isDeleted: true };
+      }
+      return row;
+    }));
+    setSelectedProductIds(new Set());
+  };
+
+  const handleBulkApplyCategory = () => {
+    if (!bulkCategory || selectedProductIds.size === 0) return;
+    setRows(prev => prev.map(row => {
+      if (selectedProductIds.has(row.id)) {
+        return { ...row, category_slug: bulkCategory, _isModified: true };
+      }
+      return row;
+    }));
+    setSelectedProductIds(new Set());
+    setBulkCategory('');
+    alert('Category applied to selected products.');
+  };
+
+  const handleBulkApplyStatus = () => {
+    if (!bulkStatus || selectedProductIds.size === 0) return;
+    setRows(prev => prev.map(row => {
+      if (selectedProductIds.has(row.id)) {
+        return { ...row, status: bulkStatus, _isModified: true };
+      }
+      return row;
+    }));
+    setSelectedProductIds(new Set());
+    setBulkStatus('');
+    alert('Status applied to selected products.');
+  };
+
+  const handleBulkApplyPrice = () => {
+    const val = parseFloat(bulkPriceValue);
+    if (isNaN(val) || selectedProductIds.size === 0) return;
+
+    setRows(prev => prev.map(row => {
+      if (selectedProductIds.has(row.id)) {
+        const currentPrice = row.price || 0;
+        let newPrice = currentPrice;
+        if (bulkPriceChangeType === 'set') {
+          newPrice = val;
+        } else if (bulkPriceChangeType === 'add') {
+          newPrice = currentPrice + val;
+        } else if (bulkPriceChangeType === 'multiply') {
+          newPrice = currentPrice * val;
+        }
+        return { ...row, price: parseFloat(newPrice.toFixed(2)), _isModified: true };
+      }
+      return row;
+    }));
+
+    setSelectedProductIds(new Set());
+    setBulkPriceValue('');
+    alert('Price updates applied successfully.');
+  };
+
   // Save changes to database
   const handleSaveChanges = async () => {
     if (unsavedChangesCount === 0) return;
-    
+
     try {
       setSaving(true);
       setError(null);
 
-      // 1. Group active rows by product ID
-      const activeRowsByProduct: Record<string, GridRow[]> = {};
-      
-      // Initialize with all products to handle empty tables (where all items were deleted)
-      for (const prod of products) {
-        activeRowsByProduct[String(prod.id)] = [];
-      }
-
-      // Filter and distribute active rows
-      rows.forEach(row => {
-        if (!row._isDeleted) {
-          const pid = String(row._productId);
-          if (!activeRowsByProduct[pid]) {
-            activeRowsByProduct[pid] = [];
+      for (const row of rows) {
+        if (row._isDeleted) {
+          if (!String(row.id).startsWith('new_')) {
+            await productsAPI.delete(row.id);
           }
-          activeRowsByProduct[pid].push(row);
-        }
-      });
-
-      // 2. Identify products that have changes
-      const affectedProductIds = new Set<string>();
-      
-      // Look at new/modified/deleted rows to find affected products
-      rows.forEach(row => {
-        if (row._isNew || row._isModified || row._isDeleted) {
-          affectedProductIds.add(String(row._productId));
-        }
-      });
-
-      // Also add original products for rows that were reassigned or deleted
-      originalRows.forEach(row => {
-        const isStillHere = rows.some(r => r._itemId === row._itemId && !r._isDeleted && String(r._productId) === String(row._productId));
-        if (!isStillHere) {
-          affectedProductIds.add(String(row._productId));
-        }
-      });
-
-      // 3. For each affected product, serialize digitalItems, calculate new stock, and call PUT API
-      for (const pid of Array.from(affectedProductIds)) {
-        const productRows = activeRowsByProduct[pid] || [];
-        const originalProduct = products.find(p => String(p.id) === pid);
-        if (!originalProduct) continue;
-
-        // Map GridRow back to DB digitalItems format
-        const digitalItems = productRows.map(row => {
-          const slots: Record<string, any> = {};
-          
-          if (row.primaryPs4Code) slots['Primary ps4'] = { sold: !!row.primaryPs4Sold, orderId: null, code: row.primaryPs4Code };
-          if (row.primaryPs5Code) slots['Primary ps5'] = { sold: !!row.primaryPs5Sold, orderId: null, code: row.primaryPs5Code };
-          if (row.secondaryCode) slots['Secondary'] = { sold: !!row.secondarySold, orderId: null, code: row.secondaryCode };
-          if (row.offlinePs4Code) slots['Offline ps4'] = { sold: !!row.offlinePs4Sold, orderId: null, code: row.offlinePs4Code };
-          if (row.offlinePs5Code) slots['Offline ps5'] = { sold: !!row.offlinePs5Sold, orderId: null, code: row.offlinePs5Code };
-
-          return {
-            id: row._itemId,
-            email: row.email || '',
-            password: row.password || '',
-            outlookEmail: row.outlookEmail || '',
-            outlookPassword: row.outlookPassword || '',
-            region: row.region || '',
-            onlineId: row.onlineId || '',
-            backupCodes: row.backupCodes || '',
-            slots,
-            totalCodes: Object.keys(slots).length,
-            assignedGroup: 'All Groups'
+        } else if (row._isNew) {
+          const payload = {
+            name: row.name || 'New Game',
+            category_slug: row.category_slug,
+            sub_category_slug: row.sub_category_slug,
+            price: row.price != null ? parseFloat(String(row.price)) : 0,
+            cost: row.cost != null ? parseFloat(String(row.cost)) : 0,
+            stock: calculateProductStock(row),
+            image: row.image,
+            description: row.description || '',
+            status: row.stock > 0 ? 'In Stock' : 'Out of Stock',
+            productCode: row.productCode,
+            purchasedEmail: row.purchasedEmail,
+            purchasedPassword: row.purchasedPassword,
+            instructions: row.instructions || '',
+            sendEmailEnabled: !!row.sendEmailEnabled,
+            emailTemplate: row.emailTemplate,
+            digitalItems: row.digitalItems || []
           };
-        });
-
-        // Calculate product stock (sum of all slots that are NOT sold)
-        let stockCount = 0;
-        digitalItems.forEach(item => {
-          Object.values(item.slots || {}).forEach((slot: any) => {
-            if (slot && !slot.sold) {
-              stockCount++;
-            }
-          });
-        });
-
-        const status = stockCount > 0 ? 'In Stock' : 'Out of Stock';
-
-        // Update database for this product
-        await productsAPI.update(pid, {
-          digitalItems,
-          stock: stockCount,
-          status
-        });
+          await productsAPI.create(payload);
+        } else if (row._isModified) {
+          const payload = {
+            name: row.name,
+            category_slug: row.category_slug,
+            sub_category_slug: row.sub_category_slug,
+            price: row.price != null ? parseFloat(String(row.price)) : 0,
+            cost: row.cost != null ? parseFloat(String(row.cost)) : 0,
+            stock: calculateProductStock(row),
+            image: row.image,
+            description: row.description || '',
+            status: row.status,
+            productCode: row.productCode,
+            purchasedEmail: row.purchasedEmail,
+            purchasedPassword: row.purchasedPassword,
+            instructions: row.instructions || '',
+            sendEmailEnabled: !!row.sendEmailEnabled,
+            emailTemplate: row.emailTemplate,
+            digitalItems: row.digitalItems || []
+          };
+          await productsAPI.update(row.id, payload);
+        }
       }
 
-      alert('All inventory changes saved successfully!');
+      alert('All changes saved successfully!');
       await loadData();
     } catch (err: any) {
       console.error('Error saving changes:', err);
-      setError(err.message || 'Failed to save inventory updates.');
+      setError(err.message || 'Failed to save product spreadsheet changes.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Bulk add text parser
-  const handleBulkAddSubmit = () => {
-    if (!bulkAddProductId || !bulkAddRawText.trim()) {
-      alert('Please select a product and enter accounts data');
+  // CSV Export & Import
+  const handleCsvExport = () => {
+    if (filteredRows.length === 0) {
+      alert('No rows available to export');
       return;
     }
 
-    const selectedProd = products.find(p => String(p.id) === String(bulkAddProductId));
-    if (!selectedProd) return;
+    const headers = [
+      'ProductName', 'Category', 'SubCategory', 'Price', 'Cost', 'Stock', 'Status', 'ProductCode', 'PurchasedEmail', 'PurchasedPassword', 'SendEmailEnabled', 'EmailTemplate',
+      'Email', 'Password', 'OutlookEmail', 'OutlookPassword', 'Region', 'OnlineID', 'BackupCodes', 
+      'PrimaryPS4Code', 'PrimaryPS4Sold',
+      'PrimaryPS5Code', 'PrimaryPS5Sold',
+      'SecondaryCode', 'SecondarySold',
+      'OfflinePS4Code', 'OfflinePS4Sold',
+      'OfflinePS5Code', 'OfflinePS5Sold'
+    ];
+
+    const csvLines: string[] = [headers.join(',')];
+
+    filteredRows.forEach(row => {
+      const prodInfo = [
+        `"${(row.name || '').replace(/"/g, '""')}"`,
+        `"${(row.category_slug || '').replace(/"/g, '""')}"`,
+        `"${(row.sub_category_slug || '').replace(/"/g, '""')}"`,
+        row.price || 0,
+        row.cost || 0,
+        row.stock || 0,
+        `"${(row.status || '').replace(/"/g, '""')}"`,
+        `"${(row.productCode || '').replace(/"/g, '""')}"`,
+        `"${(row.purchasedEmail || '').replace(/"/g, '""')}"`,
+        `"${(row.purchasedPassword || '').replace(/"/g, '""')}"`,
+        row.sendEmailEnabled ? 'true' : 'false',
+        `"${(row.emailTemplate || '').replace(/"/g, '""')}"`
+      ];
+
+      if (row.digitalItems && row.digitalItems.length > 0) {
+        row.digitalItems.forEach(item => {
+          const itemInfo = [
+            `"${(item.email || '').replace(/"/g, '""')}"`,
+            `"${(item.password || '').replace(/"/g, '""')}"`,
+            `"${(item.outlookEmail || '').replace(/"/g, '""')}"`,
+            `"${(item.outlookPassword || '').replace(/"/g, '""')}"`,
+            `"${(item.region || '').replace(/"/g, '""')}"`,
+            `"${(item.onlineId || '').replace(/"/g, '""')}"`,
+            `"${(item.backupCodes || '').replace(/"/g, '""')}"`,
+            `"${(item.slots?.['Primary ps4']?.code || '').replace(/"/g, '""')}"`,
+            item.slots?.['Primary ps4']?.sold ? 'true' : 'false',
+            `"${(item.slots?.['Primary ps5']?.code || '').replace(/"/g, '""')}"`,
+            item.slots?.['Primary ps5']?.sold ? 'true' : 'false',
+            `"${(item.slots?.['Secondary']?.code || '').replace(/"/g, '""')}"`,
+            item.slots?.['Secondary']?.sold ? 'true' : 'false',
+            `"${(item.slots?.['Offline ps4']?.code || '').replace(/"/g, '""')}"`,
+            item.slots?.['Offline ps4']?.sold ? 'true' : 'false',
+            `"${(item.slots?.['Offline ps5']?.code || '').replace(/"/g, '""')}"`,
+            item.slots?.['Offline ps5']?.sold ? 'true' : 'false'
+          ];
+          csvLines.push([...prodInfo, ...itemInfo].join(','));
+        });
+      } else {
+        const emptyItems = Array(17).fill('""');
+        csvLines.push([...prodInfo, ...emptyItems].join(','));
+      }
+    });
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'gamesup_products_spreadsheet.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length < 2) {
+          alert('CSV file is empty or missing headers');
+          return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim());
+        let updatedRows = [...rows];
+
+        for (let i = 1; i < lines.length; i++) {
+          const rowData = lines[i].split(',').map(val => val.replace(/^["']|["']$/g, '').trim());
+          const obj: Record<string, string> = {};
+          headers.forEach((h, idx) => {
+            obj[h] = rowData[idx] || '';
+          });
+
+          const pName = obj['ProductName'] || '';
+          if (!pName) continue;
+
+          let targetProdIdx = updatedRows.findIndex(r => r.name.toLowerCase() === pName.toLowerCase());
+
+          const hasDigitalItemData = obj['Email'] || obj['Password'] || obj['PrimaryPS4Code'] || obj['PrimaryPS5Code'] || obj['SecondaryCode'];
+
+          let digitalItem: any = null;
+          if (hasDigitalItemData) {
+            const slots: Record<string, any> = {};
+            if (obj['PrimaryPS4Code']) slots['Primary ps4'] = { sold: obj['PrimaryPS4Sold'] === 'true', orderId: null, code: obj['PrimaryPS4Code'] };
+            if (obj['PrimaryPS5Code']) slots['Primary ps5'] = { sold: obj['PrimaryPS5Sold'] === 'true', orderId: null, code: obj['PrimaryPS5Code'] };
+            if (obj['SecondaryCode']) slots['Secondary'] = { sold: obj['SecondarySold'] === 'true', orderId: null, code: obj['SecondaryCode'] };
+            if (obj['OfflinePS4Code']) slots['Offline ps4'] = { sold: obj['OfflinePS4Sold'] === 'true', orderId: null, code: obj['OfflinePS4Code'] };
+            if (obj['OfflinePS5Code']) slots['Offline ps5'] = { sold: obj['OfflinePS5Sold'] === 'true', orderId: null, code: obj['OfflinePS5Code'] };
+
+            digitalItem = {
+              id: crypto.randomUUID(),
+              email: obj['Email'] || '',
+              password: obj['Password'] || '',
+              outlookEmail: obj['OutlookEmail'] || '',
+              outlookPassword: obj['OutlookPassword'] || '',
+              region: obj['Region'] || '',
+              onlineId: obj['OnlineID'] || '',
+              backupCodes: obj['BackupCodes'] || '',
+              slots,
+              totalCodes: Object.keys(slots).length,
+              assignedGroup: 'All Groups'
+            };
+          }
+
+          if (targetProdIdx >= 0) {
+            const prod = updatedRows[targetProdIdx];
+            const updatedItems = digitalItem ? [...(prod.digitalItems || []), digitalItem] : (prod.digitalItems || []);
+            
+            updatedRows[targetProdIdx] = {
+              ...prod,
+              digitalItems: updatedItems,
+              _isModified: true
+            };
+            updatedRows[targetProdIdx].stock = calculateProductStock(updatedRows[targetProdIdx]);
+          } else {
+            const newProd: ProductRow = {
+              id: 'new_' + crypto.randomUUID(),
+              name: pName,
+              category_slug: obj['Category'] || categories[0]?.slug || 'games',
+              sub_category_slug: obj['SubCategory'] || null,
+              price: obj['Price'] ? parseFloat(obj['Price']) : 0,
+              cost: obj['Cost'] ? parseFloat(obj['Cost']) : 0,
+              stock: obj['Stock'] ? parseInt(obj['Stock']) : 0,
+              image: '',
+              description: '',
+              status: obj['Status'] || 'In Stock',
+              productCode: obj['ProductCode'] || null,
+              purchasedEmail: obj['PurchasedEmail'] || null,
+              purchasedPassword: obj['PurchasedPassword'] || null,
+              instructions: '',
+              sendEmailEnabled: obj['SendEmailEnabled'] === 'true',
+              emailTemplate: obj['EmailTemplate'] || null,
+              digitalItems: digitalItem ? [digitalItem] : [],
+              _isNew: true
+            };
+            newProd.stock = calculateProductStock(newProd);
+            updatedRows.unshift(newProd);
+          }
+        }
+
+        setRows(updatedRows);
+        alert('CSV data imported successfully. Verify rows and click Save Changes to persist.');
+      } catch (err: any) {
+        alert('Failed to parse CSV: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Smart Bulk Copy Paste account parser
+  const handleBulkAddSubmit = () => {
+    if (!bulkAddProductId || !bulkAddRawText.trim()) {
+      alert('Please select a product and paste stock accounts data');
+      return;
+    }
 
     const lines = bulkAddRawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const newItems: GridRow[] = [];
+    const newItems: any[] = [];
 
     lines.forEach(line => {
       let email = '';
@@ -433,7 +768,6 @@ export function InventorySheet() {
         outlookEmail = parts[2] || '';
         outlookPassword = parts[3] || '';
       } else {
-        // Codes only
         if (bulkAddSlot === 'Primary ps4') primaryPs4Code = line;
         else if (bulkAddSlot === 'Primary ps5') primaryPs5Code = line;
         else if (bulkAddSlot === 'Secondary') secondaryCode = line;
@@ -441,11 +775,15 @@ export function InventorySheet() {
         else if (bulkAddSlot === 'Offline ps5') offlinePs5Code = line;
       }
 
+      const slots: Record<string, any> = {};
+      if (primaryPs4Code) slots['Primary ps4'] = { sold: false, orderId: null, code: primaryPs4Code };
+      if (primaryPs5Code) slots['Primary ps5'] = { sold: false, orderId: null, code: primaryPs5Code };
+      if (secondaryCode) slots['Secondary'] = { sold: false, orderId: null, code: secondaryCode };
+      if (offlinePs4Code) slots['Offline ps4'] = { sold: false, orderId: null, code: offlinePs4Code };
+      if (offlinePs5Code) slots['Offline ps5'] = { sold: false, orderId: null, code: offlinePs5Code };
+
       newItems.push({
-        _productId: String(selectedProd.id),
-        _itemId: crypto.randomUUID(),
-        _isNew: true,
-        productName: selectedProd.name,
+        id: crypto.randomUUID(),
         email,
         password,
         outlookEmail,
@@ -453,219 +791,58 @@ export function InventorySheet() {
         region: '',
         onlineId: '',
         backupCodes: '',
-        primaryPs4Code,
-        primaryPs4Sold: false,
-        primaryPs5Code,
-        primaryPs5Sold: false,
-        secondaryCode,
-        secondarySold: false,
-        offlinePs4Code,
-        offlinePs4Sold: false,
-        offlinePs5Code,
-        offlinePs5Sold: false
+        slots,
+        totalCodes: Object.keys(slots).length,
+        assignedGroup: 'All Groups'
       });
     });
 
-    setRows(prev => [...newItems, ...prev]);
+    setRows(prev => prev.map(prod => {
+      if (String(prod.id) === String(bulkAddProductId)) {
+        const updatedItems = [...newItems, ...(prod.digitalItems || [])];
+        const updated = { ...prod, digitalItems: updatedItems, _isModified: true };
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
+      }
+      return prod;
+    }));
+
     setIsBulkAddModalOpen(false);
     setBulkAddRawText('');
-    alert(`Successfully imported ${newItems.length} accounts as unsaved rows!`);
+    alert(`Successfully loaded ${newItems.length} new items to "${rows.find(r=>String(r.id)===String(bulkAddProductId))?.name}". Remember to click "Save Changes" to save to the database.`);
   };
 
-  // CSV Import
-  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length < 2) {
-          alert('CSV file is empty or missing headers');
-          return;
-        }
-
-        // Parse headers to match columns
-        const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim());
-        const newImportedRows: GridRow[] = [];
-
-        // Find default product in case CSV matches
-        const defaultProduct = products[0];
-
-        for (let i = 1; i < lines.length; i++) {
-          const rowData = lines[i].split(',').map(val => val.replace(/^["']|["']$/g, '').trim());
-          const obj: Record<string, string> = {};
-          headers.forEach((h, idx) => {
-            obj[h] = rowData[idx] || '';
-          });
-
-          // Match product Name to product ID
-          let matchedProd = products.find(p => p.name.toLowerCase() === (obj['ProductName'] || '').toLowerCase());
-          if (!matchedProd) {
-            matchedProd = defaultProduct;
-          }
-          if (!matchedProd) continue;
-
-          newImportedRows.push({
-            _productId: String(matchedProd.id),
-            _itemId: crypto.randomUUID(),
-            _isNew: true,
-            productName: matchedProd.name,
-            email: obj['Email'] || '',
-            password: obj['Password'] || '',
-            outlookEmail: obj['OutlookEmail'] || '',
-            outlookPassword: obj['OutlookPassword'] || '',
-            region: obj['Region'] || '',
-            onlineId: obj['OnlineID'] || '',
-            backupCodes: obj['BackupCodes'] || '',
-            primaryPs4Code: obj['PrimaryPS4Code'] || '',
-            primaryPs4Sold: obj['PrimaryPS4Sold'] === 'true',
-            primaryPs5Code: obj['PrimaryPS5Code'] || '',
-            primaryPs5Sold: obj['PrimaryPS5Sold'] === 'true',
-            secondaryCode: obj['SecondaryCode'] || '',
-            secondarySold: obj['SecondarySold'] === 'true',
-            offlinePs4Code: obj['OfflinePS4Code'] || '',
-            offlinePs4Sold: obj['OfflinePS4Sold'] === 'true',
-            offlinePs5Code: obj['OfflinePS5Code'] || '',
-            offlinePs5Sold: obj['OfflinePS5Sold'] === 'true',
-          });
-        }
-
-        setRows(prev => [...newImportedRows, ...prev]);
-        alert(`Successfully imported ${newImportedRows.length} rows from CSV!`);
-      } catch (err: any) {
-        alert('Failed to parse CSV: ' + err.message);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // CSV Export
-  const handleCsvExport = () => {
-    if (filteredRows.length === 0) {
-      alert('No rows available to export');
-      return;
-    }
-
-    const headers = [
-      'ProductName', 'Email', 'Password', 'OutlookEmail', 'OutlookPassword',
-      'Region', 'OnlineID', 'BackupCodes', 
-      'PrimaryPS4Code', 'PrimaryPS4Sold',
-      'PrimaryPS5Code', 'PrimaryPS5Sold',
-      'SecondaryCode', 'SecondarySold',
-      'OfflinePS4Code', 'OfflinePS4Sold',
-      'OfflinePS5Code', 'OfflinePS5Sold'
-    ];
-
-    const csvContent = [
-      headers.join(','),
-      ...filteredRows.map(row => [
-        `"${row.productName.replace(/"/g, '""')}"`,
-        `"${(row.email || '').replace(/"/g, '""')}"`,
-        `"${(row.password || '').replace(/"/g, '""')}"`,
-        `"${(row.outlookEmail || '').replace(/"/g, '""')}"`,
-        `"${(row.outlookPassword || '').replace(/"/g, '""')}"`,
-        `"${(row.region || '').replace(/"/g, '""')}"`,
-        `"${(row.onlineId || '').replace(/"/g, '""')}"`,
-        `"${(row.backupCodes || '').replace(/"/g, '""')}"`,
-        `"${(row.primaryPs4Code || '').replace(/"/g, '""')}"`,
-        row.primaryPs4Sold ? 'true' : 'false',
-        `"${(row.primaryPs5Code || '').replace(/"/g, '""')}"`,
-        row.primaryPs5Sold ? 'true' : 'false',
-        `"${(row.secondaryCode || '').replace(/"/g, '""')}"`,
-        row.secondarySold ? 'true' : 'false',
-        `"${(row.offlinePs4Code || '').replace(/"/g, '""')}"`,
-        row.offlinePs4Sold ? 'true' : 'false',
-        `"${(row.offlinePs5Code || '').replace(/"/g, '""')}"`,
-        row.offlinePs5Sold ? 'true' : 'false'
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'gamesup_inventory.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Filtered rows for rendering
-  const filteredRows = useMemo(() => {
-    return rows.filter(row => {
-      // Don't show soft deleted rows
-      if (row._isDeleted) return false;
-
-      // Filter by product
-      if (selectedProductFilter !== 'all' && String(row._productId) !== selectedProductFilter) {
-        return false;
-      }
-
-      // Filter by sold/available status
-      if (statusFilter !== 'all') {
-        const isSold = [
-          row.primaryPs4Sold, row.primaryPs5Sold, row.secondarySold, 
-          row.offlinePs4Sold, row.offlinePs5Sold
-        ].some(Boolean);
-        
-        if (statusFilter === 'sold' && !isSold) return false;
-        if (statusFilter === 'available' && isSold) return false;
-      }
-
-      // Filter by search text
-      if (searchTerm.trim() !== '') {
-        const s = searchTerm.toLowerCase();
-        const matches = 
-          row.productName.toLowerCase().includes(s) ||
-          (row.email || '').toLowerCase().includes(s) ||
-          (row.password || '').toLowerCase().includes(s) ||
-          (row.outlookEmail || '').toLowerCase().includes(s) ||
-          (row.region || '').toLowerCase().includes(s) ||
-          (row.onlineId || '').toLowerCase().includes(s) ||
-          (row.primaryPs4Code || '').toLowerCase().includes(s) ||
-          (row.primaryPs5Code || '').toLowerCase().includes(s) ||
-          (row.secondaryCode || '').toLowerCase().includes(s);
-        
-        if (!matches) return false;
-      }
-
-      return true;
+  const openDescriptionModal = (row: ProductRow) => {
+    setEditingDescriptionProdId(row.id);
+    setDescriptionModalData({
+      name: row.name || 'Game Details',
+      description: row.description || '',
+      instructions: row.instructions || ''
     });
-  }, [rows, selectedProductFilter, statusFilter, searchTerm]);
+  };
 
-  // Master checkbox selection
-  const isAllSelected = useMemo(() => {
-    if (filteredRows.length === 0) return false;
-    return filteredRows.every(row => selectedItemIds.has(row._itemId));
-  }, [filteredRows, selectedItemIds]);
-
-  const handleToggleSelectAll = () => {
-    if (isAllSelected) {
-      // Deselect all filtered
-      setSelectedItemIds(prev => {
-        const next = new Set(prev);
-        filteredRows.forEach(row => next.delete(row._itemId));
-        return next;
-      });
-    } else {
-      // Select all filtered
-      setSelectedItemIds(prev => {
-        const next = new Set(prev);
-        filteredRows.forEach(row => next.add(row._itemId));
-        return next;
-      });
-    }
+  const saveDescriptionModal = () => {
+    if (editingDescriptionProdId === null) return;
+    setRows(prev => prev.map(prod => {
+      if (prod.id === editingDescriptionProdId) {
+        return {
+          ...prod,
+          description: descriptionModalData.description,
+          instructions: descriptionModalData.instructions,
+          _isModified: true
+        };
+      }
+      return prod;
+    }));
+    setEditingDescriptionProdId(null);
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-red"></div>
-        <p className="text-gray-500 dark:text-gray-400 font-display">Loading large sheet data...</p>
+        <p className="text-gray-500 dark:text-gray-400 font-display">Loading large spreadsheet data...</p>
       </div>
     );
   }
@@ -679,7 +856,7 @@ export function InventorySheet() {
             Inventory Spreadsheet
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Excel-style bulk accounts and codes manager for digital game slots. Edit cells directly.
+            Excel-style bulk manager for store games and nested digital stock accounts. Edit cells directly.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -688,7 +865,7 @@ export function InventorySheet() {
             variant="secondary"
             className="flex items-center gap-1.5 text-xs py-2 bg-brand-red/10 border border-brand-red/20 text-brand-red hover:bg-brand-red/20"
           >
-            <Plus className="w-4 h-4" /> Bulk Add/Paste
+            <Plus className="w-4 h-4" /> Bulk Add Stock accounts
           </Button>
           <label className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer text-xs border border-gray-200 dark:border-gray-700 transition-colors">
             <Upload className="w-4 h-4" /> Import CSV
@@ -707,10 +884,10 @@ export function InventorySheet() {
             <Download className="w-4 h-4" /> Export CSV
           </Button>
           <Button 
-            onClick={handleAddRow}
+            onClick={handleAddProductRow}
             className="flex items-center gap-1.5 text-xs py-2 bg-brand-red text-white"
           >
-            <Plus className="w-4 h-4" /> Add Row
+            <Plus className="w-4 h-4" /> Add Row (Game)
           </Button>
         </div>
       </div>
@@ -725,28 +902,27 @@ export function InventorySheet() {
       {/* Filters Toolbar */}
       <Card className="p-4 bg-bg-secondary border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Search bar */}
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search email, codes..."
+              placeholder="Search games, emails, codes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red"
             />
           </div>
 
-          {/* Product Filter */}
+          {/* Category Filter */}
           <div className="w-full md:w-48">
             <select
-              value={selectedProductFilter}
-              onChange={(e) => setSelectedProductFilter(e.target.value)}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red"
             >
-              <option value="all">All Products</option>
-              {products.map(p => (
-                <option key={p.id} value={String(p.id)}>{p.name}</option>
+              <option value="all">All Categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.slug}>{c.name}</option>
               ))}
             </select>
           </div>
@@ -755,17 +931,16 @@ export function InventorySheet() {
           <div className="w-full md:w-40">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red"
             >
               <option value="all">All Statuses</option>
-              <option value="available">Available Only</option>
-              <option value="sold">Sold Only</option>
+              <option value="In Stock">In Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
             </select>
           </div>
         </div>
 
-        {/* Reload button */}
         <Button 
           onClick={loadData}
           variant="secondary"
@@ -775,76 +950,87 @@ export function InventorySheet() {
         </Button>
       </Card>
 
-      {/* Bulk Operations Toolbar (Visible only when rows are selected) */}
-      {selectedItemIds.size > 0 && (
+      {/* Bulk Operations Toolbar */}
+      {selectedProductIds.size > 0 && (
         <Card className="p-4 bg-brand-red/5 border border-brand-red/20 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-brand-red uppercase tracking-wider italic">
-              {selectedItemIds.size} rows selected
+              {selectedProductIds.size} products selected
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Reassign dropdown */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Category */}
             <div className="flex items-center gap-1.5">
               <select
-                value={bulkReassignProductId}
-                onChange={(e) => setBulkReassignProductId(e.target.value)}
-                className="px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none"
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                className="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none"
               >
-                <option value="">Move to Product...</option>
-                {products.map(p => (
-                  <option key={p.id} value={String(p.id)}>{p.name}</option>
+                <option value="">Set Category...</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.slug}>{c.name}</option>
                 ))}
               </select>
               <Button 
-                onClick={handleBulkReassign}
-                disabled={!bulkReassignProductId}
+                onClick={handleBulkApplyCategory}
+                disabled={!bulkCategory}
                 className="px-3 py-1.5 text-xs bg-brand-red text-white"
               >
-                Move
+                Apply
               </Button>
             </div>
 
-            {/* Bulk Region */}
+            {/* Status */}
             <div className="flex items-center gap-1.5">
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value)}
+                className="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none"
+              >
+                <option value="">Set Status...</option>
+                <option value="In Stock">In Stock</option>
+                <option value="Out of Stock">Out of Stock</option>
+              </select>
+              <Button 
+                onClick={handleBulkApplyStatus}
+                disabled={!bulkStatus}
+                className="px-3 py-1.5 text-xs bg-brand-red text-white"
+              >
+                Apply
+              </Button>
+            </div>
+
+            {/* Price change */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={bulkPriceChangeType}
+                onChange={(e) => setBulkPriceChangeType(e.target.value as any)}
+                className="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none"
+              >
+                <option value="set">Set Price To</option>
+                <option value="add">Add to Price</option>
+                <option value="multiply">Multiply Price by</option>
+              </select>
               <input
-                type="text"
-                placeholder="Set Region..."
-                value={bulkRegion}
-                onChange={(e) => setBulkRegion(e.target.value)}
-                className="w-24 px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none"
+                type="number"
+                placeholder="Val..."
+                value={bulkPriceValue}
+                onChange={(e) => setBulkPriceValue(e.target.value)}
+                className="w-16 px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none"
               />
               <Button 
-                onClick={handleBulkSetRegion}
-                disabled={!bulkRegion.trim()}
+                onClick={handleBulkApplyPrice}
+                disabled={!bulkPriceValue}
                 className="px-3 py-1.5 text-xs bg-brand-red text-white"
               >
-                Set
-              </Button>
-            </div>
-
-            {/* Bulk mark sold / unsold */}
-            <div className="flex gap-1.5">
-              <Button 
-                onClick={() => handleBulkMarkSoldStatus(true)}
-                variant="secondary"
-                className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-              >
-                Mark Sold
-              </Button>
-              <Button 
-                onClick={() => handleBulkMarkSoldStatus(false)}
-                variant="secondary"
-                className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-              >
-                Mark Unsold
+                Apply
               </Button>
             </div>
 
             {/* Delete button */}
             <Button 
-              onClick={handleDeleteSelected}
+              onClick={handleBulkDelete}
               className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -855,11 +1041,12 @@ export function InventorySheet() {
 
       {/* Spreadsheet Data Grid */}
       <Card className="border-border-subtle bg-bg-secondary overflow-hidden">
-        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
+        <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
+          <table className="w-full text-left border-collapse text-xs table-fixed min-w-[2000px]">
             <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 select-none border-b border-gray-200 dark:border-gray-700 shadow-sm">
               <tr>
-                <th className="w-10 px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-center">
+                <th className="w-12 px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-center"></th>
+                <th className="w-12 px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-center">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -867,248 +1054,429 @@ export function InventorySheet() {
                     className="rounded text-brand-red focus:ring-brand-red"
                   />
                 </th>
-                <th className="w-64 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Game / Product
+                <th className="w-36 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Image
                 </th>
-                <th className="w-52 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Email
+                <th className="w-80 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Game / Product Name
                 </th>
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Password
+                <th className="w-48 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Category
                 </th>
-                <th className="w-52 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Outlook Email
+                <th className="w-48 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Sub-Category
                 </th>
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Outlook Pass
+                <th className="w-28 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Price
+                </th>
+                <th className="w-28 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Cost
                 </th>
                 <th className="w-24 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                  Region
+                  Stock
                 </th>
-                <th className="w-32 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Online ID
+                <th className="w-36 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Status
                 </th>
-                <th className="w-32 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Backup Codes
+                <th className="w-48 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Global License Code
                 </th>
-                
-                {/* PS4 Primary */}
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Primary PS4 Key
+                <th className="w-48 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Purchased Email
                 </th>
-                <th className="w-16 px-1 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                  Sold
+                <th className="w-48 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Purchased Password
                 </th>
-
-                {/* PS5 Primary */}
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Primary PS5 Key
+                <th className="w-36 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
+                  Auto Email
                 </th>
-                <th className="w-16 px-1 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                  Sold
+                <th className="w-48 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Template
                 </th>
-
-                {/* Secondary */}
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Secondary Key
-                </th>
-                <th className="w-16 px-1 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                  Sold
-                </th>
-
-                {/* Offline PS4 */}
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Offline PS4 Key
-                </th>
-                <th className="w-16 px-1 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                  Sold
-                </th>
-
-                {/* Offline PS5 */}
-                <th className="w-40 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Offline PS5 Key
-                </th>
-                <th className="w-16 px-1 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                  Sold
-                </th>
-
-                <th className="w-16 px-3 py-3 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
+                <th className="w-32 px-3 py-3 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredRows.map((row) => {
-                // Determine background row styling based on modifications
+                const isExpanded = expandedProductIds.has(row.id);
                 let rowBg = 'bg-white dark:bg-gray-900';
                 if (row._isNew) rowBg = 'bg-green-500/5 dark:bg-green-500/10';
                 else if (row._isModified) rowBg = 'bg-orange-500/5 dark:bg-orange-500/10';
 
                 return (
-                  <tr key={row._itemId} className={`${rowBg} hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors`}>
-                    {/* Checkbox cell */}
-                    <td className="px-3 py-2 border-r border-gray-200 dark:border-gray-700 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedItemIds.has(row._itemId)}
-                        onChange={() => handleToggleSelectRow(row._itemId)}
-                        className="rounded text-brand-red focus:ring-brand-red"
-                      />
-                    </td>
+                  <React.Fragment key={row.id}>
+                    {/* Main Game Product Row */}
+                    <tr className={`${rowBg} hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors`}>
+                      {/* Expand Button */}
+                      <td className="px-2 py-2 border-r border-gray-200 dark:border-gray-700 text-center">
+                        <button
+                          onClick={() => handleToggleExpandProduct(row.id)}
+                          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400"
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </td>
 
-                    {/* Product cell (Dropdown) */}
-                    <td className="px-1.5 py-1 border-r border-gray-200 dark:border-gray-700">
-                      <select
-                        value={String(row._productId)}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const p = products.find(prod => String(prod.id) === val);
-                          if (p) {
-                            handleCellChange(row._itemId, '_productId', val);
-                            handleCellChange(row._itemId, 'productName', p.name);
-                          }
-                        }}
-                        className="w-full bg-transparent border-0 rounded px-1.5 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent text-xs"
-                      >
-                        {products.map(p => (
-                          <option key={p.id} value={String(p.id)} className="bg-white dark:bg-gray-900 text-black dark:text-white">{p.name}</option>
-                        ))}
-                      </select>
-                    </td>
-
-                    {/* Simple text input helper to render cell content */}
-                    {[
-                      { field: 'email', placeholder: 'Email Address' },
-                      { field: 'password', placeholder: 'Sony Password' },
-                      { field: 'outlookEmail', placeholder: 'Recovery Email' },
-                      { field: 'outlookPassword', placeholder: 'Recovery Password' },
-                      { field: 'region', placeholder: 'US, EU, etc.' },
-                      { field: 'onlineId', placeholder: 'Online ID' },
-                      { field: 'backupCodes', placeholder: '2FA Backup Codes' },
-                      { field: 'primaryPs4Code', placeholder: 'PS4 Key' }
-                    ].map(col => (
-                      <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-700">
+                      {/* Checkbox */}
+                      <td className="px-2 py-2 border-r border-gray-200 dark:border-gray-700 text-center">
                         <input
-                          type="text"
-                          value={(row as any)[col.field] || ''}
-                          placeholder={col.placeholder}
-                          onChange={(e) => handleCellChange(row._itemId, col.field as any, e.target.value)}
-                          className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                          type="checkbox"
+                          checked={selectedProductIds.has(row.id)}
+                          onChange={() => handleToggleSelectRow(row.id)}
+                          className="rounded text-brand-red focus:ring-brand-red"
                         />
                       </td>
-                    ))}
 
-                    {/* Primary PS4 Sold checkbox */}
-                    <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-700 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!row.primaryPs4Sold}
-                        disabled={!row.primaryPs4Code}
-                        onChange={(e) => handleCellChange(row._itemId, 'primaryPs4Sold', e.target.checked)}
-                        className="rounded text-brand-red focus:ring-brand-red"
-                      />
-                    </td>
+                      {/* Image Thumbnail Upload/URL */}
+                      <td className="px-2 py-1 border-r border-gray-200 dark:border-gray-700 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <img 
+                            src={normalizeImageSrc(row.image) || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzIj48cmVjdCB4PSI1IiB5PSI1IiB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHJ4PSI0Ii8+PC9zdmc+'} 
+                            alt="Preview"
+                            className="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+                          />
+                          <button
+                            onClick={() => {
+                              const newUrl = prompt('Enter image web URL:', row.image || '');
+                              if (newUrl !== null) handleCellChange(row.id, 'image', newUrl);
+                            }}
+                            className="p-1 text-gray-400 hover:text-brand-red"
+                            title="Edit URL"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <label className="p-1 text-gray-400 hover:text-brand-red cursor-pointer">
+                            <Upload className="w-3.5 h-3.5" />
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const up = await uploadAPI.uploadImage(file);
+                                    if (up && up.url) {
+                                      handleCellChange(row.id, 'image', up.url);
+                                    }
+                                  } catch (err: any) {
+                                    alert('Image upload failed: ' + err.message);
+                                  }
+                                }
+                              }}
+                              className="hidden" 
+                            />
+                          </label>
+                        </div>
+                      </td>
 
-                    {/* Primary PS5 Code */}
-                    <td className="p-0 border-r border-gray-200 dark:border-gray-700">
-                      <input
-                        type="text"
-                        value={row.primaryPs5Code || ''}
-                        placeholder="PS5 Key"
-                        onChange={(e) => handleCellChange(row._itemId, 'primaryPs5Code', e.target.value)}
-                        className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
-                      />
-                    </td>
-                    <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-700 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!row.primaryPs5Sold}
-                        disabled={!row.primaryPs5Code}
-                        onChange={(e) => handleCellChange(row._itemId, 'primaryPs5Sold', e.target.checked)}
-                        className="rounded text-brand-red focus:ring-brand-red"
-                      />
-                    </td>
+                      {/* Product Name */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => handleCellChange(row.id, 'name', e.target.value)}
+                          placeholder="Game / Product Name"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs font-semibold"
+                        />
+                      </td>
 
-                    {/* Secondary Code */}
-                    <td className="p-0 border-r border-gray-200 dark:border-gray-700">
-                      <input
-                        type="text"
-                        value={row.secondaryCode || ''}
-                        placeholder="Secondary Key"
-                        onChange={(e) => handleCellChange(row._itemId, 'secondaryCode', e.target.value)}
-                        className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
-                      />
-                    </td>
-                    <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-700 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!row.secondarySold}
-                        disabled={!row.secondaryCode}
-                        onChange={(e) => handleCellChange(row._itemId, 'secondarySold', e.target.checked)}
-                        className="rounded text-brand-red focus:ring-brand-red"
-                      />
-                    </td>
+                      {/* Category */}
+                      <td className="px-1.5 py-1 border-r border-gray-200 dark:border-gray-700">
+                        <select
+                          value={row.category_slug || ''}
+                          onChange={(e) => handleCellChange(row.id, 'category_slug', e.target.value || null)}
+                          className="w-full bg-transparent border-0 rounded px-1.5 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent text-xs"
+                        >
+                          <option value="" className="bg-white dark:bg-gray-900 text-black dark:text-white">None</option>
+                          {categories.map(c => (
+                            <option key={c.id} value={c.slug} className="bg-white dark:bg-gray-900 text-black dark:text-white">{c.name}</option>
+                          ))}
+                        </select>
+                      </td>
 
-                    {/* Offline PS4 Code */}
-                    <td className="p-0 border-r border-gray-200 dark:border-gray-700">
-                      <input
-                        type="text"
-                        value={row.offlinePs4Code || ''}
-                        placeholder="Offline PS4 Key"
-                        onChange={(e) => handleCellChange(row._itemId, 'offlinePs4Code', e.target.value)}
-                        className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
-                      />
-                    </td>
-                    <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-700 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!row.offlinePs4Sold}
-                        disabled={!row.offlinePs4Code}
-                        onChange={(e) => handleCellChange(row._itemId, 'offlinePs4Sold', e.target.checked)}
-                        className="rounded text-brand-red focus:ring-brand-red"
-                      />
-                    </td>
+                      {/* Sub-Category */}
+                      <td className="px-1.5 py-1 border-r border-gray-200 dark:border-gray-700">
+                        <select
+                          value={row.sub_category_slug || ''}
+                          onChange={(e) => handleCellChange(row.id, 'sub_category_slug', e.target.value || null)}
+                          className="w-full bg-transparent border-0 rounded px-1.5 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent text-xs"
+                        >
+                          <option value="" className="bg-white dark:bg-gray-900 text-black dark:text-white">None</option>
+                          {subCategories
+                            .filter(sc => {
+                              const parentCat = categories.find(c => c.slug === row.category_slug);
+                              return parentCat ? String(sc.category_id) === String(parentCat.id) : true;
+                            })
+                            .map(sc => (
+                              <option key={sc.id} value={sc.slug} className="bg-white dark:bg-gray-900 text-black dark:text-white">{sc.name}</option>
+                            ))}
+                        </select>
+                      </td>
 
-                    {/* Offline PS5 Code */}
-                    <td className="p-0 border-r border-gray-200 dark:border-gray-700">
-                      <input
-                        type="text"
-                        value={row.offlinePs5Code || ''}
-                        placeholder="Offline PS5 Key"
-                        onChange={(e) => handleCellChange(row._itemId, 'offlinePs5Code', e.target.value)}
-                        className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
-                      />
-                    </td>
-                    <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-700 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!row.offlinePs5Sold}
-                        disabled={!row.offlinePs5Code}
-                        onChange={(e) => handleCellChange(row._itemId, 'offlinePs5Sold', e.target.checked)}
-                        className="rounded text-brand-red focus:ring-brand-red"
-                      />
-                    </td>
+                      {/* Price */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={row.price != null ? row.price : ''}
+                          onChange={(e) => handleCellChange(row.id, 'price', e.target.value ? parseFloat(e.target.value) : null)}
+                          placeholder="0.00"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                        />
+                      </td>
 
-                    {/* Individual Row Action */}
-                    <td className="px-3 py-2 text-center">
-                      <button
-                        onClick={() => {
-                          setRows(prev => prev.map(r => r._itemId === row._itemId ? { ...r, _isDeleted: true } : r));
-                        }}
-                        className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
-                        title="Delete Row"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
+                      {/* Cost */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={row.cost != null ? row.cost : ''}
+                          onChange={(e) => handleCellChange(row.id, 'cost', e.target.value ? parseFloat(e.target.value) : null)}
+                          placeholder="0.00"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                        />
+                      </td>
+
+                      {/* Stock (Read-only if digital items present, otherwise editable) */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50/10">
+                        <input
+                          type="number"
+                          value={calculateProductStock(row)}
+                          disabled={row.digitalItems && row.digitalItems.length > 0}
+                          onChange={(e) => handleCellChange(row.id, 'stock', e.target.value ? parseInt(e.target.value) : 0)}
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs text-center disabled:opacity-75 disabled:text-orange-500 font-bold"
+                        />
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-1.5 py-1 border-r border-gray-200 dark:border-gray-700">
+                        <select
+                          value={row.status}
+                          onChange={(e) => handleCellChange(row.id, 'status', e.target.value)}
+                          className="w-full bg-transparent border-0 rounded px-1.5 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent text-xs"
+                        >
+                          <option value="In Stock" className="bg-white dark:bg-gray-900 text-black dark:text-white">In Stock</option>
+                          <option value="Out of Stock" className="bg-white dark:bg-gray-900 text-black dark:text-white">Out of Stock</option>
+                        </select>
+                      </td>
+
+                      {/* Product Code */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="text"
+                          value={row.productCode || ''}
+                          onChange={(e) => handleCellChange(row.id, 'productCode', e.target.value)}
+                          placeholder="Global Key/Code"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs font-mono"
+                        />
+                      </td>
+
+                      {/* Purchased Email */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="text"
+                          value={row.purchasedEmail || ''}
+                          onChange={(e) => handleCellChange(row.id, 'purchasedEmail', e.target.value)}
+                          placeholder="Bought Email"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                        />
+                      </td>
+
+                      {/* Purchased Password */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="text"
+                          value={row.purchasedPassword || ''}
+                          onChange={(e) => handleCellChange(row.id, 'purchasedPassword', e.target.value)}
+                          placeholder="Bought Pass"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                        />
+                      </td>
+
+                      {/* Send Email Enabled */}
+                      <td className="px-1 py-2 border-r border-gray-200 dark:border-gray-700 text-center">
+                        <input
+                          type="checkbox"
+                          checked={row.sendEmailEnabled}
+                          onChange={(e) => handleCellChange(row.id, 'sendEmailEnabled', e.target.checked)}
+                          className="rounded text-brand-red focus:ring-brand-red"
+                        />
+                      </td>
+
+                      {/* Email Template */}
+                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                        <input
+                          type="text"
+                          value={row.emailTemplate || ''}
+                          onChange={(e) => handleCellChange(row.id, 'emailTemplate', e.target.value)}
+                          placeholder="Template ID/Name"
+                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                        />
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-3 py-2 text-center flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => openDescriptionModal(row)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded transition-colors"
+                          title="Preview Description / Instructions"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleAddDigitalItemRow(row.id)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 text-blue-500 hover:text-blue-700 rounded transition-colors"
+                          title="Add Digital Stock Account"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRows(prev => prev.map(r => r.id === row.id ? { ...r, _isDeleted: true } : r));
+                          }}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 text-red-500 hover:text-red-700 rounded transition-colors"
+                          title="Delete Product"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* Expand Detail View (Nested digital stock table) */}
+                    {isExpanded && (
+                      <tr className="bg-gray-50/50 dark:bg-gray-950/40">
+                        <td colSpan={16} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                          <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                                Digital Stock Accounts & License Keys for "{row.name || 'this game'}"
+                              </h4>
+                              <Button
+                                onClick={() => handleAddDigitalItemRow(row.id)}
+                                size="sm"
+                                className="bg-brand-red text-white py-1.5 px-3 rounded-lg text-xs"
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-1" /> Add Stock Credentials Set
+                              </Button>
+                            </div>
+
+                            {/* Sub-grid table */}
+                            {(!row.digitalItems || row.digitalItems.length === 0) ? (
+                              <p className="text-xs text-gray-400 italic py-2">No digital stock accounts added yet. Click "+ Add Stock Credentials Set" to populate.</p>
+                            ) : (
+                              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 max-h-[400px] overflow-y-auto">
+                                <table className="w-full text-left text-xs border-collapse table-fixed min-w-[2200px]">
+                                  <thead className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-500 dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-800">
+                                    <tr>
+                                      <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Account Email</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Password</th>
+                                      <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Email</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Pass</th>
+                                      <th className="w-24 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Region</th>
+                                      <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Online ID</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Backup Codes</th>
+                                      
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS4 Code</th>
+                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS5 Code</th>
+                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Secondary Code</th>
+                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS4 Code</th>
+                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS5 Code</th>
+                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+
+                                      <th className="w-16 px-3 py-2.5 text-center">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                    {(row.digitalItems || []).map((item) => (
+                                      <tr key={item.id} className="hover:bg-gray-100/50 dark:hover:bg-gray-800/40 bg-white dark:bg-gray-900 transition-colors">
+                                        
+                                        {/* Standard Credentials Fields */}
+                                        {[
+                                          { field: 'email', placeholder: 'Email Address' },
+                                          { field: 'password', placeholder: 'Sony Password' },
+                                          { field: 'outlookEmail', placeholder: 'Recovery Email' },
+                                          { field: 'outlookPassword', placeholder: 'Recovery Password' },
+                                          { field: 'region', placeholder: 'US, EU, etc.' },
+                                          { field: 'onlineId', placeholder: 'Online ID' },
+                                          { field: 'backupCodes', placeholder: '2FA Backup Codes' }
+                                        ].map(col => (
+                                          <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-800">
+                                            <input
+                                              type="text"
+                                              value={item[col.field] || ''}
+                                              placeholder={col.placeholder}
+                                              onChange={(e) => handleDigitalItemChange(row.id, item.id, col.field, e.target.value)}
+                                              className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                                            />
+                                          </td>
+                                        ))}
+
+                                        {/* Slots & Sold Checkboxes */}
+                                        {[
+                                          'Primary ps4',
+                                          'Primary ps5',
+                                          'Secondary',
+                                          'Offline ps4',
+                                          'Offline ps5'
+                                        ].map(slotName => (
+                                          <React.Fragment key={slotName}>
+                                            {/* Code Cell */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-gray-800">
+                                              <input
+                                                type="text"
+                                                value={item.slots?.[slotName]?.code || ''}
+                                                placeholder={`${slotName} Key`}
+                                                onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'code', e.target.value)}
+                                                className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs font-mono"
+                                              />
+                                            </td>
+                                            {/* Sold Checkbox Cell */}
+                                            <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center">
+                                              <input
+                                                type="checkbox"
+                                                checked={!!item.slots?.[slotName]?.sold}
+                                                disabled={!item.slots?.[slotName]?.code}
+                                                onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
+                                                className="rounded text-brand-red focus:ring-brand-red"
+                                              />
+                                            </td>
+                                          </React.Fragment>
+                                        ))}
+
+                                        {/* Delete Action */}
+                                        <td className="px-2 py-1 text-center">
+                                          <button
+                                            onClick={() => handleDeleteDigitalItemRow(row.id, item.id)}
+                                            className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
+                                            title="Delete account stock row"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
 
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={20} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 font-display">
-                    No matching rows found in spreadsheet
+                  <td colSpan={16} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 font-display">
+                    No matching products/games found in spreadsheet
                   </td>
                 </tr>
               )}
@@ -1119,10 +1487,10 @@ export function InventorySheet() {
 
       {/* Floating Status / Save Toolbar */}
       {unsavedChangesCount > 0 && (
-        <div className="fixed bottom-6 left-6 right-6 md:left-72 z-40 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-6 py-4 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 animate-bounce-subtle">
+        <div className="fixed bottom-6 left-6 right-6 md:left-72 z-40 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-6 py-4 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping"></span>
-            <span className="font-bold">{unsavedChangesCount} unsaved inventory changes.</span>
+            <span className="font-bold">{unsavedChangesCount} unsaved product changes.</span>
             <span className="hidden md:inline text-xs text-gray-400">(Your edits are held locally until saved)</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1150,7 +1518,7 @@ export function InventorySheet() {
       <Modal
         isOpen={isBulkAddModalOpen}
         onClose={() => setIsBulkAddModalOpen(false)}
-        title="Smart Copy-Paste Bulk Account Parser"
+        title="Smart Bulk Account Stock Parser"
       >
         <div className="space-y-4">
           <div>
@@ -1163,8 +1531,8 @@ export function InventorySheet() {
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
             >
               <option value="">Choose product...</option>
-              {products.map(p => (
-                <option key={p.id} value={String(p.id)}>{p.name}</option>
+              {rows.map(p => (
+                <option key={p.id} value={String(p.id)}>{p.name || '(Unnamed Product)'}</option>
               ))}
             </select>
           </div>
@@ -1235,11 +1603,63 @@ export function InventorySheet() {
               onClick={handleBulkAddSubmit}
               className="bg-brand-red text-white"
             >
-              Import Data
+              Parse & Load
             </Button>
           </div>
         </div>
       </Modal>
+
+      {/* Description / Extra Details Modal */}
+      {editingDescriptionProdId !== null && (
+        <Modal
+          isOpen={true}
+          onClose={() => setEditingDescriptionProdId(null)}
+          title={`Additional Details: ${descriptionModalData.name}`}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase">
+                Product Description
+              </label>
+              <textarea
+                rows={5}
+                value={descriptionModalData.description}
+                onChange={(e) => setDescriptionModalData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Game overview, attributes, and public description..."
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase">
+                Customer Delivery Instructions
+              </label>
+              <textarea
+                rows={5}
+                value={descriptionModalData.instructions}
+                onChange={(e) => setDescriptionModalData(prev => ({ ...prev, instructions: e.target.value }))}
+                placeholder="Specific instructions automatically sent to customer upon purchase..."
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-800">
+              <Button
+                variant="secondary"
+                onClick={() => setEditingDescriptionProdId(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveDescriptionModal}
+                className="bg-brand-red text-white"
+              >
+                Apply Details
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
