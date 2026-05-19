@@ -56,6 +56,7 @@ export function ProductDataOverview() {
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
+    instructions: '',
     category_slug: '',
     sub_category_slug: '',
     price: '',
@@ -302,6 +303,7 @@ export function ProductDataOverview() {
       const productData = {
         name: newProduct.name,
         description: newProduct.description,
+        instructions: newProduct.instructions || '',
         category_slug: newProduct.category_slug || (categories[0]?.slug || 'games'),
         sub_category_slug: newProduct.sub_category_slug || '',
         price: parseFloat(newProduct.price) || 0,
@@ -317,6 +319,7 @@ export function ProductDataOverview() {
       setNewProduct({
         name: '',
         description: '',
+        instructions: '',
         category_slug: '',
         sub_category_slug: '',
         price: '',
@@ -882,6 +885,7 @@ export function ProductDataOverview() {
             setNewProduct({
               name: '',
               description: '',
+              instructions: '',
               category_slug: categories[0]?.slug || 'games',
               sub_category_slug: '',
               price: '',
@@ -1204,6 +1208,16 @@ export function ProductDataOverview() {
               onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
               className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white h-20 resize-none"
               placeholder="Enter product description..."
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Instructions</label>
+            <textarea
+              value={newProduct.instructions}
+              onChange={e => setNewProduct({ ...newProduct, instructions: e.target.value })}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white h-20 resize-none"
+              placeholder="Enter delivery / activation instructions..."
             />
           </div>
 

@@ -8,7 +8,7 @@ import fs from 'fs';
 const ADMIN_ROUTES = [
   '/login',
   '/employee-login',
-  '/dashboard', '/products', '/data-overview', '/orders', '/sold-products',
+  '/dashboard', '/products', '/data-overview', '/inventory-sheet', '/orders', '/sold-products',
   '/order-chats', '/analytics', '/customers', '/tasks', '/team', '/settings',
   '/roles', '/outlook', '/banners', '/hero-slider', '/hr', '/pos', '/system',
   '/delivery', '/email-templates', '/expenses',

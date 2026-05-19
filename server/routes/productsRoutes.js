@@ -134,8 +134,8 @@ productsRoutes.post('/products', async (req, res) => {
       const [result] = await conn.query(
         `INSERT INTO products
          (name, category_slug, sub_category_slug, price, cost, stock, image, description, attributes, \`digitalItems\`,
-          \`productCode\`, \`purchasedEmail\`, \`purchasedPassword\`, status, sendEmailEnabled, emailTemplate)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          \`productCode\`, \`purchasedEmail\`, \`purchasedPassword\`, instructions, status, sendEmailEnabled, emailTemplate)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           productData.name,
           productData.category_slug || null,
@@ -150,6 +150,7 @@ productsRoutes.post('/products', async (req, res) => {
           productData.productCode || null,
           productData.purchasedEmail || null,
           productData.purchasedPassword || null,
+          productData.instructions || null,
           productData.status || 'In Stock',
           !!productData.sendEmailEnabled,
           productData.emailTemplate || null,
@@ -221,6 +222,7 @@ productsRoutes.put('/products/:id', async (req, res) => {
       setIfDefined('`productCode`', productData.productCode);
       setIfDefined('`purchasedEmail`', productData.purchasedEmail);
       setIfDefined('`purchasedPassword`', productData.purchasedPassword);
+      setIfDefined('instructions', productData.instructions);
       setIfDefined('status', productData.status);
       if (productData.sendEmailEnabled !== undefined) setIfDefined('sendEmailEnabled', !!productData.sendEmailEnabled);
       setIfDefined('emailTemplate', productData.emailTemplate);

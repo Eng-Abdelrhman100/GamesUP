@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2 } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { Screen } from '../AdminApp';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
@@ -30,7 +30,8 @@ const menuItems: MenuItem[] = [
     label: 'Products', 
     icon: Package, 
     children: [
-      { id: 'data-overview' as Screen, label: 'Data Overview', icon: Database }
+      { id: 'data-overview' as Screen, label: 'Data Overview', icon: Database },
+      { id: 'inventory-sheet' as Screen, label: 'Inventory Sheet', icon: TableProperties }
     ]
   },
   { 

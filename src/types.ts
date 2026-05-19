@@ -26,6 +26,7 @@ export interface Game {
   tags: string[];
   status: GameStatus;
   description: string;
+  instructions?: string;
   category?: string;
   categorySlug?: string;
   subCategorySlug?: string;

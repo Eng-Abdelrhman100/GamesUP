@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS products (
   `productCode` TEXT NULL,
   `purchasedEmail` TEXT NULL,
   `purchasedPassword` TEXT NULL,
+  instructions TEXT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'In Stock',
   sendEmailEnabled BOOLEAN NOT NULL DEFAULT FALSE,
   emailTemplate TEXT NULL,

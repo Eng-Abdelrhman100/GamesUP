@@ -14,6 +14,9 @@ type GameRequest = {
   account_type?: string | null;
   notes?: string | null;
   image_url?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
   status?: RequestStatus | string | null;
   created_at?: string | null;
 };
@@ -135,8 +138,9 @@ export function GameRequests() {
               <thead>
                 <tr>
                   <th className="text-left">Title</th>
-                  <th className="text-left">Region</th>
-                  <th className="text-left">Account</th>
+                  <th className="text-left">Platform</th>
+                  <th className="text-left">Access Type</th>
+                  <th className="text-left">Customer</th>
                   <th className="text-left">Status</th>
                   <th className="text-left">Created</th>
                 </tr>
@@ -158,6 +162,12 @@ export function GameRequests() {
                       </td>
                       <td className="text-text-secondary">{r.region || '-'}</td>
                       <td className="text-text-secondary">{r.account_type || '-'}</td>
+                      <td>
+                        <div className="text-xs">
+                          <div className="font-medium text-text-primary">{r.customer_name || '-'}</div>
+                          <div className="text-[10px] text-text-secondary">{r.customer_email || '-'}</div>
+                        </div>
+                      </td>
                       <td>
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadgeClass(s)}`}>
                           {s}
@@ -190,6 +200,28 @@ export function GameRequests() {
               <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${statusBadgeClass(toStatus(selected.status))}`}>
                 {toStatus(selected.status)}
               </span>
+            </div>
+
+            <div className="border-t border-b border-border-subtle py-3 my-2 space-y-2">
+              <div className="text-xs font-bold text-brand-red uppercase tracking-wider">User Details</div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <span className="text-text-secondary block">Name:</span>
+                  <span className="font-bold text-text-primary">{selected.customer_name || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-text-secondary block">Email:</span>
+                  <a href={`mailto:${selected.customer_email}`} className="font-bold text-brand-red hover:underline block truncate">
+                    {selected.customer_email || '—'}
+                  </a>
+                </div>
+                <div>
+                  <span className="text-text-secondary block">Phone:</span>
+                  <a href={`tel:${selected.customer_phone}`} className="font-bold text-text-primary hover:underline block">
+                    {selected.customer_phone || '—'}
+                  </a>
+                </div>
+              </div>
             </div>
 
             {selected.image_url ? (

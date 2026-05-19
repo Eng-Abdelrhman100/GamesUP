@@ -11,8 +11,11 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
-  const [region, setRegion] = useState('EGYPT (PRIMARY)');
-  const [accountType, setAccountType] = useState('PLATINUM ACCESS');
+  const [platform, setPlatform] = useState('PLAYSTATION');
+  const [accessType, setAccessType] = useState('PRIMARY');
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -50,6 +53,27 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
         return;
       }
 
+      const trimmedName = customerName.trim();
+      if (!trimmedName) {
+        setError('Please enter your name/username.');
+        setSubmitting(false);
+        return;
+      }
+
+      const trimmedEmail = customerEmail.trim();
+      if (!trimmedEmail) {
+        setError('Please enter your email.');
+        setSubmitting(false);
+        return;
+      }
+
+      const trimmedPhone = customerPhone.trim();
+      if (!trimmedPhone) {
+        setError('Please enter your phone number.');
+        setSubmitting(false);
+        return;
+      }
+
       let imageUrl: string | null = null;
       if (imageFile) {
         const uploaded = await uploadAPI.uploadRequestImage(imageFile);
@@ -58,15 +82,21 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
 
       await gameRequestsAPI.create({
         title: trimmedTitle,
-        region,
-        account_type: accountType,
+        region: platform,
+        account_type: accessType,
+        customer_name: trimmedName,
+        customer_email: trimmedEmail,
+        customer_phone: trimmedPhone,
         notes: notes.trim() || null,
         image_url: imageUrl,
       });
 
       setTitle('');
-      setRegion('EGYPT (PRIMARY)');
-      setAccountType('PLATINUM ACCESS');
+      setPlatform('PLAYSTATION');
+      setAccessType('PRIMARY');
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
       setNotes('');
       removeImage();
       setSuccess('Request submitted successfully. Our team will review it shortly.');
@@ -131,7 +161,7 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
                 <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Game Title / Objective</label>
                 <input 
                   type="text" 
-                  placeholder="E.G. ELDEN RING: SHADOW OF THE ERDTREE" 
+                  placeholder="E.G. BLACK MYTH: WUKONG" 
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
@@ -140,28 +170,65 @@ export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Preferred Region</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Game Platform</label>
                   <select
-                    value={region}
-                    onChange={(e) => setRegion(e.target.value)}
+                    value={platform}
+                    onChange={(e) => setPlatform(e.target.value)}
                     className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all appearance-none cursor-pointer"
                   >
-                    <option>EGYPT (PRIMARY)</option>
-                    <option>USA / GLOBAL</option>
-                    <option>UK / EUROPE</option>
+                    <option value="PLAYSTATION">PLAYSTATION GAME</option>
+                    <option value="STEAM">STEAM GAME</option>
                   </select>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Account Type</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Access Type</label>
                   <select
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
+                    value={accessType}
+                    onChange={(e) => setAccessType(e.target.value)}
                     className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all appearance-none cursor-pointer"
                   >
-                    <option>PLATINUM ACCESS</option>
-                    <option>GOLD ACCESS</option>
-                    <option>SILVER ACCESS</option>
+                    <option value="PRIMARY">PRIMARY ACCOUNT</option>
+                    <option value="SECONDARY">SECONDARY ACCOUNT</option>
+                    <option value="FULL ACCOUNT">FULL ACCOUNT</option>
+                    <option value="OTHER">OTHER / ELSE</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="border-t border-border-subtle my-8 pt-8 space-y-6">
+                <h4 className="text-xs font-black text-brand-red uppercase tracking-widest italic px-2">User Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Username / Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="YOUR USERNAME" 
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Email Address</label>
+                    <input 
+                      type="email" 
+                      placeholder="YOUR EMAIL" 
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Phone Number</label>
+                    <input 
+                      type="tel" 
+                      placeholder="YOUR PHONE" 
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
+                    />
+                  </div>
                 </div>
               </div>
 

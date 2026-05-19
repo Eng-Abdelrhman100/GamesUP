@@ -20,6 +20,7 @@ interface Product {
   stock: number;
   status: string;
   image: string;
+  instructions?: string;
   attributes?: Record<string, any>;
   digitalItems?: DigitalItem[];
   purchasedEmail?: string;
@@ -653,6 +654,7 @@ export function Products() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    instructions: '',
     category: '',
     subCategory: '',
     price: '',
@@ -1121,6 +1123,7 @@ const handleRemoveDigitalItem = (index: number) => {
       const productData: any = {
         name: formData.name,
         description: formData.description,
+        instructions: formData.instructions || '',
         category_slug: formData.category, // This is the slug from the select
         sub_category_slug: formData.subCategory, // This is the slug/name from subcats
         price: parseFloat(formData.price as any) || 0,
@@ -1163,7 +1166,7 @@ const handleRemoveDigitalItem = (index: number) => {
       await loadData();
       setIsAddModalOpen(false);
       setEditingProduct(null);
-      setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+      setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
       setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
       setCustomSlots(getInitialCustomSlots());
     } catch (error) {
@@ -1237,6 +1240,7 @@ const handleRemoveDigitalItem = (index: number) => {
     setFormData({
       name: product.name,
       description: (product as any).description || '',
+      instructions: product.instructions || '',
       category: product.category_slug || '',
       subCategory: product.sub_category_slug || '',
       price: product.price.toString().replace('$', ''),
@@ -1344,7 +1348,7 @@ const handleRemoveDigitalItem = (index: number) => {
                 onClick={() => {
                   setEditingProduct(null);
                   const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
-                  setFormData({ name: '', description: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                  setFormData({ name: '', description: '', instructions: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
                   setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
                   setCustomSlots(getInitialCustomSlots());
                   setIsAddModalOpen(true);
@@ -1499,7 +1503,7 @@ const handleRemoveDigitalItem = (index: number) => {
             onClose={() => {
               setIsAddModalOpen(false);
               setEditingProduct(null);
-              setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+              setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
             }}
             title={editingProduct ? 'Edit Product' : 'Add New Product'}
             maxWidth="4xl"
@@ -1534,6 +1538,17 @@ const handleRemoveDigitalItem = (index: number) => {
                           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                           className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
                           placeholder="Enter product description"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Instructions</label>
+                        <textarea
+                          value={formData.instructions}
+                          onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+                          placeholder="Enter product delivery / activation instructions (e.g. step-by-step guidelines for redeeming codes or accessing accounts)"
                           rows={3}
                         />
                       </div>
@@ -2089,7 +2104,7 @@ const handleRemoveDigitalItem = (index: number) => {
                   onClick={() => {
                     setIsAddModalOpen(false);
                     setEditingProduct(null);
-                    setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                    setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
                     setCustomSlots([
                       { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
                       { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },

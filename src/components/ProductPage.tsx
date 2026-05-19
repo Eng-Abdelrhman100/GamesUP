@@ -84,7 +84,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
               </h1>
               <div className="flex flex-wrap items-center gap-4 md:gap-6 text-[9px] md:text-[11px] font-black uppercase tracking-widest text-gray-400 italic">
                 <div className="flex text-brand-red gap-1 bg-brand-red/10 px-3 py-1.5 rounded-full border border-brand-red/20 shadow-[0_0_15px_-3px_rgba(235,59,59,0.3)]">
-                  {[1,2,3,4,5].map(i => <Star key={i} className="h-2.5 w-2.5 md:h-3 md:w-3 fill-current" />)}
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} className="h-2.5 w-2.5 md:h-3 md:w-3 fill-current" />)}
                   <span className="ml-1 text-white border-l border-white/20 pl-2">4.9</span>
                 </div>
                 <span className="px-3 py-1.5 bg-white/5 rounded-full border border-white/5">128 Operations Completed</span>
@@ -223,6 +223,22 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
             </div>
           </div>
         </div>
+
+        {game.instructions && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-8 bg-bg-card border border-border-subtle rounded-[2.5rem] p-8 md:p-12 shadow-2xl animate-fade-in"
+          >
+            <h3 className="text-lg md:text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3 italic font-display">
+              <span className="text-brand-red">■</span> Delivery & Activation Instructions
+            </h3>
+            <div className="text-text-secondary text-sm md:text-base leading-relaxed whitespace-pre-line font-medium border-l-2 border-brand-red/30 pl-4 md:pl-6 py-1">
+              {game.instructions}
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
