@@ -517,3 +517,41 @@ export const chatAPI = {
     requestJson<any>(`/chat/messages`, { method: 'POST', body: { content, image_url }, auth: 'customer' }),
   markRead: async (ids: string[]) => requestJson<any>(`/chat/messages/mark-read`, { method: 'PUT', body: { ids }, auth: 'customer' }),
 };
+
+export function normalizeImageSrc(raw: unknown): string {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value.startsWith('data:') || value.startsWith('blob:')) return value;
+
+  let slashes = value.replace(/\\/g, '/');
+
+  if (slashes.startsWith('uploads/')) {
+    slashes = `/${slashes}`;
+  } else if (slashes.startsWith('/api/uploads/')) {
+    slashes = slashes.slice(4);
+  } else {
+    const uploadsIdx = slashes.indexOf('/uploads/');
+    if (uploadsIdx >= 0) {
+      slashes = slashes.slice(uploadsIdx);
+    } else {
+      try {
+        const u = new URL(slashes);
+        if (u.pathname.startsWith('/uploads/')) {
+          slashes = `${u.pathname}${u.search || ''}`;
+        }
+      } catch {}
+    }
+  }
+
+  // If it is a relative upload path, resolve it to the admin subdomain in production/live env
+  if (slashes.startsWith('/uploads/')) {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+    if (!isLocal) {
+      return `https://admin.games-up.co${slashes}`;
+    }
+  }
+
+  return slashes;
+}
+

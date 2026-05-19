@@ -1,7 +1,7 @@
-import { Search, Bell, Moon, Sun, ChevronDown, LogOut, Settings, User, Globe, Check, Trash2 } from 'lucide-react';
+import { Search, Bell, Moon, Sun, ChevronDown, LogOut, Settings, User, Globe, Check, Trash2, AlertTriangle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../utils/api';
+import { api, productsAPI } from '../../utils/api';
 
 interface TopBarProps {
   isDarkMode: boolean;
@@ -25,6 +25,18 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<any[]>([]);
+
+  const fetchLowStockProducts = async () => {
+    try {
+      const data = await productsAPI.getAll();
+      const list = data?.products || [];
+      const lowStock = list.filter((p: any) => p.stock <= 5);
+      setLowStockAlerts(lowStock);
+    } catch (error) {
+      console.error('Failed to fetch low stock products:', error);
+    }
+  };
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +71,11 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
+    fetchLowStockProducts();
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchLowStockProducts();
+    }, 30000); // Poll every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -76,7 +92,22 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
   const userRoleRaw = user?.user_metadata?.role;
   const userRole = String(userRoleRaw || 'staff').trim().toLowerCase().startsWith('manager') || String(userRoleRaw || '').trim().toLowerCase() === 'managerial' ? 'manager' : String(userRoleRaw || 'staff').trim().toLowerCase();
   const initials = getInitials(userName);
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const lowStockNotifications = lowStockAlerts.map(p => ({
+    id: `low-stock-${p.id}`,
+    title: p.stock === 0 ? 'Out of Stock' : 'Low Stock Warning',
+    message: `${p.name} has ${p.stock === 0 ? 'no slots left' : `${p.stock} slot(s) left`}. Please refill.`,
+    type: 'stock',
+    is_read: false,
+    created_at: new Date().toISOString(),
+    productId: p.id
+  }));
+
+  const allNotifications = [
+    ...lowStockNotifications,
+    ...notifications
+  ];
+
+  const unreadCount = notifications.filter(n => !n.is_read).length + lowStockNotifications.length;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -124,7 +155,7 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md shadow-red-500/30">{unreadCount}</span>
             )}
           </button>
 
@@ -143,12 +174,47 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
                 )}
               </div>
               <div className="max-h-96 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {allNotifications.length === 0 ? (
                   <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     No notifications yet
                   </div>
                 ) : (
-                  notifications.map((notification) => (
+                  allNotifications.map((notification) => {
+                    if (notification.type === 'stock') {
+                      return (
+                        <div 
+                          key={notification.id}
+                          className="px-4 py-3.5 border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors bg-red-500/5 dark:bg-red-500/10 cursor-pointer"
+                          onClick={() => {
+                            navigate('/products');
+                            setIsNotificationsOpen(false);
+                          }}
+                        >
+                          <div className="flex gap-3 items-start">
+                            <div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 mt-0.5">
+                              <AlertTriangle className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">
+                                  {notification.title}
+                                </span>
+                                <span className="text-[10px] text-gray-400">Now</span>
+                              </div>
+                              <p className="text-sm font-semibold text-text-primary mt-0.5">
+                                {notification.message}
+                              </p>
+                              <div className="mt-2 flex justify-end">
+                                <span className="text-[10px] font-black text-white bg-red-600 hover:bg-red-750 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all">
+                                  Refill Stock
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
                     <div 
                       key={notification.id}
                       className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${!notification.is_read ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}
@@ -171,7 +237,8 @@ export function TopBar({ isDarkMode, onToggleTheme, user, onLogout, onViewWebsit
                         )}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

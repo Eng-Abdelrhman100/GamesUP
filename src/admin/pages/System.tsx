@@ -173,6 +173,11 @@ export function System() {
 
     try {
       if (activeTab === 'categories') {
+          const category = categories.find(c => c.id === id);
+          if (category && ['digital-games', 'games', 'digital', 'gift-cards', 'consoles', 'accessories'].includes(category.slug)) {
+              setToast({ message: 'System protected category cannot be deleted', type: 'error' });
+              return;
+          }
           await categoriesAPI.delete(id);
       } else {
           const endpoint = activeTab === 'subcategories' ? 'sub_categories' : 'product_attributes';
@@ -194,9 +199,9 @@ export function System() {
       // Demo categories
       const demoCategories = [
         { name: 'Consoles', slug: 'consoles', icon: '🎮', displayOrder: 1, isActive: true },
-        { name: 'Games', slug: 'games', icon: '🎯', displayOrder: 2, isActive: true },
+        { name: 'Digital Games', slug: 'digital-games', icon: '🎯', displayOrder: 2, isActive: true },
         { name: 'Accessories', slug: 'accessories', icon: '🎧', displayOrder: 3, isActive: true },
-        { name: 'Digital', slug: 'digital', icon: '💳', displayOrder: 4, isActive: true },
+        { name: 'Gift Cards', slug: 'gift-cards', icon: '💳', displayOrder: 4, isActive: true },
       ];
 
       for (const cat of demoCategories) {
@@ -379,12 +384,18 @@ export function System() {
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => handleDelete(category.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {['digital-games', 'games', 'digital', 'gift-cards', 'consoles', 'accessories'].includes(category.slug) ? (
+                  <span className="inline-block p-2 text-gray-400 cursor-not-allowed opacity-50" title="System protected category cannot be deleted">
+                    <Trash2 className="w-4 h-4" />
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleDelete(category.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -530,7 +541,10 @@ export function System() {
                   type="text"
                   value={editingItem.slug}
                   onChange={(e) => setEditingItem({ ...editingItem, slug: e.target.value })}
-                  className="w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary"
+                  disabled={editingItem.id && ['digital-games', 'games', 'digital', 'gift-cards', 'consoles', 'accessories'].includes(editingItem.slug)}
+                  className={`w-full px-3 py-2 border border-border-subtle rounded-lg bg-bg-primary text-text-primary ${
+                    editingItem.id && ['digital-games', 'games', 'digital', 'gift-cards', 'consoles', 'accessories'].includes(editingItem.slug) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 />
               </div>
               <div>

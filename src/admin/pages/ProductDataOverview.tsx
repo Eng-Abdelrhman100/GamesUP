@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Package, ShoppingCart, Key, Search, List, Tag, User, Plus, Mail, Shield, Lock, Globe } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Modal } from '../../components/ui/Modal';
-import { productsAPI, customersAPI, categoriesAPI } from '../../utils/api';
+import { productsAPI, customersAPI, categoriesAPI, normalizeImageSrc } from '../../utils/api';
 
 interface ProductOverview {
   product: {
@@ -481,7 +481,7 @@ export function ProductDataOverview() {
                 <Card className="p-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                     <div className="flex gap-6">
                         <img 
-                            src={currentProduct.image || 'https://via.placeholder.com/150'} 
+                            src={normalizeImageSrc(currentProduct.image) || 'https://via.placeholder.com/150'} 
                             alt={currentProduct.name} 
                             className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                         />
@@ -614,7 +614,7 @@ export function ProductDataOverview() {
                 <div className="p-6">
                   <div className="flex gap-6">
                     <img 
-                      src={data?.product?.image || '/placeholder-image.png'} 
+                      src={normalizeImageSrc(data?.product?.image) || '/placeholder-image.png'} 
                       alt={data?.product?.name || 'Product'} 
                       className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                     />
@@ -924,7 +924,7 @@ export function ProductDataOverview() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {product.image && (
-                          <img src={product.image} alt={product.name} className="w-10 h-10 rounded object-cover" />
+                          <img src={normalizeImageSrc(product.image)} alt={product.name} className="w-10 h-10 rounded object-cover" />
                         )}
                         <span className="font-medium text-gray-900 dark:text-white">{product.name}</span>
                       </div>

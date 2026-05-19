@@ -2,35 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/Modal';
-import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useStoreSettings } from '@/context/StoreSettingsContext';
-import { productsAPI, categoriesAPI, api, uploadAPI } from '@/utils/api';
-// import { productsAPI } from '@/utils/api';
+import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc } from '@/utils/api';
 
 const PLACEHOLDER_IMG_SRC =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==';
 
-function normalizeImageSrc(raw: unknown) {
-  const value = String(raw || '').trim();
-  if (!value) return '';
-  if (value.startsWith('data:') || value.startsWith('blob:')) return value;
-
-  const slashes = value.replace(/\\/g, '/');
-
-  if (slashes.startsWith('/uploads/')) return slashes;
-  if (slashes.startsWith('uploads/')) return `/${slashes}`;
-  if (slashes.startsWith('/api/uploads/')) return slashes.slice(4);
-
-  const uploadsIdx = slashes.indexOf('/uploads/');
-  if (uploadsIdx >= 0) return slashes.slice(uploadsIdx);
-
-  try {
-    const u = new URL(slashes);
-    if (u.pathname.startsWith('/uploads/')) return `${u.pathname}${u.search || ''}`;
-  } catch {}
-
-  return slashes;
-}
 
 interface Product {
   id: string | number;
@@ -94,19 +72,14 @@ function countAvailableForSlot(digitalItems: any[], slotName: string) {
   return count;
 }
 
-function countAvailableFullAccounts(digitalItems: any[], slotNames: string[]) {
-  if (!Array.isArray(digitalItems) || !Array.isArray(slotNames) || !slotNames.length) return 0;
+function countAvailableFullAccounts(digitalItems: any[], slotNames?: string[]) {
+  if (!Array.isArray(digitalItems)) return 0;
   let count = 0;
   for (const item of digitalItems) {
-    if (!item?.slots) continue;
-    const anySlotSold = Object.values(item.slots).some((s: any) => !!s?.sold);
-    if (anySlotSold || item.fullAccountSold) continue;
-    const hasAllCodes = slotNames.every((name) => {
-      const s = item.slots?.[name];
-      const code = s?.code ? String(s.code).trim() : '';
-      return !!code;
-    });
-    if (hasAllCodes) count += 1;
+    if (item.fullAccountSold) continue;
+    const slots = item.slots || {};
+    const anySlotSold = Object.values(slots).some((s: any) => !!s?.sold);
+    if (!anySlotSold) count += 1;
   }
   return count;
 }
@@ -396,35 +369,127 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
         </button>
 
         {groupItems && groupItems.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h5 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Added Stock for this Group ({groupItems.length})</h5>
-            <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
+          <div className="mt-6 pt-5 border-t border-gray-200/60 dark:border-gray-700/60">
+            <h5 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Added Stock for this Group ({groupItems.length})</h5>
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
               <table className="w-full text-xs text-left bg-white dark:bg-gray-900">
-                <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Email</th>
-                    <th className="px-3 py-2 font-medium">Password</th>
-                    <th className="px-3 py-2 font-medium">Codes</th>
-                    <th className="px-3 py-2 text-right"></th>
+                    <th className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account Credentials</th>
+                    <th className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Recovery & Region</th>
+                    {slotsInGroup.map((slot: any) => {
+                      const parts = slot.name.split(' - ');
+                      const subLabel = parts.length > 1 ? parts.slice(1).join(' - ') : slot.name;
+                      return (
+                        <th key={slot.id || slot.name} className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          {subLabel}
+                        </th>
+                      );
+                    })}
+                    <th className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Backup Codes</th>
+                    <th className="px-3.5 py-2.5 text-right w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {groupItems.map((item: any, idx: number) => (
-                    <tr key={idx}>
-                      <td className="px-3 py-2">{item.email || '-'}</td>
-                      <td className="px-3 py-2 font-mono">{item.password || '******'}</td>
-                      <td className="px-3 py-2 font-mono">
-                         {(() => {
-                           if (item.slots) {
-                             const rc = Object.values(item.slots).filter((s:any) => s.code).length;
-                             const bcc = item.backupCodes ? item.backupCodes.split('\n').length : 0;
-                             return (rc + bcc) + ' code(s)';
-                           }
-                           return item.code ? item.code.split('\n').length + ' code(s)' : 'None';
-                         })()}
+                    <tr key={item.id || idx} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+                      {/* Account credentials */}
+                      <td className="px-3.5 py-3 align-top">
+                        <div className="font-bold text-gray-900 dark:text-white break-all">{item.email || '-'}</div>
+                        <div className="font-mono text-[10px] text-gray-500 dark:text-gray-400 select-all cursor-pointer truncate max-w-[140px] mt-0.5" title={item.password}>
+                          {item.password || '******'}
+                        </div>
+                        {item.onlineId && (
+                          <div className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">
+                            <span className="font-bold">ID:</span> {item.onlineId}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-right">
-                        <button type="button" onClick={() => onRemoveItem(item.id)} className="text-red-500 hover:text-red-700">
+                      
+                      {/* Recovery & Region */}
+                      <td className="px-3.5 py-3 align-top text-[10px] text-gray-600 dark:text-gray-400 space-y-1">
+                        {item.region && (
+                          <div>
+                            <span className="font-bold text-[9px] uppercase tracking-wider text-gray-400 mr-1">Region:</span>
+                            {item.region}
+                          </div>
+                        )}
+                        {item.outlookEmail && (
+                          <div className="break-all leading-tight">
+                            <span className="font-bold text-[9px] uppercase tracking-wider text-gray-400 mr-1">Mail:</span>
+                            {item.outlookEmail}
+                            {item.outlookPassword && <span className="text-gray-400 dark:text-gray-500"> ({item.outlookPassword})</span>}
+                          </div>
+                        )}
+                        {item.birthdate && (
+                          <div>
+                            <span className="font-bold text-[9px] uppercase tracking-wider text-gray-400 mr-1">Birth:</span>
+                            {item.birthdate}
+                          </div>
+                        )}
+                        {!item.region && !item.outlookEmail && !item.birthdate && <span className="text-gray-400 italic">None</span>}
+                      </td>
+                      
+                      {/* Slots status */}
+                      {slotsInGroup.map((slot: any) => {
+                        const slotData = item.slots?.[slot.name];
+                        if (!slotData) {
+                          return (
+                            <td key={slot.id || slot.name} className="px-3.5 py-3 align-top text-gray-400 italic text-[10px]">
+                              -
+                            </td>
+                          );
+                        }
+                        
+                        const code = String(slotData.code || '').trim();
+                        const isSold = !!slotData.sold;
+                        
+                        return (
+                          <td key={slot.id || slot.name} className="px-3.5 py-3 align-top">
+                            {code ? (
+                              <div className="space-y-1">
+                                <div className="font-mono text-xs text-gray-700 dark:text-gray-300 break-all select-all font-semibold leading-tight">
+                                  {code}
+                                </div>
+                                <div>
+                                  {isSold ? (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" title={slotData.customerName || 'Sold'}>
+                                      Sold {slotData.customerName ? `(${slotData.customerName})` : ''}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+                                      Available
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 italic text-[10px]">No Code</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      
+                      {/* Backup Codes */}
+                      <td className="px-3.5 py-3 align-top">
+                        {item.backupCodes ? (
+                          <div className="max-h-16 overflow-y-auto text-[9px] font-mono text-gray-500 bg-gray-50 dark:bg-gray-800/40 p-1.5 rounded border border-gray-100 dark:border-gray-700/50 leading-tight">
+                            {item.backupCodes.split('\n').map((code: string, cidx: number) => (
+                              <div key={cidx} className="break-all">{code}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-[10px]">-</span>
+                        )}
+                      </td>
+                      
+                      {/* Delete */}
+                      <td className="px-3.5 py-3 align-middle text-right">
+                        <button
+                          type="button"
+                          onClick={() => onRemoveItem(item.id)}
+                          className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -583,6 +648,7 @@ export function Products() {
   const [activeTab, setActiveTab] = useState<'all' | 'products' | 'giftcards'>('all');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [giftCategoryFilter, setGiftCategoryFilter] = useState('All');
+  const [isAlertsBannerCollapsed, setIsAlertsBannerCollapsed] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -620,6 +686,30 @@ export function Products() {
     { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
     { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
   ]);
+
+  const isDigitalGames = formData.category === 'digital-games' || formData.category === 'games' || formData.category === 'digital';
+  const isGiftCards = formData.category === 'gift-cards';
+  const isPhysical = !isDigitalGames && !isGiftCards;
+
+  const getInitialCustomSlots = () => {
+    const activeAttrs = (attributes || []).filter(a => a.is_active);
+    if (activeAttrs.length > 0) {
+      return activeAttrs.map(a => ({
+        id: crypto.randomUUID(),
+        originalName: '',
+        name: a.name,
+        price: '',
+        cost: ''
+      }));
+    }
+    return [
+      { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+      { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
+      { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
+      { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
+      { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
+    ];
+  };
 
   useEffect(() => {
     loadData();
@@ -1003,26 +1093,28 @@ const handleRemoveDigitalItem = (index: number) => {
         });
       }
 
-      const computedStock =
-        formData.category === 'gift-cards'
-          ? (Array.isArray(finalDigitalItems) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : 0)
-          : countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : []);
+      let computedStock = 0;
+      if (isDigitalGames) {
+        computedStock = countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : []);
+      } else if (isGiftCards) {
+        computedStock = Array.isArray(finalDigitalItems) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : 0;
+      } else {
+        computedStock = parseInt(formData.stock as any) || 0;
+      }
 
       const fullAccountStock =
-        formData.category === 'gift-cards' || !formData.fullAccountPrice
+        !isDigitalGames || !formData.fullAccountPrice
           ? 0
           : countAvailableFullAccounts(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], customSlots.map((s) => s.name));
 
-      const availabilityStock = Math.max(computedStock, fullAccountStock);
+      const availabilityStock = isDigitalGames ? Math.max(computedStock, fullAccountStock) : computedStock;
 
       const status =
-        formData.category === 'gift-cards'
-          ? availabilityStock > 0
-            ? 'In Stock'
-            : 'Out of Stock'
-          : availabilityStock > 10
-            ? 'In Stock'
-            : 'Low Stock';
+        availabilityStock > 10
+          ? 'In Stock'
+          : availabilityStock > 0
+            ? 'Low Stock'
+            : 'Out of Stock';
 
       // Map frontend fields to database fields
       // Ensure category_slug and sub_category_slug are set
@@ -1038,12 +1130,12 @@ const handleRemoveDigitalItem = (index: number) => {
         status,
         attributes: formData.attributes || {},
         // For gift-cards, save the codes. For other products, save digital items with slots
-        digitalItems: finalDigitalItems,
-        product_variants: customSlots.map(slot => ({
+        digitalItems: isPhysical ? [] : finalDigitalItems,
+        product_variants: isPhysical ? [] : customSlots.map(slot => ({
           name: slot.name,
           price: slot.price ? parseFloat(slot.price) : null,
           cost: slot.cost ? parseFloat(slot.cost) : null,
-          stock: formData.category === 'gift-cards' ? 0 : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name)
+          stock: isGiftCards ? 0 : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name)
         })),
         sendEmailEnabled: formData.sendEmailEnabled || false,
         emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : (formData.emailTemplate || ''),
@@ -1073,13 +1165,7 @@ const handleRemoveDigitalItem = (index: number) => {
       setEditingProduct(null);
       setFormData({ name: '', description: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
       setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
-      setCustomSlots([
-        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
-      ]);
+      setCustomSlots(getInitialCustomSlots());
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Failed to save product. Check console for details.');
@@ -1151,8 +1237,8 @@ const handleRemoveDigitalItem = (index: number) => {
     setFormData({
       name: product.name,
       description: (product as any).description || '',
-      category: product.category_slug,
-      subCategory: product.sub_category_slug,
+      category: product.category_slug || '',
+      subCategory: product.sub_category_slug || '',
       price: product.price.toString().replace('$', ''),
       cost: product.cost ? product.cost.toString().replace('$', '') : '',
       stock: product.category_slug === 'gift-cards' ? product.stock : countAvailableSlots(parsedDigitalItems as any[]),
@@ -1180,6 +1266,7 @@ const handleRemoveDigitalItem = (index: number) => {
   });
 
   const renderContent = () => {
+    const lowStockProducts = (products || []).filter(p => p.stock <= 5);
     try {
       if (loading) {
         return (
@@ -1200,6 +1287,50 @@ const handleRemoveDigitalItem = (index: number) => {
 
       return (
         <div className="space-y-6">
+          {/* Low / Out of Stock alerts banner */}
+          {lowStockProducts.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/50 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsAlertsBannerCollapsed(!isAlertsBannerCollapsed)}>
+                <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                  <AlertTriangle className="w-5 h-5 animate-pulse" />
+                  <span className="font-bold text-xs uppercase tracking-wider">
+                    Stock Alerts ({lowStockProducts.length} product(s) need attention)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 font-bold uppercase px-2 py-0.5 rounded-full">
+                    Action Required
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-red-500 transition-transform ${isAlertsBannerCollapsed ? 'rotate-180' : ''}`} />
+                </div>
+              </div>
+              
+              {!isAlertsBannerCollapsed && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {lowStockProducts.map(p => (
+                    <div key={p.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-red-100 dark:border-red-900/40 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-xs text-gray-900 dark:text-white truncate" title={p.name}>{p.name}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${p.stock === 0 ? 'bg-red-600' : 'bg-orange-500'}`}></span>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                            {p.stock === 0 ? 'Out of stock' : `${p.stock} slot(s) left`}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleEditProduct(p)}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider active:scale-95 transition-all shadow-md shadow-red-200 dark:shadow-none whitespace-nowrap"
+                      >
+                        Edit & Refill
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="admin-page-header">
             <div>
               <p className="admin-page-subtitle">Inventory</p>
@@ -1215,13 +1346,7 @@ const handleRemoveDigitalItem = (index: number) => {
                   const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
                   setFormData({ name: '', description: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
                   setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
-                  setCustomSlots([
-                    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
-                    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
-                    { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-                    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
-                    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
-                  ]);
+                  setCustomSlots(getInitialCustomSlots());
                   setIsAddModalOpen(true);
                 }}
                 className="btn-primary"
@@ -1415,9 +1540,8 @@ const handleRemoveDigitalItem = (index: number) => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Category</label>
-                          <select
-                            value={formData.category}
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Category</label>                           <select
+                            value={formData.category || ''}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                             className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
                           >
@@ -1430,7 +1554,7 @@ const handleRemoveDigitalItem = (index: number) => {
                         <div>
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Sub Category</label>
                           <select
-                            value={formData.subCategory}
+                            value={formData.subCategory || ''}
                             onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
                             className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
                           >
@@ -1526,7 +1650,7 @@ const handleRemoveDigitalItem = (index: number) => {
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Pricing Summary</h3>
                   </div>
 
-                  {formData.category === 'gift-cards' || customSlots.length === 0 ? (
+                  {!isDigitalGames || customSlots.length === 0 ? (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Base Price</label>
@@ -1572,7 +1696,7 @@ const handleRemoveDigitalItem = (index: number) => {
                     </div>
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Inventory Status</h3>
                   </div>
-
+ 
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Current Stock Level</label>
@@ -1580,9 +1704,9 @@ const handleRemoveDigitalItem = (index: number) => {
                         <input
                           type="number" value={formData.stock}
                           onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                          disabled={formData.category !== 'gift-cards' && (formData.digitalItems?.length || 0) > 0}
+                          disabled={isDigitalGames && (formData.digitalItems?.length || 0) > 0}
                           className={`flex-1 px-4 py-2.5 rounded-xl font-bold text-lg focus:outline-none transition-all ${
-                            formData.category !== 'gift-cards' && (formData.digitalItems?.length || 0) > 0 
+                            isDigitalGames && (formData.digitalItems?.length || 0) > 0 
                               ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 cursor-not-allowed' 
                               : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-red-500'
                           }`}
@@ -1593,7 +1717,7 @@ const handleRemoveDigitalItem = (index: number) => {
                         </div>
                       </div>
                     </div>
-                    {formData.category !== 'gift-cards' && (formData.digitalItems?.length || 0) > 0 && (
+                    {isDigitalGames && (formData.digitalItems?.length || 0) > 0 && (
                       <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium italic">
                         * Stock is auto-calculated from {formData.digitalItems?.length} digital delivery items.
                       </p>
@@ -1656,7 +1780,7 @@ const handleRemoveDigitalItem = (index: number) => {
               </div>
 
               {/* Email Template Section for Digital Products */}
-              {formData.category !== 'gift-cards' && (
+              {isDigitalGames && (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1721,7 +1845,7 @@ const handleRemoveDigitalItem = (index: number) => {
               )}
 
               {/* Gift Cards Section - Multiple 12-digit codes */}
-              {formData.category === 'gift-cards' && (
+              {isGiftCards && (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1800,7 +1924,7 @@ const handleRemoveDigitalItem = (index: number) => {
                 </div>
               )}
 
-              {formData.category !== 'gift-cards' && (
+              {isDigitalGames && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-md border-t-4 border-t-red-600">
                   <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-3">

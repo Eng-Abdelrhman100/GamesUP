@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useStoreSettings } from '../context/StoreSettingsContext';
+import { normalizeImageSrc } from '../utils/api';
 
 interface CategoriesProps {
   onCategoryClick: (category: string) => void;
@@ -55,7 +56,7 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
               >
                 {/* Background Image */}
                 <img 
-                  src={cat.image} 
+                  src={normalizeImageSrc(cat.image)} 
                   alt={cat.title} 
                   className="absolute inset-0 w-full h-full object-cover grayscale opacity-50 group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700"
                 />

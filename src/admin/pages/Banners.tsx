@@ -3,33 +3,12 @@ import { Plus, Edit, Trash2, Eye, EyeOff, Upload } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Modal } from '../../components/ui/Modal';
-import { bannersAPI, uploadAPI, productsAPI } from '../../utils/api';
+import { bannersAPI, uploadAPI, productsAPI, normalizeImageSrc } from '../../utils/api';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 
 const PLACEHOLDER_IMG_SRC =
   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==';
 
-function normalizeImageSrc(raw: unknown) {
-  const value = String(raw || '').trim();
-  if (!value) return '';
-  if (value.startsWith('data:') || value.startsWith('blob:')) return value;
-
-  const slashes = value.replace(/\\/g, '/');
-
-  if (slashes.startsWith('/uploads/')) return slashes;
-  if (slashes.startsWith('uploads/')) return `/${slashes}`;
-  if (slashes.startsWith('/api/uploads/')) return slashes.slice(4);
-
-  const uploadsIdx = slashes.indexOf('/uploads/');
-  if (uploadsIdx >= 0) return slashes.slice(uploadsIdx);
-
-  try {
-    const u = new URL(slashes);
-    if (u.pathname.startsWith('/uploads/')) return `${u.pathname}${u.search || ''}`;
-  } catch {}
-
-  return slashes;
-}
 
 interface Banner {
   id: string | number;

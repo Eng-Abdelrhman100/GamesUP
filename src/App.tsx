@@ -27,7 +27,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { Footer } from './components/Footer';
 import { Game, CartItem, AccountType, AppView } from './types';
 import { GAMES_DATA } from './constants';
-import { categoriesAPI, productsAPI } from './utils/api';
+import { categoriesAPI, productsAPI, normalizeImageSrc } from './utils/api';
 import { useStoreSettings } from './context/StoreSettingsContext';
 import { Facebook, Instagram, MessageCircle, Twitter } from 'lucide-react';
 
@@ -76,8 +76,8 @@ export default function App() {
             // basePrice should show the lowest available attribute/variant price (excluding "Full Account")
             id: String(p.id),
             title: p.name,
-            image: p.image || '',
-            banner: p.image || '',
+            image: normalizeImageSrc(p.image || ''),
+            banner: normalizeImageSrc(p.image || ''),
             price: (() => {
               const base = Number(p.price);
               return Number.isFinite(base) ? base : 0;
