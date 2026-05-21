@@ -183,13 +183,15 @@ export default function AdminApp() {
   };
 
   const currentRoleName = normalizeRole(user?.user_metadata?.role);
-  const customRole = dynamicRoles.find(r => r.name === currentRoleName);
+  const customRole = dynamicRoles.find(r => normalizeRole(r.name) === currentRoleName);
   const effectivePermissions = customRole?.permissions || user?.user_metadata?.permissions || null;
 
   const hasRoleAccess = (screenId: string) => {
     const role = currentRoleName;
-    if (role === 'admin' || role === 'manager') return true;
-    if (!effectivePermissions || Object.keys(effectivePermissions).length === 0) return false;
+    if (role === 'admin') return true;
+    if (!effectivePermissions || Object.keys(effectivePermissions).length === 0) {
+      return role === 'manager';
+    }
     const val = effectivePermissions[screenId];
     return val === true || val === 'read' || val === 'write';
   };

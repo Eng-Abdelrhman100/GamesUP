@@ -73,7 +73,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'adm
       return false;
     }
     
-    if (userRole === 'admin') return true;
+    if (userRole === 'admin' || userRole === 'manager') return true;
     return false;
   };
 

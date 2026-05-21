@@ -43,7 +43,10 @@ export async function authMiddleware(req, res, next) {
     }
     if (!permissions) {
       const roleName = normalizeRole(userRow.role);
-      const [roleRows] = await pool.query('SELECT permissions FROM roles WHERE name = ? LIMIT 1', [roleName]);
+      const [roleRows] = await pool.query(
+        'SELECT permissions FROM roles WHERE name = ? OR name = ? LIMIT 1',
+        [roleName, userRow.role]
+      );
       const rolePerms = roleRows?.[0]?.permissions;
       if (rolePerms) {
         if (typeof rolePerms === 'string') {

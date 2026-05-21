@@ -113,8 +113,11 @@ export async function login({ email, password }) {
 
   const roleName = normalizeRole(userRow.role);
   let effectivePermissions = parsePermissions(userRow.permissions);
-  if (!effectivePermissions && roleName) {
-    const [roleRows] = await pool.query('SELECT permissions FROM roles WHERE name = ? LIMIT 1', [roleName]);
+  if (!effectivePermissions) {
+    const [roleRows] = await pool.query(
+      'SELECT permissions FROM roles WHERE name = ? OR name = ? LIMIT 1',
+      [roleName, userRow.role]
+    );
     effectivePermissions = parsePermissions(roleRows?.[0]?.permissions);
   }
   const user = toSupabaseLikeUser(userRow, effectivePermissions);
