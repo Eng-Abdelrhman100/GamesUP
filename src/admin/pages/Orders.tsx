@@ -628,6 +628,8 @@ export function Orders() {
                       <option value="instapay">InstaPay</option>
                       <option value="vodafone_cash">Vodafone Cash</option>
                       <option value="telda">Telda</option>
+                      <option value="binance">Binance Pay</option>
+                      <option value="paypal">PayPal Manual</option>
                       <option value="bank_transfer">Bank Transfer</option>
                       <option value="other">Other</option>
                     </select>

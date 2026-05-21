@@ -98,6 +98,10 @@ export function Settings() {
     telda_enabled: false,
     vodafone_cash_details: '',
     vodafone_cash_enabled: false,
+    binance_details: '',
+    binance_enabled: false,
+    paypal_details: '',
+    paypal_enabled: false,
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
 
@@ -179,6 +183,10 @@ export function Settings() {
         telda_enabled: settings.telda_enabled || false,
         vodafone_cash_details: settings.vodafone_cash_details || '',
         vodafone_cash_enabled: settings.vodafone_cash_enabled || false,
+        binance_details: settings.binance_details || '',
+        binance_enabled: settings.binance_enabled || false,
+        paypal_details: settings.paypal_details || '',
+        paypal_enabled: settings.paypal_enabled || false,
       });
     }
   }, [settings]);
@@ -1162,7 +1170,7 @@ export function Settings() {
               </div>
 
               {/* Vodafone Cash */}
-              <div className="pb-2">
+              <div className="border-b border-gray-100 dark:border-gray-800 pb-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 dark:text-white">Vodafone Cash</h4>
@@ -1186,6 +1194,68 @@ export function Settings() {
                       value={formData.vodafone_cash_details}
                       onChange={(e) => setFormData({ ...formData, vodafone_cash_details: e.target.value })}
                       placeholder="Enter Vodafone Cash mobile wallet number and payment guidelines..."
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Binance */}
+              <div className="border-b border-gray-100 dark:border-gray-800 pb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Binance</h4>
+                    <p className="text-xs text-gray-500">Collect crypto transfers via Binance Pay / ID / Wallet</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={formData.binance_enabled} 
+                      onChange={(e) => setFormData({ ...formData, binance_enabled: e.target.checked })}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-red-600"></div>
+                  </label>
+                </div>
+                {formData.binance_enabled && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Binance Details & Instructions</label>
+                    <textarea
+                      rows={3}
+                      value={formData.binance_details}
+                      onChange={(e) => setFormData({ ...formData, binance_details: e.target.value })}
+                      placeholder="Enter Binance Pay ID, wallet address, and instructions..."
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* PayPal Manual */}
+              <div className="pb-2">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">PayPal Manual</h4>
+                    <p className="text-xs text-gray-500">Collect manual transfers via PayPal (Friends & Family, email, link)</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={formData.paypal_enabled} 
+                      onChange={(e) => setFormData({ ...formData, paypal_enabled: e.target.checked })}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-red-600"></div>
+                  </label>
+                </div>
+                {formData.paypal_enabled && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">PayPal Details & Instructions</label>
+                    <textarea
+                      rows={3}
+                      value={formData.paypal_details}
+                      onChange={(e) => setFormData({ ...formData, paypal_details: e.target.value })}
+                      placeholder="Enter PayPal email, me-link, and instructions (e.g. pay as Friends & Family)..."
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
                     />
                   </div>

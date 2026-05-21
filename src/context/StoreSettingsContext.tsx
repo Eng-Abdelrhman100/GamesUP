@@ -42,6 +42,10 @@ interface StoreSettings {
   telda_enabled?: boolean;
   vodafone_cash_details?: string;
   vodafone_cash_enabled?: boolean;
+  binance_details?: string;
+  binance_enabled?: boolean;
+  paypal_details?: string;
+  paypal_enabled?: boolean;
 }
 
 interface StoreSettingsContextType {
@@ -77,6 +81,10 @@ const defaultSettings: StoreSettings = {
   telda_enabled: false,
   vodafone_cash_details: '',
   vodafone_cash_enabled: false,
+  binance_details: '',
+  binance_enabled: false,
+  paypal_details: '',
+  paypal_enabled: false,
   homepage_categories: [
     {
       id: 'rpg',
@@ -191,6 +199,10 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         telda_enabled: data.telda_enabled === true || data.telda_enabled === 'true',
         vodafone_cash_details: data.vodafone_cash_details || '',
         vodafone_cash_enabled: data.vodafone_cash_enabled === true || data.vodafone_cash_enabled === 'true',
+        binance_details: data.binance_details || '',
+        binance_enabled: data.binance_enabled === true || data.binance_enabled === 'true',
+        paypal_details: data.paypal_details || '',
+        paypal_enabled: data.paypal_enabled === true || data.paypal_enabled === 'true',
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);

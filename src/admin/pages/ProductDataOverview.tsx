@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Package, ShoppingCart, Key, Search, List, Tag, User, Plus, Mail, Shield, Lock, Globe } from 'lucide-react';
+import { Package, ShoppingCart, Key, Search, List, Tag, User, Plus, Mail, Shield, Lock, Globe, CreditCard, Trash2, Copy, Check } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Modal } from '../../components/ui/Modal';
-import { productsAPI, customersAPI, categoriesAPI, normalizeImageSrc } from '../../utils/api';
+import { productsAPI, customersAPI, categoriesAPI, ordersAPI, normalizeImageSrc } from '../../utils/api';
 
 interface ProductOverview {
   product: {
@@ -40,16 +40,32 @@ interface ProductOverview {
 }
 
 export function ProductDataOverview() {
-  const [view, setView] = useState<'product_details' | 'all_products' | 'all_customers' | 'categories'>('product_details');
+  const [view, setView] = useState<'product_details' | 'all_products' | 'all_customers' | 'categories' | 'gift_cards'>('product_details');
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ProductOverview | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'sold' | 'customers' | 'products_inventory' | 'all_products'>('products_inventory');
   const [allProductsInventory, setAllProductsInventory] = useState<any[]>([]);
   const [componentError, setComponentError] = useState<string | null>(null);
+
+  // Gift Card-specific state
+  const [selectedGiftCardProductId, setSelectedGiftCardProductId] = useState<string>('all');
+  const [giftCardStatusFilter, setGiftCardStatusFilter] = useState<'all' | 'available' | 'sold'>('all');
+  const [giftCardSearchQuery, setGiftCardSearchQuery] = useState('');
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  
+  const [isAddGiftCardCodesModalOpen, setIsAddGiftCardCodesModalOpen] = useState(false);
+  const [addGiftCardCodesProduct, setAddGiftCardCodesProduct] = useState('');
+  const [newGiftCardCodesText, setNewGiftCardCodesText] = useState('');
+  
+  const [isSellGiftCardModalOpen, setIsSellGiftCardModalOpen] = useState(false);
+  const [sellingGiftCard, setSellingGiftCard] = useState<any | null>(null);
+  const [sellCustomerName, setSellCustomerName] = useState('');
+  const [sellCustomerEmail, setSellCustomerEmail] = useState('');
 
   // Modals and form states for adding items
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
@@ -100,11 +116,9 @@ export function ProductDataOverview() {
         return String(item.productId) === String(selectedProductId);
     });
 
-  // Get only products that have digital items for dropdown
+  // Get only products that have digital items for dropdown, excluding gift cards
   const productsWithDigitalItems = products.filter(product => 
-    // Show all products if we are in 'all' mode, or filter if needed
-    // For now let's show all products to debug
-    true
+    product.category_slug !== 'gift-cards'
   );
 
   // Error boundary for component
@@ -131,6 +145,7 @@ export function ProductDataOverview() {
         await loadProducts();
         await loadCustomers();
         await loadCategories();
+        await loadOrders();
         await loadAllProductsInventory();
       } catch (error) {
         console.error('Error loading data:', error);
@@ -189,6 +204,17 @@ export function ProductDataOverview() {
     }
   };
 
+  const loadOrders = async () => {
+    try {
+      const res = await ordersAPI.getAll();
+      if (res.orders) {
+        setOrders(res.orders);
+      }
+    } catch (err) {
+      console.error('Failed to load orders', err);
+    }
+  };
+
   const loadOverview = async (id: string) => {
     setLoading(true);
     try {
@@ -239,6 +265,7 @@ export function ProductDataOverview() {
         const inventoryData = [];
         
         for (const product of productList) {
+          if (product.category_slug === 'gift-cards') continue;
           console.log('Processing product:', product.name, 'digital_items:', product.digital_items);
           
           try {
@@ -951,8 +978,13 @@ export function ProductDataOverview() {
                     <td className="px-6 py-4">
                       <button 
                         onClick={() => {
-                          setSelectedProductId(product.id.toString());
-                          setView('product_details');
+                          if (product.category_slug === 'gift-cards') {
+                            setSelectedGiftCardProductId(product.id.toString());
+                            setView('gift_cards');
+                          } else {
+                            setSelectedProductId(product.id.toString());
+                            setView('product_details');
+                          }
                         }}
                         className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
                       >
@@ -1091,6 +1123,507 @@ export function ProductDataOverview() {
     );
   };
 
+  // --- Gift Cards Helper Functions and UI ---
+  
+  const getGiftCardsData = () => {
+    const gcList: any[] = [];
+    
+    products.forEach((product: any) => {
+      if (product.category_slug === 'gift-cards') {
+        const rawDigitalItems = product.digitalItems || product.digital_items;
+        const digitalItems = typeof rawDigitalItems === 'string'
+          ? JSON.parse(rawDigitalItems)
+          : (rawDigitalItems || []);
+        
+        if (Array.isArray(digitalItems)) {
+          digitalItems.forEach((item: any, idx: number) => {
+            // Check manual sold status in slots
+            const manualSold = item.slots?.['Gift Card']?.sold;
+            const manualCustomerName = item.slots?.['Gift Card']?.customerName;
+            const manualCustomerEmail = item.slots?.['Gift Card']?.customerEmail;
+            
+            // Check associated order
+            const soldOrder = orders.find((order: any) => 
+              order.items && Array.isArray(order.items) && order.items.some((orderItem: any) => orderItem.code === item.code)
+            );
+            
+            const isSold = !!(soldOrder || manualSold);
+            
+            gcList.push({
+              id: item.id || `gc-${product.id}-${idx}`,
+              productId: product.id,
+              productName: product.name,
+              code: item.code || '',
+              status: isSold ? 'Sold' : 'Available',
+              customerName: soldOrder?.customer_name || manualCustomerName || '',
+              customerEmail: soldOrder?.customer_email || manualCustomerEmail || '',
+              orderNumber: soldOrder?.order_number || (manualSold ? 'MANUAL' : ''),
+              orderId: soldOrder?.id || (manualSold ? 'MANUAL' : '')
+            });
+          });
+        }
+      }
+    });
+    
+    return gcList;
+  };
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCodeId(id);
+    setTimeout(() => setCopiedCodeId(null), 2000);
+  };
+
+  const handleMarkGiftCardAsSold = async (gcItem: any, customerName: string, customerEmail: string) => {
+    try {
+      setFormSubmitting(true);
+      setFormError(null);
+      
+      const prod = await productsAPI.getById(gcItem.productId);
+      if (!prod) throw new Error('Product not found.');
+      
+      const rawDigitalItems = prod.digitalItems || prod.digital_items;
+      const parsedItems = typeof rawDigitalItems === 'string'
+        ? JSON.parse(rawDigitalItems)
+        : (rawDigitalItems || []);
+      
+      const itemIndex = parsedItems.findIndex((item: any) => item.id === gcItem.id || item.code === gcItem.code);
+      if (itemIndex === -1) throw new Error('Gift card code not found.');
+      
+      const updatedItems = [...parsedItems];
+      const item = { ...updatedItems[itemIndex] };
+      
+      if (!item.slots) item.slots = {};
+      item.slots['Gift Card'] = {
+        sold: true,
+        orderId: 'MANUAL',
+        code: gcItem.code,
+        customerName,
+        customerEmail
+      };
+      
+      updatedItems[itemIndex] = item;
+      
+      const newStockValue = Math.max(0, (prod.stock || 1) - 1);
+      const updatedProductData = {
+        ...prod,
+        digitalItems: updatedItems,
+        stock: newStockValue,
+        status: newStockValue === 0 ? 'Out of Stock' : prod.status
+      };
+      
+      await productsAPI.update(gcItem.productId, updatedProductData);
+      
+      await loadProducts();
+      await loadOrders();
+      setIsSellGiftCardModalOpen(false);
+      setSellingGiftCard(null);
+      setSellCustomerName('');
+      setSellCustomerEmail('');
+    } catch (err: any) {
+      console.error('Error marking gift card as sold:', err);
+      setFormError(err.message || 'Failed to update gift card.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const handleMarkGiftCardAsAvailable = async (gcItem: any) => {
+    try {
+      if (!confirm(`Are you sure you want to revert status to Available for code: ${gcItem.code}?`)) {
+        return;
+      }
+      
+      setLoading(true);
+      const prod = await productsAPI.getById(gcItem.productId);
+      if (!prod) throw new Error('Product not found.');
+      
+      const rawDigitalItems = prod.digitalItems || prod.digital_items;
+      const parsedItems = typeof rawDigitalItems === 'string'
+        ? JSON.parse(rawDigitalItems)
+        : (rawDigitalItems || []);
+      
+      const itemIndex = parsedItems.findIndex((item: any) => item.id === gcItem.id || item.code === gcItem.code);
+      if (itemIndex === -1) throw new Error('Gift card code not found.');
+      
+      const updatedItems = [...parsedItems];
+      const item = { ...updatedItems[itemIndex] };
+      
+      if (item.slots) {
+        delete item.slots['Gift Card'];
+        if (Object.keys(item.slots).length === 0) {
+          delete item.slots;
+        }
+      }
+      
+      updatedItems[itemIndex] = item;
+      
+      const newStockValue = (prod.stock || 0) + 1;
+      const updatedProductData = {
+        ...prod,
+        digitalItems: updatedItems,
+        stock: newStockValue,
+        status: 'In Stock'
+      };
+      
+      await productsAPI.update(gcItem.productId, updatedProductData);
+      
+      await loadProducts();
+      await loadOrders();
+    } catch (err: any) {
+      console.error('Error marking gift card as available:', err);
+      alert(err.message || 'Failed to revert gift card status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteGiftCard = async (gcItem: any) => {
+    try {
+      if (!confirm(`Are you sure you want to delete code: ${gcItem.code}? This will remove it from inventory.`)) {
+        return;
+      }
+      
+      setLoading(true);
+      const prod = await productsAPI.getById(gcItem.productId);
+      if (!prod) throw new Error('Product not found.');
+      
+      const rawDigitalItems = prod.digitalItems || prod.digital_items;
+      const parsedItems = typeof rawDigitalItems === 'string'
+        ? JSON.parse(rawDigitalItems)
+        : (rawDigitalItems || []);
+      
+      const itemIndex = parsedItems.findIndex((item: any) => item.id === gcItem.id || item.code === gcItem.code);
+      if (itemIndex === -1) throw new Error('Gift card code not found.');
+      
+      const deletedItem = parsedItems[itemIndex];
+      const isDeletedItemSold = !!(deletedItem.slots?.['Gift Card']?.sold);
+      
+      const updatedItems = parsedItems.filter((_: any, idx: number) => idx !== itemIndex);
+      
+      const stockChange = isDeletedItemSold ? 0 : -1;
+      const newStockValue = Math.max(0, (prod.stock || 0) + stockChange);
+      
+      const updatedProductData = {
+        ...prod,
+        digitalItems: updatedItems,
+        stock: newStockValue,
+        status: newStockValue === 0 ? 'Out of Stock' : prod.status
+      };
+      
+      await productsAPI.update(gcItem.productId, updatedProductData);
+      
+      await loadProducts();
+      await loadOrders();
+    } catch (err: any) {
+      console.error('Error deleting gift card:', err);
+      alert(err.message || 'Failed to delete gift card code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddGiftCardCodesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addGiftCardCodesProduct) {
+      setFormError('Please select a product.');
+      return;
+    }
+    if (!newGiftCardCodesText.trim()) {
+      setFormError('Please enter at least one code.');
+      return;
+    }
+    
+    setFormSubmitting(true);
+    setFormError(null);
+    
+    try {
+      const codes = newGiftCardCodesText
+        .split(/[\n,]+/)
+        .map((c: string) => c.trim())
+        .filter(Boolean);
+      
+      if (codes.length === 0) {
+        throw new Error('No valid codes entered.');
+      }
+      
+      const prod = await productsAPI.getById(addGiftCardCodesProduct);
+      if (!prod) throw new Error('Product not found.');
+      
+      const rawDigitalItems = prod.digitalItems || prod.digital_items;
+      const parsedItems = typeof rawDigitalItems === 'string'
+        ? JSON.parse(rawDigitalItems)
+        : (rawDigitalItems || []);
+      
+      const existingCodes = parsedItems.map((item: any) => item.code);
+      const duplicateCode = codes.find(code => existingCodes.includes(code));
+      if (duplicateCode) {
+        throw new Error(`The code "${duplicateCode}" already exists for this product.`);
+      }
+      
+      const newItems = codes.map(code => ({
+        id: crypto.randomUUID(),
+        code: code
+      }));
+      
+      const updatedItems = [...parsedItems, ...newItems];
+      
+      const newStockValue = (prod.stock || 0) + codes.length;
+      const updatedProductData = {
+        ...prod,
+        digitalItems: updatedItems,
+        stock: newStockValue,
+        status: 'In Stock'
+      };
+      
+      await productsAPI.update(addGiftCardCodesProduct, updatedProductData);
+      
+      setNewGiftCardCodesText('');
+      setAddGiftCardCodesProduct('');
+      setIsAddGiftCardCodesModalOpen(false);
+      
+      await loadProducts();
+      await loadOrders();
+    } catch (err: any) {
+      console.error('Error adding gift card codes:', err);
+      setFormError(err.message || 'Failed to add gift card codes.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const renderGiftCards = () => {
+    const giftCardProducts = products.filter(p => p.category_slug === 'gift-cards');
+    const giftCardsList = getGiftCardsData();
+    
+    const availableCount = giftCardsList.filter(gc => gc.status === 'Available').length;
+    const soldCount = giftCardsList.filter(gc => gc.status === 'Sold').length;
+    const totalCount = giftCardsList.length;
+    
+    const filteredGiftCards = giftCardsList.filter(gc => {
+      if (selectedGiftCardProductId !== 'all' && gc.productId.toString() !== selectedGiftCardProductId.toString()) {
+        return false;
+      }
+      if (giftCardStatusFilter !== 'all' && gc.status.toLowerCase() !== giftCardStatusFilter.toLowerCase()) {
+        return false;
+      }
+      if (giftCardSearchQuery) {
+        const q = giftCardSearchQuery.toLowerCase();
+        return (
+          gc.code.toLowerCase().includes(q) ||
+          gc.productName.toLowerCase().includes(q) ||
+          gc.customerName.toLowerCase().includes(q) ||
+          gc.customerEmail.toLowerCase().includes(q) ||
+          gc.orderNumber.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+
+    return (
+      <div className="space-y-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-6 bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 animate-fade-in">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-600 dark:text-green-400">Available Gift Cards</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{availableCount}</h3>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-6 bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800 animate-fade-in">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-red-100 dark:bg-red-900 rounded-lg">
+                <ShoppingCart className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">Sold Gift Cards</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{soldCount}</h3>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 animate-fade-in">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Gift Cards</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{totalCount}</h3>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters and Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by code, product, customer..."
+                value={giftCardSearchQuery}
+                onChange={e => setGiftCardSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              />
+            </div>
+            
+            <div className="w-48">
+              <select
+                value={selectedGiftCardProductId}
+                onChange={e => setSelectedGiftCardProductId(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              >
+                <option value="all">All Gift Card Products</option>
+                {giftCardProducts.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="w-36">
+              <select
+                value={giftCardStatusFilter}
+                onChange={e => setGiftCardStatusFilter(e.target.value as any)}
+                className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              >
+                <option value="all">All Statuses</option>
+                <option value="available">Available</option>
+                <option value="sold">Sold</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setFormError(null);
+              setAddGiftCardCodesProduct(giftCardProducts[0]?.id?.toString() || '');
+              setNewGiftCardCodesText('');
+              setIsAddGiftCardCodesModalOpen(true);
+            }}
+            className="text-xs text-white hover:bg-brand-red-dark font-black flex items-center bg-brand-red px-5 py-2.5 rounded-full transition-all shadow-md active:scale-95 cursor-pointer whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Add Gift Card Codes
+          </button>
+        </div>
+
+        {/* Flat Overview Table */}
+        <Card className="overflow-hidden border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
+                <tr>
+                  <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
+                  <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Code</th>
+                  <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Customer & Order</th>
+                  <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredGiftCards.map((gc) => (
+                  <tr key={gc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900 dark:text-white">{gc.productName}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm bg-gray-100 dark:bg-gray-900 px-2.5 py-1 rounded text-gray-800 dark:text-gray-200 select-all border border-gray-200 dark:border-gray-700">
+                          {gc.code}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(gc.code, gc.id)}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-colors"
+                          title="Copy Code"
+                        >
+                          {copiedCodeId === gc.id ? (
+                            <Check className="w-3.5 h-3.5 text-green-500 animate-bounce" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                        gc.status === 'Available'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {gc.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {gc.status === 'Sold' ? (
+                        <div>
+                          <div className="text-gray-900 dark:text-white font-medium">{gc.customerName || 'Unknown Customer'}</div>
+                          {gc.customerEmail && <div className="text-xs text-gray-500">{gc.customerEmail}</div>}
+                          <div className="text-[10px] uppercase font-bold text-gray-400 mt-0.5 flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-850 rounded border border-gray-200 dark:border-gray-700">
+                              {gc.orderNumber === 'MANUAL' ? 'Manual Sale' : `Order #${gc.orderNumber}`}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-650 italic">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        {gc.status === 'Available' ? (
+                          <button
+                            onClick={() => {
+                              setFormError(null);
+                              setSellingGiftCard(gc);
+                              setSellCustomerName('');
+                              setSellCustomerEmail('');
+                              setIsSellGiftCardModalOpen(true);
+                            }}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            Sell One
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleMarkGiftCardAsAvailable(gc)}
+                            className="text-xs font-bold text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                          >
+                            Revert
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteGiftCard(gc)}
+                          className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
+                          title="Delete Code"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredGiftCards.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                      No gift card codes found matching the filters
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header & View Switcher */}
@@ -1152,6 +1685,19 @@ export function ProductDataOverview() {
               <span>Categories</span>
             </div>
           </button>
+          <button
+            onClick={() => setView('gift_cards')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              view === 'gift_cards'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-black hover:bg-red-600 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              <span>Gift Cards</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -1160,6 +1706,7 @@ export function ProductDataOverview() {
       {view === 'all_products' && renderAllProducts()}
       {view === 'all_customers' && renderAllCustomers()}
       {view === 'categories' && renderCategories()}
+      {view === 'gift_cards' && renderGiftCards()}
 
       {/* Add New Product Modal */}
       <Modal
@@ -1313,7 +1860,7 @@ export function ProductDataOverview() {
               className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
             >
               <option value="" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">-- Select Product --</option>
-              {products.map(p => (
+              {products.filter(p => p.category_slug !== 'gift-cards').map(p => (
                 <option key={p.id} value={p.id} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">{p.name}</option>
               ))}
             </select>
@@ -1487,6 +2034,131 @@ export function ProductDataOverview() {
               className="px-8 py-2.5 text-xs font-black text-white bg-brand-red hover:bg-brand-red-dark rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {formSubmitting ? 'Adding...' : 'Add Stock Item'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Gift Card Codes Modal */}
+      <Modal
+        isOpen={isAddGiftCardCodesModalOpen}
+        onClose={() => setIsAddGiftCardCodesModalOpen(false)}
+        title="Add Gift Card Codes"
+      >
+        <form onSubmit={handleAddGiftCardCodesSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-lg">
+              {formError}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Target Product *</label>
+            <select
+              required
+              value={addGiftCardCodesProduct}
+              onChange={e => setAddGiftCardCodesProduct(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+            >
+              <option value="" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">-- Select Product --</option>
+              {products.filter(p => p.category_slug === 'gift-cards').map(p => (
+                <option key={p.id} value={p.id} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Codes (one per line or comma-separated)</label>
+            <textarea
+              required
+              value={newGiftCardCodesText}
+              onChange={e => setNewGiftCardCodesText(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white h-32 resize-none font-mono"
+              placeholder="e.g.&#10;1234-5678-9012&#10;9876-5432-1098"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setIsAddGiftCardCodesModalOpen(false)}
+              className="px-6 py-2.5 text-xs font-bold text-gray-400 hover:text-white transition-all bg-gray-700 hover:bg-gray-600 rounded-full active:scale-95 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={formSubmitting}
+              className="px-8 py-2.5 text-xs font-black text-white bg-brand-red hover:bg-brand-red-dark rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              {formSubmitting ? 'Adding...' : 'Add Gift Cards'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Sell Gift Card Modal */}
+      <Modal
+        isOpen={isSellGiftCardModalOpen}
+        onClose={() => setIsSellGiftCardModalOpen(false)}
+        title="Sell Gift Card Manually"
+      >
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (sellingGiftCard) {
+            handleMarkGiftCardAsSold(sellingGiftCard, sellCustomerName, sellCustomerEmail);
+          }
+        }} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-lg">
+              {formError}
+            </div>
+          )}
+
+          <div className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl space-y-1 text-xs">
+            <p className="text-gray-500">Selling Gift Card Code:</p>
+            <p className="font-mono font-bold text-gray-800 dark:text-gray-200">{sellingGiftCard?.code}</p>
+            <p className="text-gray-500 mt-2">Product Name:</p>
+            <p className="font-bold text-gray-800 dark:text-gray-200">{sellingGiftCard?.productName}</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer Name *</label>
+            <input
+              type="text"
+              required
+              value={sellCustomerName}
+              onChange={e => setSellCustomerName(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              placeholder="e.g. John Doe"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer Email (Optional)</label>
+            <input
+              type="email"
+              value={sellCustomerEmail}
+              onChange={e => setSellCustomerEmail(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              placeholder="e.g. john@example.com"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setIsSellGiftCardModalOpen(false)}
+              className="px-6 py-2.5 text-xs font-bold text-gray-400 hover:text-white transition-all bg-gray-700 hover:bg-gray-600 rounded-full active:scale-95 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={formSubmitting}
+              className="px-8 py-2.5 text-xs font-black text-white bg-brand-red hover:bg-brand-red-dark rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              {formSubmitting ? 'Selling...' : 'Confirm Sale'}
             </button>
           </div>
         </form>

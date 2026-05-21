@@ -25,7 +25,7 @@ interface CheckoutPageProps {
 
 export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => {
   const { settings } = useStoreSettings();
-  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'INSTAPAY' | 'TELDA' | 'VODAFONE' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'INSTAPAY' | 'TELDA' | 'VODAFONE' | 'BINANCE' | 'PAYPAL' | null>(null);
   
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -54,7 +54,8 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
   }, []);
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const tax = subtotal * 0.14; // 14% VAT
+  const taxRate = (typeof settings.tax_rate === 'number' && !isNaN(settings.tax_rate)) ? settings.tax_rate : 0;
+  const tax = subtotal * (taxRate / 100);
   const total = subtotal + tax;
 
   // Build payment options dynamically based on settings
@@ -77,6 +78,14 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
     paymentOptions.push({ id: 'VODAFONE' as const, name: 'Vodafone Cash', icon: Wallet, desc: 'Wallet transfer / Mobile wallet' });
   }
 
+  if (settings.binance_enabled) {
+    paymentOptions.push({ id: 'BINANCE' as const, name: 'Binance Pay', icon: Wallet, desc: 'Pay via Binance ID/Wallet' });
+  }
+
+  if (settings.paypal_enabled) {
+    paymentOptions.push({ id: 'PAYPAL' as const, name: 'PayPal Manual', icon: CreditCard, desc: 'PayPal Friends & Family' });
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -94,7 +103,7 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
     }
   };
 
-  const handlePaymentSelect = (methodId: 'CARD' | 'INSTAPAY' | 'TELDA' | 'VODAFONE') => {
+  const handlePaymentSelect = (methodId: 'CARD' | 'INSTAPAY' | 'TELDA' | 'VODAFONE' | 'BINANCE' | 'PAYPAL') => {
     setPaymentMethod(methodId);
     setPaymentProof(null);
     setErrorMsg('');
@@ -238,6 +247,8 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
                     {paymentMethod === 'INSTAPAY' && (settings.instapay_details || 'No instructions provided. Please contact support.')}
                     {paymentMethod === 'TELDA' && (settings.telda_details || 'No instructions provided. Please contact support.')}
                     {paymentMethod === 'VODAFONE' && (settings.vodafone_cash_details || 'No instructions provided. Please contact support.')}
+                    {paymentMethod === 'BINANCE' && (settings.binance_details || 'No instructions provided. Please contact support.')}
+                    {paymentMethod === 'PAYPAL' && (settings.paypal_details || 'No instructions provided. Please contact support.')}
                   </div>
                 </div>
 
@@ -382,10 +393,12 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
                   <span>Subtotal</span>
                   <span>L.E {subtotal.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                  <span>VAT (14%)</span>
-                  <span>L.E {tax.toLocaleString()}</span>
-                </div>
+                {taxRate > 0 && (
+                  <div className="flex justify-between text-[10px] font-bold text-text-secondary uppercase tracking-widest">
+                    <span>VAT ({taxRate}%)</span>
+                    <span>L.E {tax.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-4 border-t border-brand-red/20">
                   <span className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest italic">Total</span>
                   <span className="text-2xl font-black text-brand-red italic tracking-tighter">L.E {total.toLocaleString()}</span>
