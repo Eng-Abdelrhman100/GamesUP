@@ -83,17 +83,17 @@ export const ContactPage = ({ onBack }: ContactPageProps) => {
             <form className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 md:p-16 space-y-8 shadow-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Alias</label>
-                  <input type="text" placeholder="GHOST_OPERATOR" className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" />
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Alias (Full Name)</label>
+                  <input type="text" placeholder="GHOST_OPERATOR (e.g., John Doe)" className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Signal Address</label>
-                  <input type="email" placeholder="SIGNAL@SECURE.NET" className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" />
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Signal Address (Email)</label>
+                  <input type="email" placeholder="SIGNAL@SECURE.NET (e.g., john.doe@example.com)" className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" />
                 </div>
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Mission Intelligence</label>
-                <textarea rows={6} placeholder="DESCRIBE THE OBJECTIVE..." className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all resize-none"></textarea>
+                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Mission Intelligence (Message)</label>
+                <textarea rows={6} placeholder="DESCRIBE THE OBJECTIVE (e.g., write your query here...)" className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all resize-none"></textarea>
               </div>
               <button className="w-full bg-brand-red text-white py-6 rounded-2xl font-black tracking-[0.3em] text-sm flex items-center justify-center gap-3 transition-all hover:bg-black uppercase italic shadow-xl shadow-brand-red/20">
                 Transmit Signal

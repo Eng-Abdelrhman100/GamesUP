@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   ArrowLeft, 
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { CartItem } from '../types';
 import { useStoreSettings } from '../context/StoreSettingsContext';
-import { ordersAPI, uploadAPI } from '../utils/api';
+import { ordersAPI, uploadAPI, authAPI } from '../utils/api';
 
 interface CheckoutPageProps {
   cart: CartItem[];
@@ -29,11 +29,29 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
   
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [note, setNote] = useState('');
   const [paymentProof, setPaymentProof] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    const hasSession = localStorage.getItem('customerSession');
+    if (hasSession) {
+      authAPI.getCurrentUser()
+        .then(user => {
+          if (user) {
+            setCustomerName(user.user_metadata?.name || '');
+            setCustomerEmail(user.email || '');
+            setCustomerPhone(user.user_metadata?.phone || '');
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch customer profile details:', err);
+        });
+    }
+  }, []);
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const tax = subtotal * 0.14; // 14% VAT
@@ -85,17 +103,22 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
   const handleLaunchOperation = async () => {
     if (!paymentMethod) return;
     if (!customerName.trim()) {
-      setErrorMsg('Operator Alias (Name) is required.');
+      setErrorMsg('Operator Alias (Full Name) is required.');
       return;
     }
     if (!customerEmail.trim()) {
-      setErrorMsg('Contact Link (Email) is required.');
+      setErrorMsg('Contact Link (Email Address) is required.');
       return;
     }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(customerEmail.trim())) {
       setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+
+    if (!customerPhone.trim()) {
+      setErrorMsg('Comms Frequency (Phone Number) is required.');
       return;
     }
 
@@ -108,12 +131,26 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
     setErrorMsg('');
 
     try {
+      // If customer is logged in, save their updated name and phone to their profile
+      const hasSession = localStorage.getItem('customerSession');
+      if (hasSession) {
+        try {
+          await authAPI.updateProfile({
+            name: customerName.trim(),
+            phone: customerPhone.trim(),
+          });
+        } catch (profileErr) {
+          console.error('Failed to auto-save customer profile during checkout:', profileErr);
+        }
+      }
+
       const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
       const orderData = {
         order_number: orderNumber,
         customer_name: customerName.trim(),
         customer_email: customerEmail.trim(),
+        phone: customerPhone.trim(),
         product_name: cart.map(item => `${item.title} (${item.tier})`).join(', '),
         date: new Date().toISOString().split('T')[0],
         status: 'pending', // Submitting manual payments puts order as pending approval
@@ -141,7 +178,7 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
           className="flex items-center gap-3 text-[10px] font-black text-text-secondary hover:text-brand-red transition-all uppercase tracking-[0.2em] mb-12 group italic"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          Abort Mission
+          Back to Store
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
@@ -150,16 +187,16 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
               <h1 className="text-5xl md:text-7xl font-black tracking-[-0.05em] text-[var(--text-primary)] uppercase font-display leading-[0.8] italic mb-8 transition-colors">
                 SECURE<br />CHECKOUT<span className="text-brand-red">.</span>
               </h1>
-              <p className="text-text-secondary text-[10px] font-black uppercase tracking-[0.4em] italic">Operation: Final Acquisition</p>
+              <p className="text-text-secondary text-[10px] font-black uppercase tracking-[0.4em] italic">Final step to complete your purchase</p>
             </div>
 
             {/* Payment Methods */}
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-widest italic px-2">Payment Protocols</h3>
+              <h3 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-widest italic px-2">Payment Methods</h3>
               
               {paymentOptions.length === 0 ? (
                 <div className="bg-bg-card border border-border-subtle p-8 rounded-3xl text-center">
-                  <p className="text-xs font-black uppercase tracking-widest text-brand-red">No payment protocols currently active.</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-brand-red">No payment methods currently active.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -273,34 +310,44 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
             <div className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Operator Alias</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Operator Alias (Full Name)</label>
                   <input 
                     type="text" 
-                    placeholder="GHOST_OPERATOR" 
+                    placeholder="GHOST_OPERATOR (e.g., John Doe)" 
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
+                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all" 
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Contact Link (Email)</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Contact Link (Email Address)</label>
                   <input 
                     type="email" 
-                    placeholder="INTEL@SAMURAI.HQ" 
+                    placeholder="INTEL@SAMURAI.HQ (e.g., john.doe@example.com)" 
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all" 
+                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all" 
+                  />
+                </div>
+                <div className="space-y-3 md:col-span-2">
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Comms Frequency (Phone Number)</label>
+                  <input 
+                    type="tel" 
+                    placeholder="e.g., 01012345678" 
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all" 
                   />
                 </div>
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Secure Message / Note</label>
+                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Secure Message / Note (Order Notes)</label>
                 <textarea 
                   rows={3} 
-                  placeholder="ANY SPECIFIC DELIVERY INSTRUCTIONS..." 
+                  placeholder="e.g., Any specific instructions for delivery or account details..." 
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold uppercase focus:outline-none focus:border-brand-red transition-all resize-none"
+                  className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all resize-none"
                 />
               </div>
             </div>
@@ -309,7 +356,7 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
           <div className="lg:col-span-5">
             <div className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 shadow-2xl sticky top-32 space-y-8">
               <div>
-                <h3 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-[0.4em] italic pb-4 border-b border-border-subtle/50">Mission Assets</h3>
+                <h3 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-[0.4em] italic pb-4 border-b border-border-subtle/50">Cart Summary</h3>
                 
                 <div className="space-y-6 mt-6 mb-10 max-h-60 overflow-y-auto pr-2 scrollbar-hide">
                   {cart.map((item, idx) => (
@@ -332,15 +379,15 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
 
               <div className="space-y-4 border-t border-border-subtle/50 pt-8">
                 <div className="flex justify-between text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                  <span>Subtotal Intel</span>
+                  <span>Subtotal</span>
                   <span>L.E {subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                  <span>Tax Protocols (14%)</span>
+                  <span>VAT (14%)</span>
                   <span>L.E {tax.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-brand-red/20">
-                  <span className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest italic">Total Cost</span>
+                  <span className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest italic">Total</span>
                   <span className="text-2xl font-black text-brand-red italic tracking-tighter">L.E {total.toLocaleString()}</span>
                 </div>
               </div>
@@ -363,7 +410,7 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
                   </>
                 ) : (
                   <>
-                    Launch Operation
+                    Place Order
                     <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -371,7 +418,7 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
 
               <div className="flex items-center justify-center gap-2 text-[8px] font-black text-text-secondary uppercase tracking-[0.2em] italic">
                 <Lock className="h-3 w-3 text-brand-red" />
-                End-to-End Encryption Enabled
+                Secure SSL Checkout Enabled
               </div>
             </div>
           </div>

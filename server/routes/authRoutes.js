@@ -46,6 +46,7 @@ authRoutes.get('/auth/me', requireAuth, async (req, res) => {
         name: req.user.name || null,
         role: req.user.role || null,
         theme: req.user.theme || null,
+        phone: req.user.phone || null,
         permissions: req.user.permissions || null,
       },
     },

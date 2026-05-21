@@ -102,8 +102,8 @@ export const api = {
 };
 
 export const authAPI = {
-  signup: async (email: string, password: string, name: string) => {
-    return requestJson<{ user: any }>(`/auth/register`, { method: 'POST', body: { email, password, name }, auth: 'none' });
+  signup: async (email: string, password: string, name: string, phone?: string) => {
+    return requestJson<{ user: any }>(`/auth/register`, { method: 'POST', body: { email, password, name, phone }, auth: 'none' });
   },
   login: async (email: string, password: string) => {
     return requestJson<{ user: any; session: any }>(`/auth/login`, { method: 'POST', body: { email, password }, auth: 'none' });

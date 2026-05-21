@@ -66,6 +66,7 @@ export async function authMiddleware(req, res, next) {
       role: normalizeRole(userRow.role),
       name: userRow.name,
       theme: userRow.theme,
+      phone: userRow.phone,
       permissions,
     };
     req.token = token;

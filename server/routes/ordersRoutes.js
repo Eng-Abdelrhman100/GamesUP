@@ -70,14 +70,15 @@ ordersRoutes.post('/orders', async (req, res) => {
     const o = req.body || {};
     const [result] = await pool.query(
       `INSERT INTO orders
-       (order_number, customer_name, customer_email, product_name, date, status, amount,
+       (order_number, customer_name, customer_email, phone, product_name, date, status, amount,
         digital_email, digital_password, digital_code, digital_delivery, inventory_id,
         payment_method, payment_proof, shipping_address)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         o.order_number,
         o.customer_name,
         o.customer_email || null,
+        o.phone || null,
         o.product_name || null,
         o.date || null,
         o.status || null,
@@ -117,6 +118,7 @@ ordersRoutes.put('/orders/:id', async (req, res) => {
       setIfDefined('order_number', o.order_number);
       setIfDefined('customer_name', o.customer_name);
       setIfDefined('customer_email', o.customer_email);
+      setIfDefined('phone', o.phone);
       setIfDefined('product_name', o.product_name);
       setIfDefined('date', o.date);
       setIfDefined('status', o.status);
