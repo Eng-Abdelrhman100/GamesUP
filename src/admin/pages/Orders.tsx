@@ -992,6 +992,18 @@ export function Orders() {
                     </div>
                   </div>
 
+                  {/* Checkout Note / Instructions */}
+                  {selectedOrder.shipping_address && (
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Checkout Note / Address</h3>
+                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap font-mono">
+                          {String(selectedOrder.shipping_address)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Product Info */}
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Product Details</h3>

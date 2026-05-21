@@ -36,6 +36,12 @@ interface StoreSettings {
     productIds: string[];
   }[];
   best_selling_product_ids?: string[];
+  instapay_details?: string;
+  instapay_enabled?: boolean;
+  telda_details?: string;
+  telda_enabled?: boolean;
+  vodafone_cash_details?: string;
+  vodafone_cash_enabled?: boolean;
 }
 
 interface StoreSettingsContextType {
@@ -65,6 +71,12 @@ const defaultSettings: StoreSettings = {
   payment_methods: [],
   coming_soon: false,
   best_selling_product_ids: [],
+  instapay_details: '',
+  instapay_enabled: false,
+  telda_details: '',
+  telda_enabled: false,
+  vodafone_cash_details: '',
+  vodafone_cash_enabled: false,
   homepage_categories: [
     {
       id: 'rpg',
@@ -173,6 +185,12 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         homepage_sections: Array.isArray(homepage_sections) ? homepage_sections : [],
         best_selling_product_ids: Array.isArray(best_selling_product_ids) ? best_selling_product_ids.map((v: any) => String(v)) : [],
         coming_soon: data.coming_soon === true || data.coming_soon === 'true',
+        instapay_details: data.instapay_details || '',
+        instapay_enabled: data.instapay_enabled === true || data.instapay_enabled === 'true',
+        telda_details: data.telda_details || '',
+        telda_enabled: data.telda_enabled === true || data.telda_enabled === 'true',
+        vodafone_cash_details: data.vodafone_cash_details || '',
+        vodafone_cash_enabled: data.vodafone_cash_enabled === true || data.vodafone_cash_enabled === 'true',
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
