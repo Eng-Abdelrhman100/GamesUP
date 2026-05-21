@@ -707,8 +707,10 @@ export function Products() {
     { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
   ]);
 
-  const isDigitalGames = formData.category === 'digital-games' || formData.category === 'games' || formData.category === 'digital';
-  const isGiftCards = formData.category === 'gift-cards';
+  const isDigitalGames = (formData.category || '').toLowerCase().includes('digital') || 
+                         (formData.category || '').toLowerCase().includes('games') || 
+                         (formData.name || '').toLowerCase().includes('[digital account]');
+  const isGiftCards = (formData.category || '').toLowerCase().includes('gift-cards');
   const isPhysical = !isDigitalGames && !isGiftCards;
 
   const getInitialCustomSlots = () => {
@@ -1149,9 +1151,9 @@ const handleRemoveDigitalItem = (index: number) => {
 
       let computedStock = 0;
       if (isDigitalGames) {
-        computedStock = countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : []);
+        computedStock = (finalDigitalItems && finalDigitalItems.length > 0) ? countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : []) : (parseInt(formData.stock as any) || 0);
       } else if (isGiftCards) {
-        computedStock = Array.isArray(finalDigitalItems) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : 0;
+        computedStock = (finalDigitalItems && finalDigitalItems.length > 0) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : (parseInt(formData.stock as any) || 0);
       } else {
         computedStock = parseInt(formData.stock as any) || 0;
       }
@@ -1297,7 +1299,7 @@ const handleRemoveDigitalItem = (index: number) => {
       subCategory: product.sub_category_slug || '',
       price: product.price.toString().replace('$', ''),
       cost: product.cost ? product.cost.toString().replace('$', '') : '',
-      stock: product.category_slug === 'gift-cards' ? product.stock : countAvailableSlots(parsedDigitalItems as any[]),
+      stock: product.category_slug === 'gift-cards' ? product.stock : ((parsedDigitalItems && parsedDigitalItems.length > 0) ? countAvailableSlots(parsedDigitalItems as any[]) : product.stock),
       image: product.image,
       attributes: (product.attributes || {}) as Record<string, any>,
       digitalItems: parsedDigitalItems,
@@ -1793,6 +1795,167 @@ const handleRemoveDigitalItem = (index: number) => {
                 </div>
               </div>
 
+              {isDigitalGames && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-md border-t-4 border-t-red-600">
+                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-red-600 text-white rounded-2xl shadow-lg shadow-red-200 dark:shadow-none">
+                      <Layout className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Inventory & Attributes</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-widest">Manage your digital items and selling slots</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={handleExportCSVTemplate} className="text-[10px] px-4 h-9 dark:text-white font-black border-2 rounded-full transition-all active:scale-95">
+                      <Download className="w-3.5 h-3.5 mr-1.5" /> Template
+                    </Button>
+                    <label className="cursor-pointer">
+                      <span className="inline-flex items-center justify-center px-5 h-9 text-[10px] font-black text-white bg-gray-900 rounded-full hover:bg-black transition-all shadow-md uppercase tracking-wider active:scale-95">
+                        <Plus className="w-4 h-4 mr-1.5" /> Import CSV
+                      </span>
+                      <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+                
+                                  {/* Attribute Prices and Costs */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                      Slot Prices & Costs
+                    </h4>
+                    
+                    <VariantGenerator customSlots={customSlots} setCustomSlots={setCustomSlots} />
+
+                    <div className="mb-4 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-purple-700 dark:text-purple-400">Full Account Option</span>
+                          <span className="text-[10px] text-gray-500">Allow customers to buy the entire account exclusively</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Price ({settings.currency_symbol})</label>
+                          <input
+                            type="number" step="0.01"
+                            value={formData.fullAccountPrice || ''}
+                            onChange={(e) => setFormData({ ...formData, fullAccountPrice: e.target.value })}
+                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            placeholder="e.g. 50.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Cost ({settings.currency_symbol})</label>
+                          <input
+                            type="number" step="0.01"
+                            value={formData.fullAccountCost || ''}
+                            onChange={(e) => setFormData({ ...formData, fullAccountCost: e.target.value })}
+                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            placeholder="e.g. 20.00"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-purple-600/70 italic">
+                        * Note: If a user buys a "Full Account", all other slots for that specific email will be locked. If any slot is sold, the "Full Account" option for that email becomes unavailable.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(() => {
+                        // Group slots by prefix before " - "
+                        const groupedSlots = customSlots.reduce((acc, slot) => {
+                          const parts = slot.name.split(' - ');
+                          const group = parts.length > 1 ? parts[0] : 'General';
+                          if (!acc[group]) acc[group] = [];
+                          acc[group].push(slot);
+                          return acc;
+                        }, {} as Record<string, typeof customSlots>);
+
+                        // Sort the groups to maintain a stable order
+                        const sortedGroups = Object.entries(groupedSlots).sort(([a], [b]) => a.localeCompare(b));
+
+                        
+                        return sortedGroups.map(([groupName, slotsInGroup]) => {
+                          const groupItems = formData.digitalItems?.filter((item: any) => {
+                              if (item.assignedGroup) return item.assignedGroup === groupName;
+                              if (item.slots) {
+                                 const firstSlotKey = Object.keys(item.slots)[0];
+                                 if (firstSlotKey) {
+                                    const parts = firstSlotKey.split(' - ');
+                                    const g = parts.length > 1 ? parts[0] : 'General';
+                                    return g === groupName;
+                                 }
+                              }
+                              return groupName === 'General';
+                          });
+                          return (
+                            <GroupEditor 
+                              key={groupName} 
+                              groupName={groupName} 
+                              slotsInGroup={slotsInGroup} 
+                              customSlots={customSlots} 
+                              setCustomSlots={setCustomSlots} 
+                              settings={settings} 
+                              formData={formData} 
+                              onAddStockItem={handleAddGroupStock}
+                              groupItems={groupItems}
+                              onRemoveItem={handleRemoveDigitalItemById}
+                              onUpdateItem={handleUpdateDigitalItem}
+                              onUpdateItemSlot={handleUpdateDigitalItemSlot}
+                              isAdmin={isAdmin}
+                            />
+                          );
+                        });
+  
+                      })()}
+                      
+                      <div className="flex items-center justify-between mt-6 px-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomSlots([...customSlots, { id: crypto.randomUUID(), originalName: '', name: `New Group - Slot 1`, price: '', cost: '' }]);
+                          }}
+                          className="text-xs text-white hover:bg-red-700 font-black flex items-center bg-red-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-2" /> Add New Group
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
+                            const offlineSlots = [
+                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS4`, price: '', cost: '' },
+                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS5`, price: '', cost: '' }
+                            ].filter((s) => !existing.has(String(s.name).toLowerCase()));
+                            if (offlineSlots.length) setCustomSlots([...customSlots, ...offlineSlots]);
+                          }}
+                          className="text-xs text-white hover:bg-indigo-700 font-black flex items-center bg-indigo-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-2" /> Add Offline Group (PS4/PS5)
+                        </button>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 italic font-medium">
+                          * Groups visually organize your slots (e.g., PS4, PS5).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+
+
+
+
+                
+                <p className="text-xs text-gray-500 mt-2">
+                  Total Digital Stock: {formData.stock} total stock slots created
+                </p>
+              </div>
+              )}
+
               {/* Technical Details Section */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
@@ -2000,167 +2163,6 @@ const handleRemoveDigitalItem = (index: number) => {
                     </div>
                   )}
                 </div>
-              )}
-
-              {isDigitalGames && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-md border-t-4 border-t-red-600">
-                  <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-red-600 text-white rounded-2xl shadow-lg shadow-red-200 dark:shadow-none">
-                      <Layout className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Inventory & Attributes</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-widest">Manage your digital items and selling slots</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={handleExportCSVTemplate} className="text-[10px] px-4 h-9 dark:text-white font-black border-2 rounded-full transition-all active:scale-95">
-                      <Download className="w-3.5 h-3.5 mr-1.5" /> Template
-                    </Button>
-                    <label className="cursor-pointer">
-                      <span className="inline-flex items-center justify-center px-5 h-9 text-[10px] font-black text-white bg-gray-900 rounded-full hover:bg-black transition-all shadow-md uppercase tracking-wider active:scale-95">
-                        <Plus className="w-4 h-4 mr-1.5" /> Import CSV
-                      </span>
-                      <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
-                    </label>
-                  </div>
-                </div>
-                
-                                  {/* Attribute Prices and Costs */}
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                      Slot Prices & Costs
-                    </h4>
-                    
-                    <VariantGenerator customSlots={customSlots} setCustomSlots={setCustomSlots} />
-
-                    <div className="mb-4 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-purple-700 dark:text-purple-400">Full Account Option</span>
-                          <span className="text-[10px] text-gray-500">Allow customers to buy the entire account exclusively</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Price ({settings.currency_symbol})</label>
-                          <input
-                            type="number" step="0.01"
-                            value={formData.fullAccountPrice || ''}
-                            onChange={(e) => setFormData({ ...formData, fullAccountPrice: e.target.value })}
-                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="e.g. 50.00"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Cost ({settings.currency_symbol})</label>
-                          <input
-                            type="number" step="0.01"
-                            value={formData.fullAccountCost || ''}
-                            onChange={(e) => setFormData({ ...formData, fullAccountCost: e.target.value })}
-                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="e.g. 20.00"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-purple-600/70 italic">
-                        * Note: If a user buys a "Full Account", all other slots for that specific email will be locked. If any slot is sold, the "Full Account" option for that email becomes unavailable.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {(() => {
-                        // Group slots by prefix before " - "
-                        const groupedSlots = customSlots.reduce((acc, slot) => {
-                          const parts = slot.name.split(' - ');
-                          const group = parts.length > 1 ? parts[0] : 'General';
-                          if (!acc[group]) acc[group] = [];
-                          acc[group].push(slot);
-                          return acc;
-                        }, {} as Record<string, typeof customSlots>);
-
-                        // Sort the groups to maintain a stable order
-                        const sortedGroups = Object.entries(groupedSlots).sort(([a], [b]) => a.localeCompare(b));
-
-                        
-                        return sortedGroups.map(([groupName, slotsInGroup]) => {
-                          const groupItems = formData.digitalItems?.filter((item: any) => {
-                              if (item.assignedGroup) return item.assignedGroup === groupName;
-                              if (item.slots) {
-                                 const firstSlotKey = Object.keys(item.slots)[0];
-                                 if (firstSlotKey) {
-                                    const parts = firstSlotKey.split(' - ');
-                                    const g = parts.length > 1 ? parts[0] : 'General';
-                                    return g === groupName;
-                                 }
-                              }
-                              return groupName === 'General';
-                          });
-                          return (
-                            <GroupEditor 
-                              key={groupName} 
-                              groupName={groupName} 
-                              slotsInGroup={slotsInGroup} 
-                              customSlots={customSlots} 
-                              setCustomSlots={setCustomSlots} 
-                              settings={settings} 
-                              formData={formData} 
-                              onAddStockItem={handleAddGroupStock}
-                              groupItems={groupItems}
-                              onRemoveItem={handleRemoveDigitalItemById}
-                              onUpdateItem={handleUpdateDigitalItem}
-                              onUpdateItemSlot={handleUpdateDigitalItemSlot}
-                              isAdmin={isAdmin}
-                            />
-                          );
-                        });
-  
-                      })()}
-                      
-                      <div className="flex items-center justify-between mt-6 px-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomSlots([...customSlots, { id: crypto.randomUUID(), originalName: '', name: `New Group - Slot 1`, price: '', cost: '' }]);
-                          }}
-                          className="text-xs text-white hover:bg-red-700 font-black flex items-center bg-red-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5 mr-2" /> Add New Group
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
-                            const offlineSlots = [
-                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS4`, price: '', cost: '' },
-                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS5`, price: '', cost: '' }
-                            ].filter((s) => !existing.has(String(s.name).toLowerCase()));
-                            if (offlineSlots.length) setCustomSlots([...customSlots, ...offlineSlots]);
-                          }}
-                          className="text-xs text-white hover:bg-indigo-700 font-black flex items-center bg-indigo-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5 mr-2" /> Add Offline Group (PS4/PS5)
-                        </button>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 italic font-medium">
-                          * Groups visually organize your slots (e.g., PS4, PS5).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-
-
-
-
-                
-                <p className="text-xs text-gray-500 mt-2">
-                  Total Digital Stock: {formData.stock} total stock slots created
-                </p>
-              </div>
               )}
               
               <div className="flex justify-end gap-3 pt-8 border-t border-gray-100 dark:border-gray-700">
