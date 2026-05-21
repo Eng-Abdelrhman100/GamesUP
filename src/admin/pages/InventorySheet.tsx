@@ -33,6 +33,103 @@ interface ProductRow {
   _isDeleted?: boolean;
 }
 
+function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
+  const emails = new Set();
+  const codes = new Set();
+
+  for (const item of itemsToCheck) {
+    if (item.email) {
+      const emailClean = item.email.trim().toLowerCase();
+      if (emailClean) {
+        if (emails.has(emailClean)) {
+          return `Duplicate email "${item.email}" found in the stock list.`;
+        }
+        emails.add(emailClean);
+      }
+    }
+    if (item.outlookEmail) {
+      const outlookClean = item.outlookEmail.trim().toLowerCase();
+      if (outlookClean) {
+        if (emails.has(outlookClean)) {
+          return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
+        }
+        emails.add(outlookClean);
+      }
+    }
+    if (item.code) {
+      const codeClean = item.code.trim().toLowerCase();
+      if (codeClean) {
+        if (codes.has(codeClean)) {
+          return `Duplicate code "${item.code}" found in the stock list.`;
+        }
+        codes.add(codeClean);
+      }
+    }
+    if (item.slots) {
+      for (const slotName of Object.keys(item.slots)) {
+        const slotCode = item.slots[slotName]?.code ? String(item.slots[slotName].code).trim().toLowerCase() : '';
+        if (slotCode) {
+          if (codes.has(slotCode)) {
+            return `Duplicate code "${item.slots[slotName].code}" found in the stock list.`;
+          }
+          codes.add(slotCode);
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function getProductDuplicates(digitalItems: any[]) {
+  const duplicateEmails = new Set<string>();
+  const duplicateCodes = new Set<string>();
+
+  const emailsCount: Record<string, number> = {};
+  const codesCount: Record<string, number> = {};
+
+  for (const item of digitalItems) {
+    if (item.email) {
+      const emailClean = item.email.trim().toLowerCase();
+      if (emailClean) {
+        emailsCount[emailClean] = (emailsCount[emailClean] || 0) + 1;
+      }
+    }
+    if (item.outlookEmail) {
+      const outlookClean = item.outlookEmail.trim().toLowerCase();
+      if (outlookClean) {
+        emailsCount[outlookClean] = (emailsCount[outlookClean] || 0) + 1;
+      }
+    }
+    if (item.code) {
+      const codeClean = item.code.trim().toLowerCase();
+      if (codeClean) {
+        codesCount[codeClean] = (codesCount[codeClean] || 0) + 1;
+      }
+    }
+    if (item.slots) {
+      for (const slotName of Object.keys(item.slots)) {
+        const slotCode = item.slots[slotName]?.code ? String(item.slots[slotName].code).trim().toLowerCase() : '';
+        if (slotCode) {
+          codesCount[slotCode] = (codesCount[slotCode] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  for (const [email, count] of Object.entries(emailsCount)) {
+    if (count > 1) {
+      duplicateEmails.add(email);
+    }
+  }
+  for (const [code, count] of Object.entries(codesCount)) {
+    if (count > 1) {
+      duplicateCodes.add(code);
+    }
+  }
+
+  return { duplicateEmails, duplicateCodes };
+}
+
 export function InventorySheet() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -499,6 +596,17 @@ export function InventorySheet() {
   const handleSaveChanges = async () => {
     if (unsavedChangesCount === 0) return;
 
+    // Validate duplicates for all active rows before saving
+    for (const row of rows) {
+      if (!row._isDeleted) {
+        const dupError = checkDuplicateEmailOrCode(row.digitalItems || []);
+        if (dupError) {
+          alert(`Error saving changes for "${row.name}":\n${dupError}`);
+          return;
+        }
+      }
+    }
+
     try {
       setSaving(true);
       setError(null);
@@ -727,6 +835,15 @@ export function InventorySheet() {
           }
         }
 
+        // Check for duplicates in updatedRows
+        for (const row of updatedRows) {
+          const dupError = checkDuplicateEmailOrCode(row.digitalItems || []);
+          if (dupError) {
+            alert(`CSV Import blocked due to duplicates in "${row.name}":\n${dupError}`);
+            return;
+          }
+        }
+
         setRows(updatedRows);
         alert('CSV data imported successfully. Verify rows and click Save Changes to persist.');
       } catch (err: any) {
@@ -796,6 +913,19 @@ export function InventorySheet() {
         assignedGroup: 'All Groups'
       });
     });
+
+    const targetProd = rows.find(r => String(r.id) === String(bulkAddProductId));
+    if (!targetProd) {
+      alert('Selected product not found.');
+      return;
+    }
+
+    const projectedItems = [...newItems, ...(targetProd.digitalItems || [])];
+    const duplicateError = checkDuplicateEmailOrCode(projectedItems);
+    if (duplicateError) {
+      alert(`Bulk addition blocked due to duplicates:\n${duplicateError}`);
+      return;
+    }
 
     setRows(prev => prev.map(prod => {
       if (String(prod.id) === String(bulkAddProductId)) {
@@ -1345,130 +1475,153 @@ export function InventorySheet() {
                     </tr>
 
                     {/* Expand Detail View (Nested digital stock table) */}
-                    {isExpanded && (
-                      <tr className="bg-gray-50/50 dark:bg-gray-950/40">
-                        <td colSpan={16} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                          <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
-                            <div className="flex justify-between items-center">
-                              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                                Digital Stock Accounts & License Keys for "{row.name || 'this game'}"
-                              </h4>
-                              <Button
-                                onClick={() => handleAddDigitalItemRow(row.id)}
-                                size="sm"
-                                className="bg-brand-red text-white py-1.5 px-3 rounded-lg text-xs"
-                              >
-                                <Plus className="w-3.5 h-3.5 mr-1" /> Add Stock Credentials Set
-                              </Button>
-                            </div>
-
-                            {/* Sub-grid table */}
-                            {(!row.digitalItems || row.digitalItems.length === 0) ? (
-                              <p className="text-xs text-gray-400 italic py-2">No digital stock accounts added yet. Click "+ Add Stock Credentials Set" to populate.</p>
-                            ) : (
-                              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 max-h-[400px] overflow-y-auto">
-                                <table className="w-full text-left text-xs border-collapse table-fixed min-w-[2200px]">
-                                  <thead className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-500 dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-800">
-                                    <tr>
-                                      <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Account Email</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Password</th>
-                                      <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Email</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Pass</th>
-                                      <th className="w-24 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Region</th>
-                                      <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Online ID</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Backup Codes</th>
-                                      
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS4 Code</th>
-                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS5 Code</th>
-                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Secondary Code</th>
-                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS4 Code</th>
-                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                      <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS5 Code</th>
-                                      <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-
-                                      <th className="w-16 px-3 py-2.5 text-center">Actions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                                    {(row.digitalItems || []).map((item) => (
-                                      <tr key={item.id} className="hover:bg-gray-100/50 dark:hover:bg-gray-800/40 bg-white dark:bg-gray-900 transition-colors">
-                                        
-                                        {/* Standard Credentials Fields */}
-                                        {[
-                                          { field: 'email', placeholder: 'Email Address' },
-                                          { field: 'password', placeholder: 'Sony Password' },
-                                          { field: 'outlookEmail', placeholder: 'Recovery Email' },
-                                          { field: 'outlookPassword', placeholder: 'Recovery Password' },
-                                          { field: 'region', placeholder: 'US, EU, etc.' },
-                                          { field: 'onlineId', placeholder: 'Online ID' },
-                                          { field: 'backupCodes', placeholder: '2FA Backup Codes' }
-                                        ].map(col => (
-                                          <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-800">
-                                            <input
-                                              type="text"
-                                              value={item[col.field] || ''}
-                                              placeholder={col.placeholder}
-                                              onChange={(e) => handleDigitalItemChange(row.id, item.id, col.field, e.target.value)}
-                                              className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
-                                            />
-                                          </td>
-                                        ))}
-
-                                        {/* Slots & Sold Checkboxes */}
-                                        {[
-                                          'Primary ps4',
-                                          'Primary ps5',
-                                          'Secondary',
-                                          'Offline ps4',
-                                          'Offline ps5'
-                                        ].map(slotName => (
-                                          <React.Fragment key={slotName}>
-                                            {/* Code Cell */}
-                                            <td className="p-0 border-r border-gray-200 dark:border-gray-800">
-                                              <input
-                                                type="text"
-                                                value={item.slots?.[slotName]?.code || ''}
-                                                placeholder={`${slotName} Key`}
-                                                onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'code', e.target.value)}
-                                                className="w-full h-8 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs font-mono"
-                                              />
-                                            </td>
-                                            {/* Sold Checkbox Cell */}
-                                            <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={!!item.slots?.[slotName]?.sold}
-                                                disabled={!item.slots?.[slotName]?.code}
-                                                onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
-                                                className="rounded text-brand-red focus:ring-brand-red"
-                                              />
-                                            </td>
-                                          </React.Fragment>
-                                        ))}
-
-                                        {/* Delete Action */}
-                                        <td className="px-2 py-1 text-center">
-                                          <button
-                                            onClick={() => handleDeleteDigitalItemRow(row.id, item.id)}
-                                            className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
-                                            title="Delete account stock row"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                    {isExpanded && (() => {
+                      const { duplicateEmails, duplicateCodes } = getProductDuplicates(row.digitalItems || []);
+                      return (
+                        <tr className="bg-gray-50/50 dark:bg-gray-950/40">
+                          <td colSpan={16} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
+                              <div className="flex justify-between items-center">
+                                <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                                  Digital Stock Accounts & License Keys for "{row.name || 'this game'}"
+                                </h4>
+                                <Button
+                                  onClick={() => handleAddDigitalItemRow(row.id)}
+                                  size="sm"
+                                  className="bg-brand-red text-white py-1.5 px-3 rounded-lg text-xs"
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Stock Credentials Set
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
+
+                              {/* Sub-grid table */}
+                              {(!row.digitalItems || row.digitalItems.length === 0) ? (
+                                <p className="text-xs text-gray-400 italic py-2">No digital stock accounts added yet. Click "+ Add Stock Credentials Set" to populate.</p>
+                              ) : (
+                                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 max-h-[400px] overflow-y-auto">
+                                  <table className="w-full text-left text-xs border-collapse table-fixed min-w-[2200px]">
+                                    <thead className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-500 dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-800">
+                                      <tr>
+                                        <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Account Email</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Password</th>
+                                        <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Email</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Pass</th>
+                                        <th className="w-24 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Region</th>
+                                        <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Online ID</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Backup Codes</th>
+                                        
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS4 Code</th>
+                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS5 Code</th>
+                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Secondary Code</th>
+                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS4 Code</th>
+                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS5 Code</th>
+                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+
+                                        <th className="w-16 px-3 py-2.5 text-center">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                      {(row.digitalItems || []).map((item) => (
+                                        <tr key={item.id} className="hover:bg-gray-100/50 dark:hover:bg-gray-800/40 bg-white dark:bg-gray-900 transition-colors">
+                                          
+                                          {/* Standard Credentials Fields */}
+                                          {[
+                                            { field: 'email', placeholder: 'Email Address' },
+                                            { field: 'password', placeholder: 'Sony Password' },
+                                            { field: 'outlookEmail', placeholder: 'Recovery Email' },
+                                            { field: 'outlookPassword', placeholder: 'Recovery Password' },
+                                            { field: 'region', placeholder: 'US, EU, etc.' },
+                                            { field: 'onlineId', placeholder: 'Online ID' },
+                                            { field: 'backupCodes', placeholder: '2FA Backup Codes' }
+                                          ].map(col => {
+                                            const val = item[col.field] || '';
+                                            const isDup = (col.field === 'email' || col.field === 'outlookEmail') &&
+                                              val.trim() &&
+                                              duplicateEmails.has(val.trim().toLowerCase());
+                                            return (
+                                              <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-800">
+                                                <input
+                                                  type="text"
+                                                  value={item[col.field] || ''}
+                                                  placeholder={col.placeholder}
+                                                  onChange={(e) => handleDigitalItemChange(row.id, item.id, col.field, e.target.value)}
+                                                  title={isDup ? "⚠️ Duplicate: Already added for this product!" : col.placeholder}
+                                                  className={`w-full h-8 px-3 text-xs bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-red ${
+                                                    isDup
+                                                      ? 'border border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400 font-semibold animate-pulse'
+                                                      : 'border-none text-gray-900 dark:text-white'
+                                                  }`}
+                                                />
+                                              </td>
+                                            );
+                                          })}
+
+                                          {/* Slots & Sold Checkboxes */}
+                                          {[
+                                            'Primary ps4',
+                                            'Primary ps5',
+                                            'Secondary',
+                                            'Offline ps4',
+                                            'Offline ps5'
+                                          ].map(slotName => {
+                                            const slotVal = item.slots?.[slotName]?.code || '';
+                                            const isSlotDup = slotVal.trim() && duplicateCodes.has(slotVal.trim().toLowerCase());
+                                            return (
+                                              <React.Fragment key={slotName}>
+                                                {/* Code Cell */}
+                                                <td className="p-0 border-r border-gray-200 dark:border-gray-800">
+                                                  <input
+                                                    type="text"
+                                                    value={item.slots?.[slotName]?.code || ''}
+                                                    placeholder={`${slotName} Key`}
+                                                    onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'code', e.target.value)}
+                                                    title={isSlotDup ? "⚠️ Duplicate slot code: Already added for this product!" : `${slotName} Key`}
+                                                    className={`w-full h-8 px-3 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent ${
+                                                      isSlotDup
+                                                        ? 'border border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400 font-semibold animate-pulse'
+                                                        : 'border-none text-gray-900 dark:text-white'
+                                                    }`}
+                                                  />
+                                                </td>
+                                                {/* Sold Checkbox Cell */}
+                                                <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={!!item.slots?.[slotName]?.sold}
+                                                    disabled={!item.slots?.[slotName]?.code}
+                                                    onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
+                                                    className="rounded text-brand-red focus:ring-brand-red"
+                                                  />
+                                                </td>
+                                              </React.Fragment>
+                                            );
+                                          })}
+
+                                          {/* Delete Action */}
+                                          <td className="px-2 py-1 text-center">
+                                            <button
+                                              onClick={() => handleDeleteDigitalItemRow(row.id, item.id)}
+                                              className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
+                                              title="Delete account stock row"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })()}
                   </React.Fragment>
                 );
               })}

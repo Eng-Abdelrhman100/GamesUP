@@ -14,6 +14,59 @@ function parseJsonColumn(value) {
   }
 }
 
+function checkDuplicateDigitalItems(digitalItems) {
+  if (!Array.isArray(digitalItems) || digitalItems.length === 0) return null;
+
+  const emails = new Set();
+  const codes = new Set();
+
+  for (const item of digitalItems) {
+    if (item.email) {
+      const emailClean = item.email.trim().toLowerCase();
+      if (emailClean) {
+        if (emails.has(emailClean)) {
+          return `Duplicate email "${item.email}" found in the stock list.`;
+        }
+        emails.add(emailClean);
+      }
+    }
+    if (item.outlookEmail) {
+      const outlookClean = item.outlookEmail.trim().toLowerCase();
+      if (outlookClean) {
+        if (emails.has(outlookClean)) {
+          return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
+        }
+        emails.add(outlookClean);
+      }
+    }
+
+    if (item.code) {
+      const codeClean = item.code.trim().toLowerCase();
+      if (codeClean) {
+        if (codes.has(codeClean)) {
+          return `Duplicate code "${item.code}" found in the stock list.`;
+        }
+        codes.add(codeClean);
+      }
+    }
+
+    if (item.slots) {
+      for (const slotName of Object.keys(item.slots)) {
+        const slotCode = item.slots[slotName]?.code ? String(item.slots[slotName].code).trim().toLowerCase() : '';
+        if (slotCode) {
+          if (codes.has(slotCode)) {
+            return `Duplicate code "${item.slots[slotName].code}" found in the stock list.`;
+          }
+          codes.add(slotCode);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+
 function normalizeProductRow(row) {
   return {
     ...row,
@@ -87,6 +140,10 @@ productsRoutes.put('/public/products/:id/digital-items', async (req, res) => {
   try {
     const id = req.params.id;
     const { digitalItems } = req.body || {};
+    const duplicateError = checkDuplicateDigitalItems(digitalItems);
+    if (duplicateError) {
+      return res.status(400).json({ success: false, error: duplicateError });
+    }
     await pool.query('UPDATE products SET `digitalItems` = ? WHERE id = ?', [JSON.stringify(digitalItems || []), id]);
     return res.json({ success: true });
   } catch (err) {
@@ -127,6 +184,12 @@ productsRoutes.post('/products', async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+
+      const duplicateError = checkDuplicateDigitalItems(productData.digitalItems);
+      if (duplicateError) {
+        await conn.rollback();
+        return res.status(400).json({ success: false, error: duplicateError });
+      }
 
       const attributesJson = productData.attributes === undefined ? null : JSON.stringify(productData.attributes);
       const digitalItemsJson = productData.digitalItems === undefined ? null : JSON.stringify(productData.digitalItems);
@@ -196,6 +259,14 @@ productsRoutes.put('/products/:id', async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+
+      if (productData.digitalItems !== undefined) {
+        const duplicateError = checkDuplicateDigitalItems(productData.digitalItems);
+        if (duplicateError) {
+          await conn.rollback();
+          return res.status(400).json({ success: false, error: duplicateError });
+        }
+      }
 
       const attributesJson = productData.attributes === undefined ? undefined : JSON.stringify(productData.attributes);
       const digitalItemsJson = productData.digitalItems === undefined ? undefined : JSON.stringify(productData.digitalItems);

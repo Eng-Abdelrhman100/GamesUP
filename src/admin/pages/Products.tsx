@@ -85,6 +85,53 @@ function countAvailableFullAccounts(digitalItems: any[], slotNames?: string[]) {
   return count;
 }
 
+function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
+  const emails = new Set();
+  const codes = new Set();
+
+  for (const item of itemsToCheck) {
+    if (item.email) {
+      const emailClean = item.email.trim().toLowerCase();
+      if (emailClean) {
+        if (emails.has(emailClean)) {
+          return `Duplicate email "${item.email}" found in the stock list.`;
+        }
+        emails.add(emailClean);
+      }
+    }
+    if (item.outlookEmail) {
+      const outlookClean = item.outlookEmail.trim().toLowerCase();
+      if (outlookClean) {
+        if (emails.has(outlookClean)) {
+          return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
+        }
+        emails.add(outlookClean);
+      }
+    }
+    if (item.code) {
+      const codeClean = item.code.trim().toLowerCase();
+      if (codeClean) {
+        if (codes.has(codeClean)) {
+          return `Duplicate code "${item.code}" found in the stock list.`;
+        }
+        codes.add(codeClean);
+      }
+    }
+    if (item.slots) {
+      for (const slotName of Object.keys(item.slots)) {
+        const slotCode = item.slots[slotName]?.code ? String(item.slots[slotName].code).trim().toLowerCase() : '';
+        if (slotCode) {
+          if (codes.has(slotCode)) {
+            return `Duplicate code "${item.slots[slotName].code}" found in the stock list.`;
+          }
+          codes.add(slotCode);
+        }
+      }
+    }
+  }
+  return null;
+}
+
 const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, settings, formData, onAddStockItem, groupItems, onRemoveItem, onUpdateItem, onUpdateItemSlot, isAdmin }: any) => {
   const isOffline = groupName.toLowerCase().includes('offline');
   const [localGroupName, setLocalGroupName] = React.useState(groupName === 'General' ? '' : groupName);
@@ -92,6 +139,40 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
     email: '', password: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
   });
   const [slotCodes, setSlotCodes] = React.useState<Record<string, string>>({});
+
+  const isPsnEmailDup = React.useMemo(() => {
+    if (!newItem.email) return false;
+    const clean = newItem.email.trim().toLowerCase();
+    return (formData.digitalItems || []).some((item: any) => {
+      const email = (item.email || '').trim().toLowerCase();
+      const outlook = (item.outlookEmail || '').trim().toLowerCase();
+      return email === clean || outlook === clean;
+    });
+  }, [newItem.email, formData.digitalItems]);
+
+  const isOutlookEmailDup = React.useMemo(() => {
+    if (!newItem.outlookEmail) return false;
+    const clean = newItem.outlookEmail.trim().toLowerCase();
+    return (formData.digitalItems || []).some((item: any) => {
+      const email = (item.email || '').trim().toLowerCase();
+      const outlook = (item.outlookEmail || '').trim().toLowerCase();
+      return email === clean || outlook === clean;
+    });
+  }, [newItem.outlookEmail, formData.digitalItems]);
+
+  const isAnySlotCodeDup = React.useMemo(() => {
+    return Object.values(slotCodes).some((val) => {
+      const clean = String(val || '').trim().toLowerCase();
+      if (!clean) return false;
+      return (formData.digitalItems || []).some((item: any) => {
+        if (item.code && item.code.trim().toLowerCase() === clean) return true;
+        if (item.slots) {
+          return Object.values(item.slots).some((s: any) => s?.code && String(s.code).trim().toLowerCase() === clean);
+        }
+        return false;
+      });
+    });
+  }, [slotCodes, formData.digitalItems]);
 
   React.useEffect(() => {
     setSlotCodes((prev) => {
@@ -124,6 +205,10 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
   };
 
   const submitStock = () => {
+    if (isPsnEmailDup || isOutlookEmailDup || isAnySlotCodeDup) {
+      alert("Please resolve any duplicate emails or slot codes before adding.");
+      return;
+    }
     onAddStockItem(groupName, { ...newItem, slotCodes });
     setNewItem({ email: '', password: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '' });
     setSlotCodes((prev) => {
@@ -242,12 +327,20 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
             
             <div className="space-y-4">
               <div className="relative">
-                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>PSN Email</label>
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>
+                  PSN Email {isPsnEmailDup && <span className="text-red-500 font-extrabold ml-1.5 animate-pulse text-[10px]">⚠️ Already added!</span>}
+                </label>
                 <div className="relative">
                   <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
                   <input 
                     type="email" value={newItem.email} onChange={e => setNewItem({...newItem, email: e.target.value})} 
-                    className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+                    className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${
+                      isPsnEmailDup
+                        ? 'border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400'
+                        : isOffline 
+                          ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
+                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                    }`}
                     placeholder="example@psn.com"
                   />
                 </div>
@@ -294,10 +387,22 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
 
             <div className="space-y-4">
               <div>
-                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>Outlook Email</label>
+                <label className={`block text-[10px] font-bold mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-400'}`}>
+                  Outlook Email {isOutlookEmailDup && <span className="text-red-500 font-extrabold ml-1.5 animate-pulse text-[10px]">⚠️ Already added!</span>}
+                </label>
                 <div className="relative">
                   <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isOffline ? 'text-gray-500' : 'text-gray-400'}`} />
-                  <input type="email" value={newItem.outlookEmail} onChange={e => setNewItem({...newItem, outlookEmail: e.target.value})} className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`} placeholder="recovery@outlook.com" />
+                  <input 
+                    type="email" value={newItem.outlookEmail} onChange={e => setNewItem({...newItem, outlookEmail: e.target.value})} 
+                    className={`w-full pl-10 pr-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all ${
+                      isOutlookEmailDup
+                        ? 'border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400'
+                        : isOffline 
+                          ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
+                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                    }`}
+                    placeholder="recovery@outlook.com"
+                  />
                 </div>
               </div>
               <div>
@@ -329,14 +434,30 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
             {(slotsInGroup || []).map((slot: any) => {
               const parts = String(slot.name || '').split(' - ');
               const subName = parts.length > 1 ? parts.slice(1).join(' - ') : String(slot.name || '');
+              const currentVal = slotCodes[String(slot.name || '')] || '';
+              const isSlotCodeDup = currentVal.trim() && (formData.digitalItems || []).some((item: any) => {
+                if (item.code && item.code.trim().toLowerCase() === currentVal.trim().toLowerCase()) return true;
+                if (item.slots) {
+                  return Object.values(item.slots).some((s: any) => s?.code && String(s.code).trim().toLowerCase() === currentVal.trim().toLowerCase());
+                }
+                return false;
+              });
               return (
                 <div key={slot.id || slot.name} className="space-y-1.5">
-                  <label className={`block text-[10px] font-bold uppercase tracking-widest ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>{subName}</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-widest ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {subName} {isSlotCodeDup && <span className="text-red-500 font-extrabold ml-1.5 animate-pulse text-[9px]">⚠️ Already added!</span>}
+                  </label>
                   <input
                     type="text"
                     value={slotCodes[String(slot.name || '')] || ''}
                     onChange={(e) => setSlotCodes((prev) => ({ ...prev, [String(slot.name || '')]: e.target.value }))}
-                    className={`w-full px-4 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-mono break-all transition-all ${isOffline ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+                    className={`w-full px-4 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-mono break-all transition-all ${
+                      isSlotCodeDup
+                        ? 'border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400'
+                        : isOffline 
+                          ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
+                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                    }`}
                     placeholder="CODE-XXXX"
                   />
                 </div>
@@ -358,10 +479,13 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
         <button 
           type="button" onClick={submitStock} 
           disabled={
-            !newItem.email &&
-            !newItem.password &&
-            !Object.values(slotCodes || {}).some((v) => String(v || '').trim()) &&
-            !String(newItem.backupCodes || '').trim()
+            isPsnEmailDup ||
+            isOutlookEmailDup ||
+            isAnySlotCodeDup ||
+            (!newItem.email &&
+             !newItem.password &&
+             !Object.values(slotCodes || {}).some((v) => String(v || '').trim()) &&
+             !String(newItem.backupCodes || '').trim())
           } 
           className={`w-full text-base py-4.5 ${isOffline ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-[0_0_30px_rgba(255,255,255,0.15)]' : 'bg-red-600 hover:bg-red-700 text-white'} rounded-full font-black shadow-2xl disabled:opacity-50 transition-all flex items-center justify-center active:scale-[0.97] hover:-translate-y-0.5 group`}
         >
@@ -847,9 +971,17 @@ export function Products() {
         code: code,
       }));
 
+      const currentItems = formData.digitalItems || [];
+      const nextItems = [...currentItems, ...newItems];
+      const duplicateError = checkDuplicateEmailOrCode(nextItems);
+      if (duplicateError) {
+        alert(duplicateError);
+        return;
+      }
+
       setFormData(prev => ({
         ...prev,
-        digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), ...newItems],
+        digitalItems: nextItems,
         stock: prev.stock + codes.length
       }));
       setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
@@ -902,16 +1034,23 @@ export function Products() {
       totalCodes: codes.length
     };
 
+    const currentItems = formData.digitalItems || [];
+    const nextItems = [...currentItems, newItemData];
+    const duplicateError = checkDuplicateEmailOrCode(nextItems);
+    if (duplicateError) {
+      alert(duplicateError);
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      digitalItems: [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData],
-      stock: countAvailableSlots([...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData] as any[])
+      digitalItems: nextItems,
+      stock: countAvailableSlots(nextItems as any[])
     }));
     setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
     setCustomSlots(customSlots.map(s => ({ ...s, price: '', cost: '' })));
   };
 
-  
   const handleRemoveDigitalItemById = (id: string) => {
     setFormData(prev => {
       const nextItems = prev.digitalItems?.filter((i: any) => i.id !== id) || [];
@@ -924,13 +1063,21 @@ export function Products() {
   };
 
   const handleUpdateDigitalItem = (id: string, updates: any) => {
+    const currentItems = formData.digitalItems || [];
+    const nextItems = currentItems.map((item: any) => {
+      if (item.id === id) {
+        return { ...item, ...updates };
+      }
+      return item;
+    });
+
+    const duplicateError = checkDuplicateEmailOrCode(nextItems);
+    if (duplicateError) {
+      alert(duplicateError);
+      return;
+    }
+
     setFormData(prev => {
-      const nextItems = prev.digitalItems?.map((item: any) => {
-        if (item.id === id) {
-          return { ...item, ...updates };
-        }
-        return item;
-      }) || [];
       return {
         ...prev,
         digitalItems: nextItems,
@@ -940,15 +1087,23 @@ export function Products() {
   };
 
   const handleUpdateDigitalItemSlot = (id: string, slotName: string, slotUpdates: any) => {
+    const currentItems = formData.digitalItems || [];
+    const nextItems = currentItems.map((item: any) => {
+      if (item.id === id) {
+        const slots = { ...(item.slots || {}) };
+        slots[slotName] = { ...(slots[slotName] || {}), ...slotUpdates };
+        return { ...item, slots };
+      }
+      return item;
+    });
+
+    const duplicateError = checkDuplicateEmailOrCode(nextItems);
+    if (duplicateError) {
+      alert(duplicateError);
+      return;
+    }
+
     setFormData(prev => {
-      const nextItems = prev.digitalItems?.map((item: any) => {
-        if (item.id === id) {
-          const slots = { ...(item.slots || {}) };
-          slots[slotName] = { ...(slots[slotName] || {}), ...slotUpdates };
-          return { ...item, slots };
-        }
-        return item;
-      }) || [];
       return {
         ...prev,
         digitalItems: nextItems,
@@ -990,8 +1145,15 @@ export function Products() {
       assignedGroup: targetGroupName
     };
 
+    const currentItems = formData.digitalItems || [];
+    const nextItems = [...currentItems, newItemData];
+    const duplicateError = checkDuplicateEmailOrCode(nextItems);
+    if (duplicateError) {
+      alert(duplicateError);
+      return;
+    }
+
     setFormData(prev => {
-      const nextItems = [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), newItemData];
       return {
         ...prev,
         digitalItems: nextItems,
@@ -1104,8 +1266,15 @@ const handleRemoveDigitalItem = (index: number) => {
         }
       }
 
+      const currentItems = formData.digitalItems || [];
+      const nextItems = [...currentItems, ...newItems];
+      const duplicateError = checkDuplicateEmailOrCode(nextItems);
+      if (duplicateError) {
+        alert(duplicateError);
+        return;
+      }
+
       setFormData(prev => {
-        const nextItems = [...(Array.isArray(prev.digitalItems) ? prev.digitalItems : []), ...newItems];
         return {
           ...prev,
           digitalItems: nextItems,
