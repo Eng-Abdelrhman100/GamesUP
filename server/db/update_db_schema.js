@@ -19,14 +19,24 @@ async function main() {
 
   console.log('Connected to DB successfully.');
 
-  // Check if orders table has 'phone' column
-  const [columns] = await connection.query('SHOW COLUMNS FROM orders LIKE "phone"');
-  if (columns.length === 0) {
+  // 1. Check if orders table has 'phone' column
+  const [orderColumns] = await connection.query('SHOW COLUMNS FROM orders LIKE "phone"');
+  if (orderColumns.length === 0) {
     console.log('Adding "phone" column to orders table...');
     await connection.query('ALTER TABLE orders ADD COLUMN phone VARCHAR(64) NULL AFTER customer_email');
     console.log('"phone" column added successfully.');
   } else {
     console.log('"phone" column already exists in orders table.');
+  }
+
+  // 2. Check if products table has 'instructions' column
+  const [productColumns] = await connection.query('SHOW COLUMNS FROM products LIKE "instructions"');
+  if (productColumns.length === 0) {
+    console.log('Adding "instructions" column to products table...');
+    await connection.query('ALTER TABLE products ADD COLUMN instructions TEXT NULL AFTER `purchasedPassword`');
+    console.log('"instructions" column added successfully.');
+  } else {
+    console.log('"instructions" column already exists in products table.');
   }
 
   await connection.end();
