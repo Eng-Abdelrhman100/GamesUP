@@ -1442,16 +1442,24 @@ const handleRemoveDigitalItem = (index: number) => {
 
     const newCustomSlots: { id: string; originalName: string; name: string; price: string; cost: string }[] = [];
 
+    let fullAccountPrice = '';
+    let fullAccountCost = '';
+
     // First check if we have the new product_variants table data
     if (product.product_variants && product.product_variants.length > 0) {
       product.product_variants.forEach((variant: any) => {
-        newCustomSlots.push({
-          id: crypto.randomUUID(),
-          originalName: variant.name,
-          name: variant.name,
-          price: variant.price ? String(variant.price) : '',
-          cost: variant.cost ? String(variant.cost) : ''
-        });
+        if (variant.name.toLowerCase() === 'full account') {
+          fullAccountPrice = variant.price ? String(variant.price) : '';
+          fullAccountCost = variant.cost ? String(variant.cost) : '';
+        } else {
+          newCustomSlots.push({
+            id: crypto.randomUUID(),
+            originalName: variant.name,
+            name: variant.name,
+            price: variant.price ? String(variant.price) : '',
+            cost: variant.cost ? String(variant.cost) : ''
+          });
+        }
       });
     } 
     // Fallback to legacy JSONB approach
@@ -1459,13 +1467,18 @@ const handleRemoveDigitalItem = (index: number) => {
       const itemWithSlots = parsedDigitalItems.find((item: any) => item.slots);
       if (itemWithSlots && itemWithSlots.slots) {
         Object.entries(itemWithSlots.slots).forEach(([attr, slot]: [string, any]) => {
-          newCustomSlots.push({
-            id: crypto.randomUUID(),
-            originalName: attr,
-            name: attr,
-            price: slot.price ? String(slot.price) : '',
-            cost: slot.cost ? String(slot.cost) : ''
-          });
+          if (attr.toLowerCase() === 'full account') {
+            fullAccountPrice = slot.price ? String(slot.price) : '';
+            fullAccountCost = slot.cost ? String(slot.cost) : '';
+          } else {
+            newCustomSlots.push({
+              id: crypto.randomUUID(),
+              originalName: attr,
+              name: attr,
+              price: slot.price ? String(slot.price) : '',
+              cost: slot.cost ? String(slot.cost) : ''
+            });
+          }
         });
       }
     }
@@ -1497,6 +1510,8 @@ const handleRemoveDigitalItem = (index: number) => {
       sendEmailEnabled: product.sendEmailEnabled || false,
       emailTemplate: product.emailTemplate === 'rules_for_games' ? '' : (product.emailTemplate || ''),
       isRulesTemplate: product.emailTemplate === 'rules_for_games' || product.isRulesTemplate || false,
+      fullAccountPrice,
+      fullAccountCost,
     });
     setIsAddModalOpen(true);
   };
@@ -1716,7 +1731,22 @@ const handleRemoveDigitalItem = (index: number) => {
                   <h3 className="font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{product.category_slug}</p>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-lg font-bold text-red-600 dark:text-red-400">{formatPrice(product.price)}</span>
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                      {(() => {
+                        const basePrice = parseFloat(product.price as any) || 0;
+                        if (basePrice > 0) return formatPrice(basePrice);
+                        
+                        const variantPrices = (product.product_variants || [])
+                          .map((v: any) => parseFloat(v.price))
+                          .filter(p => !isNaN(p) && p > 0);
+                        
+                        if (variantPrices.length > 0) {
+                          return formatPrice(Math.min(...variantPrices));
+                        }
+                        
+                        return formatPrice(0);
+                      })()}
+                    </span>
                     <span className="text-sm text-gray-500 dark:text-gray-400">Stock: {product.stock}</span>
                   </div>
                   <div className="mt-4 flex gap-2">
