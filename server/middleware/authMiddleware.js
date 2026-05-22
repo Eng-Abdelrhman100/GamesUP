@@ -91,3 +91,25 @@ export function requireRoles(allowedRoles) {
   };
 }
 
+export function requirePermission(moduleName, level = 'read') {
+  return function permissionMiddleware(req, res, next) {
+    if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    
+    const role = normalizeRole(req.user.role);
+    // Admin always has full access
+    if (role === 'admin') return next();
+
+    const perms = req.user.permissions || {};
+    const userLevel = perms[moduleName];
+
+    if (level === 'write') {
+      if (userLevel === 'write' || userLevel === true) return next();
+    } else {
+      // For 'read', both 'read' and 'write' are acceptable
+      if (userLevel === 'read' || userLevel === 'write' || userLevel === true) return next();
+    }
+
+    return res.status(403).json({ success: false, error: `Forbidden: Missing ${level} permission for ${moduleName}` });
+  };
+}
+

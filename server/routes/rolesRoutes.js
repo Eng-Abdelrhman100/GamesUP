@@ -23,10 +23,13 @@ rolesRoutes.post('/roles', async (req, res) => {
   return requireRoles(['admin'])(req, res, async () => {
     try {
       const r = req.body || {};
+      const normalizedName = String(r.name || '').trim().toLowerCase();
+      if (!normalizedName) return res.status(400).json({ success: false, error: 'Role name is required' });
+      
       const permissionsJson = r.permissions ? JSON.stringify(r.permissions) : null;
       const [result] = await pool.query(
         'INSERT INTO roles (name, permissions, description) VALUES (?, ?, ?)',
-        [r.name, permissionsJson, r.description || null]
+        [normalizedName, permissionsJson, r.description || null]
       );
       const [rows] = await pool.query('SELECT * FROM roles WHERE id = ? LIMIT 1', [result.insertId]);
       const row = rows[0];
@@ -42,9 +45,12 @@ rolesRoutes.put('/roles/:id', async (req, res) => {
     try {
       const id = req.params.id;
       const r = req.body || {};
+      const normalizedName = String(r.name || '').trim().toLowerCase();
+      if (!normalizedName) return res.status(400).json({ success: false, error: 'Role name is required' });
+
       const permissionsJson = r.permissions ? JSON.stringify(r.permissions) : null;
       await pool.query('UPDATE roles SET name = ?, permissions = ?, description = ? WHERE id = ?', [
-        r.name,
+        normalizedName,
         permissionsJson,
         r.description || null,
         id,

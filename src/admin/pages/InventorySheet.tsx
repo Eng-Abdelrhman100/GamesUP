@@ -38,24 +38,27 @@ function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
   const codes = new Set();
 
   for (const item of itemsToCheck) {
+    const itemEmails = new Set();
     if (item.email) {
       const emailClean = item.email.trim().toLowerCase();
       if (emailClean) {
         if (emails.has(emailClean)) {
           return `Duplicate email "${item.email}" found in the stock list.`;
         }
-        emails.add(emailClean);
+        itemEmails.add(emailClean);
       }
     }
     if (item.outlookEmail) {
       const outlookClean = item.outlookEmail.trim().toLowerCase();
       if (outlookClean) {
-        if (emails.has(outlookClean)) {
+        if (emails.has(outlookClean) && !itemEmails.has(outlookClean)) {
           return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
         }
-        emails.add(outlookClean);
+        itemEmails.add(outlookClean);
       }
     }
+    itemEmails.forEach(e => emails.add(e));
+
     if (item.code) {
       const codeClean = item.code.trim().toLowerCase();
       if (codeClean) {
@@ -88,18 +91,24 @@ function getProductDuplicates(digitalItems: any[]) {
   const codesCount: Record<string, number> = {};
 
   for (const item of digitalItems) {
+    const itemEmails = new Set<string>();
     if (item.email) {
       const emailClean = item.email.trim().toLowerCase();
       if (emailClean) {
-        emailsCount[emailClean] = (emailsCount[emailClean] || 0) + 1;
+        itemEmails.add(emailClean);
       }
     }
     if (item.outlookEmail) {
       const outlookClean = item.outlookEmail.trim().toLowerCase();
       if (outlookClean) {
-        emailsCount[outlookClean] = (emailsCount[outlookClean] || 0) + 1;
+        itemEmails.add(outlookClean);
       }
     }
+    
+    itemEmails.forEach(email => {
+      emailsCount[email] = (emailsCount[email] || 0) + 1;
+    });
+
     if (item.code) {
       const codeClean = item.code.trim().toLowerCase();
       if (codeClean) {
@@ -140,6 +149,8 @@ export function InventorySheet() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(true);
 
   // Search & filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -252,6 +263,21 @@ export function InventorySheet() {
   };
 
   useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const parsed = JSON.parse(userStr);
+        const role = String(parsed?.user_metadata?.role || '').toLowerCase();
+        const perms = parsed?.user_metadata?.permissions || {};
+        
+        // Check if user has at least read permission for products
+        const canRead = perms.products === 'read' || perms.products === 'write' || perms.products === true;
+        const isLegacyAdmin = role === 'admin' || role === 'manager';
+
+        setIsAdmin(isLegacyAdmin || canRead);
+        setIsSuperAdmin(role === 'admin');
+      }
+    } catch (e) {}
     loadData();
   }, []);
 
@@ -1199,9 +1225,11 @@ export function InventorySheet() {
                 <th className="w-28 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Price
                 </th>
-                <th className="w-28 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Cost
-                </th>
+                {isSuperAdmin && (
+                  <th className="w-28 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Cost
+                  </th>
+                )}
                 <th className="w-24 px-3 py-3 border-r border-gray-200 dark:border-gray-700 font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
                   Stock
                 </th>
@@ -1358,16 +1386,18 @@ export function InventorySheet() {
                       </td>
 
                       {/* Cost */}
-                      <td className="p-0 border-r border-gray-200 dark:border-gray-700">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={row.cost != null ? row.cost : ''}
-                          onChange={(e) => handleCellChange(row.id, 'cost', e.target.value ? parseFloat(e.target.value) : null)}
-                          placeholder="0.00"
-                          className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
-                        />
-                      </td>
+                      {isSuperAdmin && (
+                        <td className="p-0 border-r border-gray-200 dark:border-gray-700">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={row.cost != null ? row.cost : ''}
+                            onChange={(e) => handleCellChange(row.id, 'cost', e.target.value ? parseFloat(e.target.value) : null)}
+                            placeholder="0.00"
+                            className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs"
+                          />
+                        </td>
+                      )}
 
                       {/* Stock (Read-only if digital items present, otherwise editable) */}
                       <td className="p-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50/10">

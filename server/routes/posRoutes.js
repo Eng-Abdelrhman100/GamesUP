@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
-import { requireRoles } from '../middleware/authMiddleware.js';
+import { requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 
 export const posRoutes = Router();
 
 posRoutes.post('/pos/invoice', async (req, res) => {
-  return requireRoles(['admin', 'manager', 'staff'])(req, res, async () => {
+  return requirePermission('pos', 'write')(req, res, async () => {
     try {
       const invoice = req.body || {};
       const orderNumber = invoice.order_number || `ORD-${Date.now()}`;
@@ -32,7 +32,7 @@ posRoutes.post('/pos/invoice', async (req, res) => {
 });
 
 posRoutes.get('/pos/invoices', async (req, res) => {
-  return requireRoles(['admin', 'manager', 'staff'])(req, res, async () => {
+  return requirePermission('pos', 'read')(req, res, async () => {
     try {
       const [rows] = await pool.query("SELECT * FROM orders WHERE inventory_id = 'POS' ORDER BY created_at DESC");
       return res.json(rows);

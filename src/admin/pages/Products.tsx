@@ -90,24 +90,27 @@ function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
   const codes = new Set();
 
   for (const item of itemsToCheck) {
+    const itemEmails = new Set();
     if (item.email) {
       const emailClean = item.email.trim().toLowerCase();
       if (emailClean) {
         if (emails.has(emailClean)) {
           return `Duplicate email "${item.email}" found in the stock list.`;
         }
-        emails.add(emailClean);
+        itemEmails.add(emailClean);
       }
     }
     if (item.outlookEmail) {
       const outlookClean = item.outlookEmail.trim().toLowerCase();
       if (outlookClean) {
-        if (emails.has(outlookClean)) {
+        if (emails.has(outlookClean) && !itemEmails.has(outlookClean)) {
           return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
         }
-        emails.add(outlookClean);
+        itemEmails.add(outlookClean);
       }
     }
+    itemEmails.forEach(e => emails.add(e));
+
     if (item.code) {
       const codeClean = item.code.trim().toLowerCase();
       if (codeClean) {
@@ -159,6 +162,12 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
       return email === clean || outlook === clean;
     });
   }, [newItem.outlookEmail, formData.digitalItems]);
+
+  const isPsnSameAsOutlook = React.useMemo(() => {
+    const psn = newItem.email.trim().toLowerCase();
+    const outlook = newItem.outlookEmail.trim().toLowerCase();
+    return !!(psn && outlook && psn === outlook);
+  }, [newItem.email, newItem.outlookEmail]);
 
   const isAnySlotCodeDup = React.useMemo(() => {
     return Object.values(slotCodes).some((val) => {
@@ -338,8 +347,8 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                       isPsnEmailDup
                         ? 'border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400'
                         : isOffline 
-                          ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
-                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                            ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
+                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                     }`}
                     placeholder="example@psn.com"
                   />
@@ -398,8 +407,8 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                       isOutlookEmailDup
                         ? 'border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400'
                         : isOffline 
-                          ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
-                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                            ? 'bg-gray-900/50 border-gray-700 text-white placeholder-gray-600' 
+                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                     }`}
                     placeholder="recovery@outlook.com"
                   />
@@ -780,6 +789,7 @@ export function Products() {
   const { settings, formatPrice } = useStoreSettings();
   const [products, setProducts] = useState<Product[]>([]);
   const [isAdmin, setIsAdmin] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [subCategories, setSubCategories] = useState<any[]>([]);
   const [attributes, setAttributes] = useState<any[]>([]);
@@ -863,7 +873,17 @@ export function Products() {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const parsed = JSON.parse(userStr);
-        setIsAdmin((parsed?.user_metadata?.role || 'admin') === 'admin');
+        const role = String(parsed?.user_metadata?.role || '').toLowerCase();
+        const perms = parsed?.user_metadata?.permissions || {};
+        
+        // Check if user has at least read permission for products
+        const canRead = perms.products === 'read' || perms.products === 'write' || perms.products === true;
+        
+        // If it's a legacy admin/manager without JSON perms, they should still have access
+        const isLegacyAdmin = role === 'admin' || role === 'manager';
+        
+        setIsAdmin(isLegacyAdmin || canRead);
+        setIsSuperAdmin(role === 'admin');
       }
     } catch(e) {}
   }, []);
@@ -1902,7 +1922,7 @@ const handleRemoveDigitalItem = (index: number) => {
                           />
                         </div>
                       </div>
-                      {isAdmin && (
+                      {isSuperAdmin && (
                         <div>
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Base Cost</label>
                           <div className="relative">
@@ -2017,16 +2037,18 @@ const handleRemoveDigitalItem = (index: number) => {
                             placeholder="e.g. 50.00"
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Cost ({settings.currency_symbol})</label>
-                          <input
-                            type="number" step="0.01"
-                            value={formData.fullAccountCost || ''}
-                            onChange={(e) => setFormData({ ...formData, fullAccountCost: e.target.value })}
-                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="e.g. 20.00"
-                          />
-                        </div>
+                        {isSuperAdmin && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Cost ({settings.currency_symbol})</label>
+                            <input
+                              type="number" step="0.01"
+                              value={formData.fullAccountCost || ''}
+                              onChange={(e) => setFormData({ ...formData, fullAccountCost: e.target.value })}
+                              className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                              placeholder="e.g. 20.00"
+                            />
+                          </div>
+                        )}
                       </div>
                       <p className="text-[10px] text-purple-600/70 italic">
                         * Note: If a user buys a "Full Account", all other slots for that specific email will be locked. If any slot is sold, the "Full Account" option for that email becomes unavailable.
@@ -2075,7 +2097,7 @@ const handleRemoveDigitalItem = (index: number) => {
                               onRemoveItem={handleRemoveDigitalItemById}
                               onUpdateItem={handleUpdateDigitalItem}
                               onUpdateItemSlot={handleUpdateDigitalItemSlot}
-                              isAdmin={isAdmin}
+                              isAdmin={isSuperAdmin}
                             />
                           );
                         });

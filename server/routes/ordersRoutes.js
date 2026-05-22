@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
-import { requireAuth, requireRoles } from '../middleware/authMiddleware.js';
+import { requireAuth, requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 
 export const ordersRoutes = Router();
 
@@ -22,7 +22,7 @@ function normalizeOrderRow(row) {
   };
 }
 
-ordersRoutes.get('/orders', requireAuth, async (req, res) => {
+ordersRoutes.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const params = req.query || {};
     const status = params.status ? String(params.status) : null;
@@ -100,48 +100,46 @@ ordersRoutes.post('/orders', async (req, res) => {
   }
 });
 
-ordersRoutes.put('/orders/:id', async (req, res) => {
-  return requireRoles(['admin', 'manager', 'staff'])(req, res, async () => {
-    try {
-      const id = req.params.id;
-      const o = req.body || {};
+ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const o = req.body || {};
 
-      const updates = [];
-      const values = [];
-      const setIfDefined = (col, val) => {
-        if (val !== undefined) {
-          updates.push(`${col} = ?`);
-          values.push(val);
-        }
-      };
-
-      setIfDefined('order_number', o.order_number);
-      setIfDefined('customer_name', o.customer_name);
-      setIfDefined('customer_email', o.customer_email);
-      setIfDefined('phone', o.phone);
-      setIfDefined('product_name', o.product_name);
-      setIfDefined('date', o.date);
-      setIfDefined('status', o.status);
-      setIfDefined('amount', o.amount);
-      setIfDefined('digital_email', o.digital_email);
-      setIfDefined('digital_password', o.digital_password);
-      setIfDefined('digital_code', o.digital_code);
-      if (o.digital_delivery !== undefined) setIfDefined('digital_delivery', o.digital_delivery ? JSON.stringify(o.digital_delivery) : null);
-      setIfDefined('inventory_id', o.inventory_id);
-      setIfDefined('payment_method', o.payment_method);
-      setIfDefined('payment_proof', o.payment_proof);
-      if (o.shipping_address !== undefined) setIfDefined('shipping_address', o.shipping_address ? JSON.stringify(o.shipping_address) : null);
-
-      if (updates.length) {
-        values.push(id);
-        await pool.query(`UPDATE orders SET ${updates.join(', ')} WHERE id = ?`, values);
+    const updates = [];
+    const values = [];
+    const setIfDefined = (col, val) => {
+      if (val !== undefined) {
+        updates.push(`${col} = ?`);
+        values.push(val);
       }
+    };
 
-      const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
-      return res.json(normalizeOrderRow(rows[0]));
-    } catch (err) {
-      return res.status(500).json({ success: false, error: err.message || 'Failed to update order' });
+    setIfDefined('order_number', o.order_number);
+    setIfDefined('customer_name', o.customer_name);
+    setIfDefined('customer_email', o.customer_email);
+    setIfDefined('phone', o.phone);
+    setIfDefined('product_name', o.product_name);
+    setIfDefined('date', o.date);
+    setIfDefined('status', o.status);
+    setIfDefined('amount', o.amount);
+    setIfDefined('digital_email', o.digital_email);
+    setIfDefined('digital_password', o.digital_password);
+    setIfDefined('digital_code', o.digital_code);
+    if (o.digital_delivery !== undefined) setIfDefined('digital_delivery', o.digital_delivery ? JSON.stringify(o.digital_delivery) : null);
+    setIfDefined('inventory_id', o.inventory_id);
+    setIfDefined('payment_method', o.payment_method);
+    setIfDefined('payment_proof', o.payment_proof);
+    if (o.shipping_address !== undefined) setIfDefined('shipping_address', o.shipping_address ? JSON.stringify(o.shipping_address) : null);
+
+    if (updates.length) {
+      values.push(id);
+      await pool.query(`UPDATE orders SET ${updates.join(', ')} WHERE id = ?`, values);
     }
-  });
+
+    const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
+    return res.json(normalizeOrderRow(rows[0]));
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'Failed to update order' });
+  }
 });
 

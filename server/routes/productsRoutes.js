@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
-import { requireRoles } from '../middleware/authMiddleware.js';
+import { requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 
 export const productsRoutes = Router();
 
@@ -21,24 +21,28 @@ function checkDuplicateDigitalItems(digitalItems) {
   const codes = new Set();
 
   for (const item of digitalItems) {
+    const itemEmails = new Set();
     if (item.email) {
       const emailClean = item.email.trim().toLowerCase();
       if (emailClean) {
         if (emails.has(emailClean)) {
           return `Duplicate email "${item.email}" found in the stock list.`;
         }
-        emails.add(emailClean);
+        itemEmails.add(emailClean);
       }
     }
     if (item.outlookEmail) {
       const outlookClean = item.outlookEmail.trim().toLowerCase();
       if (outlookClean) {
-        if (emails.has(outlookClean)) {
+        if (emails.has(outlookClean) && !itemEmails.has(outlookClean)) {
           return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
         }
-        emails.add(outlookClean);
+        itemEmails.add(outlookClean);
       }
     }
+    
+    // Add item unique emails to the global set
+    itemEmails.forEach(e => emails.add(e));
 
     if (item.code) {
       const codeClean = item.code.trim().toLowerCase();
@@ -152,7 +156,7 @@ productsRoutes.put('/public/products/:id/digital-items', async (req, res) => {
 });
 
 productsRoutes.get('/products', async (req, res) => {
-  return requireRoles(['admin', 'manager', 'staff'])(req, res, async () => {
+  return requirePermission('products', 'read')(req, res, async () => {
     const [rows] = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
     const products = rows.map(normalizeProductRow);
     const withVariants = await attachVariants(products);
@@ -161,7 +165,7 @@ productsRoutes.get('/products', async (req, res) => {
 });
 
 productsRoutes.get('/products/:id', async (req, res) => {
-  return requireRoles(['admin', 'manager', 'staff'])(req, res, async () => {
+  return requirePermission('products', 'read')(req, res, async () => {
     const id = req.params.id;
     const [rows] = await pool.query('SELECT * FROM products WHERE id = ? LIMIT 1', [id]);
     if (!rows.length) return res.status(404).json({ success: false, error: 'Not found' });
@@ -175,7 +179,7 @@ productsRoutes.get('/products/:id', async (req, res) => {
 });
 
 productsRoutes.post('/products', async (req, res) => {
-  return requireRoles(['admin', 'manager'])(req, res, async () => {
+  return requirePermission('products', 'write')(req, res, async () => {
     const body = req.body || {};
     const variants = Array.isArray(body.product_variants) ? body.product_variants : [];
     const productData = { ...body };
@@ -249,7 +253,7 @@ productsRoutes.post('/products', async (req, res) => {
 });
 
 productsRoutes.put('/products/:id', async (req, res) => {
-  return requireRoles(['admin', 'manager'])(req, res, async () => {
+  return requirePermission('products', 'write')(req, res, async () => {
     const id = req.params.id;
     const body = req.body || {};
     const variants = body.product_variants;
@@ -307,14 +311,14 @@ productsRoutes.put('/products/:id', async (req, res) => {
         await conn.query('DELETE FROM product_variants WHERE product_id = ?', [id]);
         if (Array.isArray(variants) && variants.length) {
           const vValues = [];
-          const placeholders = variants
+          const vPlaceholders = variants
             .map((v) => {
               vValues.push(id, v.name, v.price ?? null, v.cost ?? null, v.stock ?? 0);
               return '(?, ?, ?, ?, ?)';
             })
             .join(', ');
           await conn.query(
-            `INSERT INTO product_variants (product_id, name, price, cost, stock) VALUES ${placeholders}`,
+            `INSERT INTO product_variants (product_id, name, price, cost, stock) VALUES ${vPlaceholders}`,
             vValues
           );
         }
@@ -334,7 +338,7 @@ productsRoutes.put('/products/:id', async (req, res) => {
 });
 
 productsRoutes.delete('/products/:id', async (req, res) => {
-  return requireRoles(['admin', 'manager'])(req, res, async () => {
+  return requirePermission('products', 'write')(req, res, async () => {
     const id = req.params.id;
     await pool.query('DELETE FROM products WHERE id = ?', [id]);
     return res.json({ success: true });
@@ -342,7 +346,7 @@ productsRoutes.delete('/products/:id', async (req, res) => {
 });
 
 productsRoutes.get('/products/:id/overview', async (req, res) => {
-  return requireRoles(['admin', 'manager', 'staff'])(req, res, async () => {
+  return requirePermission('products', 'read')(req, res, async () => {
     const productId = req.params.id;
     const [productRows] = await pool.query('SELECT * FROM products WHERE id = ? LIMIT 1', [productId]);
     if (!productRows.length) return res.status(404).json({ success: false, error: 'Not found' });
