@@ -44,13 +44,14 @@ function checkDuplicateDigitalItems(digitalItems) {
     // Add item unique emails to the global set
     itemEmails.forEach(e => emails.add(e));
 
+    const itemCodes = new Set();
     if (item.code) {
       const codeClean = item.code.trim().toLowerCase();
       if (codeClean) {
         if (codes.has(codeClean)) {
           return `Duplicate code "${item.code}" found in the stock list.`;
         }
-        codes.add(codeClean);
+        itemCodes.add(codeClean);
       }
     }
 
@@ -58,13 +59,14 @@ function checkDuplicateDigitalItems(digitalItems) {
       for (const slotName of Object.keys(item.slots)) {
         const slotCode = item.slots[slotName]?.code ? String(item.slots[slotName].code).trim().toLowerCase() : '';
         if (slotCode) {
-          if (codes.has(slotCode)) {
+          if (codes.has(slotCode) && !itemCodes.has(slotCode)) {
             return `Duplicate code "${item.slots[slotName].code}" found in the stock list.`;
           }
-          codes.add(slotCode);
+          itemCodes.add(slotCode);
         }
       }
     }
+    itemCodes.forEach(c => codes.add(c));
   }
 
   return null;
