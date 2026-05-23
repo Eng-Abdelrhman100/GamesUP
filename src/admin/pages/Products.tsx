@@ -971,9 +971,9 @@ export function Products() {
     try {
       const { url } = await uploadAPI.uploadImage(file);
       setFormData(prev => ({ ...prev, image: normalizeImageSrc(url) }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file. Please ensure you have created a "products" bucket in Supabase Storage and set it to Public.');
+      alert('Failed to upload file. Please verify that your Express server is running and the "server/uploads/products" folder has write permissions.');
     }
   };
 

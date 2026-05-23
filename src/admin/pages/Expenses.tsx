@@ -121,7 +121,8 @@ export function Expenses() {
 
   const showMissingTableHint =
     !!error &&
-    (error.toLowerCase().includes('does not exist') ||
+    (error.toLowerCase().includes("doesn't exist") ||
+      error.toLowerCase().includes("does not exist") ||
       error.toLowerCase().includes('schema cache') ||
       error.toLowerCase().includes('42p01') ||
       error.toLowerCase().includes('pgrst'));
@@ -154,16 +155,19 @@ export function Expenses() {
           <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
           {showMissingTableHint && (
             <div className="mt-4 space-y-3">
-              <p className="text-sm text-gray-700 dark:text-gray-300">Create the database table in Supabase SQL Editor:</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Create the database table in MySQL:</p>
               <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto text-gray-800 dark:text-gray-200">
-{`create table if not exists public.expenses (
-  id bigserial primary key,
-  title text not null,
-  description text,
-  amount numeric not null,
-  date date default (now()::date),
-  created_at timestamptz default now()
-);`}
+{`CREATE TABLE IF NOT EXISTS expenses (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(191) NOT NULL,
+  description TEXT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  date DATE NOT NULL DEFAULT (CURRENT_DATE),
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  KEY idx_expenses_date (date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`}
               </pre>
             </div>
           )}

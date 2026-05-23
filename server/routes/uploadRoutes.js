@@ -13,7 +13,7 @@ function ensureDir(dirPath) {
 function createStorage(subdir) {
   return multer.diskStorage({
     destination: (req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), 'server', 'uploads', subdir);
+      const uploadDir = path.join(__dirname, '..', 'uploads', subdir);
       ensureDir(uploadDir);
       cb(null, uploadDir);
     },

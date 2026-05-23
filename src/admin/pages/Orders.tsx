@@ -129,30 +129,31 @@ export function Orders() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      // Find the order first
-      const order = orders.find(o => o.id === id);
+      // Perform database update and capture the updated order record returned
+      const updatedOrder = await ordersAPI.update(id, { status: newStatus });
       
-      await ordersAPI.update(id, { status: newStatus });
-      setOrders(orders.map((o) => (o.id === id ? { ...o, status: newStatus } : o)));
+      setOrders(orders.map((o) => (o.id === id ? { ...o, ...updatedOrder, status: newStatus } : o)));
       
       // If status changed to 'completed', send digital delivery email
-      if (newStatus === 'completed' && order) {
+      if (newStatus === 'completed' && updatedOrder) {
         let digitalItems: any[] = [];
         try {
-          if (order.digital_delivery) {
-            digitalItems = JSON.parse(order.digital_delivery);
-          } else if (order.digital_code) {
-            // Fallback for old orders
+          if (updatedOrder.digital_delivery) {
+            digitalItems = typeof updatedOrder.digital_delivery === 'string'
+              ? JSON.parse(updatedOrder.digital_delivery)
+              : updatedOrder.digital_delivery;
+          } else if (updatedOrder.digital_code || updatedOrder.digital_email || updatedOrder.digital_password) {
+            // Fallback for old orders or manually edited fields
             digitalItems = [{
-              name: order.product_name,
-              code: order.digital_code,
-              email: order.digital_email,
-              password: order.digital_password
+              name: updatedOrder.product_name,
+              code: updatedOrder.digital_code,
+              email: updatedOrder.digital_email,
+              password: updatedOrder.digital_password
             }];
           }
           
           if (digitalItems.length > 0) {
-            await emailService.sendDigitalDelivery(order, digitalItems);
+            await emailService.sendDigitalDelivery(updatedOrder, digitalItems);
           }
         } catch (parseError) {
           console.error('Error parsing digital items for email:', parseError);

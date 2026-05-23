@@ -19,7 +19,8 @@ app.use(cors({ origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'server', 'uploads')));
+const uploadsDir = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 app.use('/admin', adminRouter);
 app.use('/api', apiRouter);
