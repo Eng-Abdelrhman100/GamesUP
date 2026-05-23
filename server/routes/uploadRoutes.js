@@ -3,6 +3,10 @@ import path from 'path';
 import multer from 'multer';
 import { Router } from 'express';
 import { requireRoles } from '../middleware/authMiddleware.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const uploadRoutes = Router();
 
