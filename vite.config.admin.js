@@ -57,7 +57,7 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
-        admin: path.resolve(__dirname, 'admin.html'),
+        index: path.resolve(__dirname, 'admin.html'),
       },
     },
     chunkSizeWarningLimit: 1000,

@@ -1,3 +1,4 @@
+import './init-log.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import express from 'express';
@@ -150,12 +151,26 @@ async function bootstrap() {
   await ensureProductAttributesSeeded();
   await ensureHomepageCategoriesSeeded();
   await ensureSystemCategoriesSeeded();
-  app.listen(port, () => {
+  app.listen(port, async () => {
     console.log(`API Server running at http://localhost:${port}`);
+    try {
+      const fs = await import('fs');
+      const logPath = path.join(__dirname, '..', 'dist', 'error_log.txt');
+      fs.appendFileSync(logPath, `[${new Date().toISOString()}] Server successfully listening on port ${port}\n`, 'utf8');
+    } catch (e) {
+      console.error('Failed to write startup confirmation:', e);
+    }
   });
 }
 
-bootstrap().catch((err) => {
+bootstrap().catch(async (err) => {
   console.error('Failed to start API server:', err);
+  try {
+    const fs = await import('fs');
+    const logPath = path.join(__dirname, '..', 'dist', 'error_log.txt');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] CRITICAL STARTUP FAILURE:\n${err && err.stack ? err.stack : err}\n\n`, 'utf8');
+  } catch (e) {
+    console.error('Failed to write startup failure:', e);
+  }
   process.exit(1);
 });
