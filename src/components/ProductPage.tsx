@@ -224,6 +224,53 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
           </div>
         </div>
 
+        {/* Technical Specifications */}
+        {(game.attributes && Object.keys(game.attributes).length > 0) && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mt-8 bg-bg-card border border-border-subtle rounded-[2.5rem] p-8 md:p-12 shadow-2xl"
+          >
+            <h3 className="text-lg md:text-xl font-black text-white mb-8 uppercase tracking-wider flex items-center gap-3 italic font-display">
+              <span className="text-brand-red">■</span> Technical Specifications
+            </h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+              {game.attributes.region && (
+                <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
+                  <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Region</div>
+                  <div className="text-white font-black text-sm uppercase italic">{game.attributes.region}</div>
+                </div>
+              )}
+              {game.attributes.genre && (
+                <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
+                  <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Genre</div>
+                  <div className="text-white font-black text-sm uppercase italic">{game.attributes.genre}</div>
+                </div>
+              )}
+              {game.attributes.platform && (
+                <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
+                  <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Platform</div>
+                  <div className="text-white font-black text-sm uppercase italic">{game.attributes.platform}</div>
+                </div>
+              )}
+              {game.attributes.gameSize && (
+                <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
+                  <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Game Size</div>
+                  <div className="text-white font-black text-sm uppercase italic">{game.attributes.gameSize}</div>
+                </div>
+              )}
+              {game.attributes.language && (
+                <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
+                  <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Language</div>
+                  <div className="text-white font-black text-sm uppercase italic">{game.attributes.language}</div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {game.instructions && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}

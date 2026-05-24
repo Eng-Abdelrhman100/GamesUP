@@ -34,7 +34,7 @@ This guide covers how to deploy the **GamesUp Platform** as a single Node.js app
     *   **Node.js Version**: 18 or higher (match your local version).
     *   **Application Mode**: Production.
     *   **Application Root**: `/` (Leave as default or root of your domain).
-    *   **Application Startup File**: `server/index.js` (or leave empty if using `npm start` command).
+    *   **Application Startup File**: `server/server.js` (or leave empty if using `npm start` command).
     
     > [!CAUTION]
     > **Critical**: Ensure Hostinger detects this as a **Node.js application**, NOT a React static site. If "Framework" shows "React" in deployment details, the backend won't run. You may need to:
@@ -61,9 +61,9 @@ This guide covers how to deploy the **GamesUp Platform** as a single Node.js app
     DB_NAME=u123456789_gamesup
     JWT_SECRET=your_secure_random_secret
     CORS_ORIGIN=https://yourdomain.com
-    VITE_API_URL=/functions/v1/make-server-f6f1fb51
+    VITE_API_BASE_URL=
     ```
-    *   **Important**: `VITE_API_URL` should be set to the relative path `/functions/v1/make-server-f6f1fb51` so the frontend correctly communicates with the backend on the same domain.
+    *   **Important**: `VITE_API_BASE_URL` can be left empty or set to the your domain URL. The frontend will communicate with the backend on the same domain.
 
 7.  **Deploy**:
     *   Click **Deploy / Create**.

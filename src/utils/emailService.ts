@@ -1,4 +1,4 @@
-const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL || '';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || '';
 
 export const emailService = {
   /**
@@ -45,7 +45,7 @@ export const emailService = {
         body = body.replace(regex, value);
       });
 
-      const smtpUrl = (import.meta as any).env?.VITE_SMTP_API_URL || process.env.VITE_SMTP_API_URL || `${API_BASE}/api/send-email`;
+      const smtpUrl = (import.meta as any).env?.VITE_SMTP_API_URL || `${API_BASE}/api/send-email`;
       const response = await fetch(smtpUrl, {
         method: 'POST',
         headers: {

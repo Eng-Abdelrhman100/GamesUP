@@ -129,7 +129,8 @@ async function ensureSystemCategoriesSeeded() {
     { name: 'Consoles', slug: 'consoles', icon: '🎮', display_order: 1, is_active: true },
     { name: 'Digital Games', slug: 'digital-games', icon: '🎯', display_order: 2, is_active: true },
     { name: 'Accessories', slug: 'accessories', icon: '🎧', display_order: 3, is_active: true },
-    { name: 'Gift Cards', slug: 'gift-cards', icon: '💳', display_order: 4, is_active: true }
+    { name: 'Gift Cards', slug: 'gift-cards', icon: '💳', display_order: 4, is_active: true },
+    { name: 'Playstation Plus Subscriptions', slug: 'playstation-plus', icon: '➕', display_order: 5, is_active: true }
   ];
 
   const [rows] = await pool.query('SELECT slug FROM categories');
@@ -142,6 +143,27 @@ async function ensureSystemCategoriesSeeded() {
         'INSERT INTO categories (name, slug, icon, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
         [cat.name, cat.slug, cat.icon, cat.display_order, cat.is_active]
       );
+    }
+  }
+
+  // Seed subcategories for Playstation Plus
+  const [psPlusRows] = await pool.query('SELECT id FROM categories WHERE slug = ? LIMIT 1', ['playstation-plus']);
+  if (psPlusRows.length > 0) {
+    const categoryId = psPlusRows[0].id;
+    const defaultSubCategories = [
+      { category_id: categoryId, name: '1 Month', slug: '1-month', display_order: 1, is_active: true },
+      { category_id: categoryId, name: '3 Months', slug: '3-months', display_order: 2, is_active: true },
+      { category_id: categoryId, name: '1 Year', slug: '1-year', display_order: 3, is_active: true }
+    ];
+    for (const sub of defaultSubCategories) {
+      const [subRows] = await pool.query('SELECT id FROM sub_categories WHERE category_id = ? AND slug = ? LIMIT 1', [categoryId, sub.slug]);
+      if (subRows.length === 0) {
+        console.log(`Seeding subcategory: ${sub.name} for Playstation Plus`);
+        await pool.query(
+          'INSERT INTO sub_categories (category_id, name, slug, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
+          [sub.category_id, sub.name, sub.slug, sub.display_order, sub.is_active]
+        );
+      }
     }
   }
 }

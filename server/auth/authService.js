@@ -33,7 +33,7 @@ function parsePermissions(raw) {
   return raw;
 }
 
-function toSupabaseLikeUser(row, permissionsOverride) {
+function toFrontendUser(row, permissionsOverride) {
   const permissions = permissionsOverride !== undefined ? permissionsOverride : parsePermissions(row.permissions);
   const normalizedRole = normalizeRole(row.role);
   return {
@@ -78,7 +78,7 @@ export async function register({ email, password, name, role = 'customer', phone
   );
 
   const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [result.insertId]);
-  return toSupabaseLikeUser(rows[0]);
+  return toFrontendUser(rows[0]);
 }
 
 export async function login({ email, password }) {
@@ -120,7 +120,7 @@ export async function login({ email, password }) {
     );
     effectivePermissions = parsePermissions(roleRows?.[0]?.permissions);
   }
-  const user = toSupabaseLikeUser(userRow, effectivePermissions);
+  const user = toFrontendUser(userRow, effectivePermissions);
   return {
     token,
     user,

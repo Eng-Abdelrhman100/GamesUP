@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method VARCHAR(64) NULL,
   payment_proof TEXT NULL,
   shipping_address JSON NULL,
+  cost DECIMAL(10, 2) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
@@ -327,4 +328,19 @@ CREATE TABLE IF NOT EXISTS outlook_accounts (
   UNIQUE KEY uq_outlook_accounts_email (email),
   KEY idx_outlook_accounts_status (status),
   KEY idx_outlook_accounts_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS balance_inventory (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  email VARCHAR(191) NOT NULL,
+  password TEXT NULL,
+  birthdate DATE NULL,
+  outlook_email VARCHAR(191) NULL,
+  outlook_password TEXT NULL,
+  dollar_balance DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  dollar_to_egp_rate DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  KEY idx_balance_inventory_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

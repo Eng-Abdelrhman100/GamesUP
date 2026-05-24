@@ -27,6 +27,7 @@ interface Order {
   created_at?: string;
   shipping_address?: any;
   digital_delivery?: string;
+  cost?: number;
 }
 
 interface ProductListItem {
@@ -59,7 +60,7 @@ export function Orders() {
     date: new Date().toISOString().split('T')[0],
     status: 'pending',
     paymentMethod: 'cash',
-    shippingAddress: '',
+    cost: '',
     digitalEmail: '',
     digitalPassword: '',
     digitalCode: '',
@@ -230,7 +231,7 @@ export function Orders() {
       date: new Date().toISOString().split('T')[0],
       status: 'pending',
       paymentMethod: 'cash',
-      shippingAddress: '',
+      cost: '',
       digitalEmail: '',
       digitalPassword: '',
       digitalCode: '',
@@ -278,7 +279,7 @@ export function Orders() {
         status: manualOrder.status,
         amount: amountNumber,
         payment_method: manualOrder.paymentMethod,
-        shipping_address: manualOrder.shippingAddress,
+        cost: Number(manualOrder.cost) || 0,
         digital_email: manualOrder.digitalEmail || '',
         digital_password: manualOrder.digitalPassword || '',
         digital_code: manualOrder.digitalCode || '',
@@ -427,6 +428,7 @@ export function Orders() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Proof</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Date</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Status</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Cost</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Amount</th>
                 <th className="text-right py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Action</th>
               </tr>
@@ -434,13 +436,13 @@ export function Orders() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <td colSpan={14} className="text-center py-8 text-gray-500 dark:text-gray-400">
                     Loading orders...
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <td colSpan={14} className="text-center py-8 text-gray-500 dark:text-gray-400">
                     No orders found
                   </td>
                 </tr>
@@ -517,6 +519,9 @@ export function Orders() {
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
+                    </td>
+                    <td className="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 italic">
+                      {order.cost != null ? formatPrice(order.cost) : '-'}
                     </td>
                     <td className="py-4 px-4 font-medium text-gray-900 dark:text-white">{formatPrice(order.amount)}</td>
                     <td className="py-4 px-4">
@@ -732,11 +737,13 @@ export function Orders() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Shipping Address (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cost (Purchase Price)</label>
                     <input
-                      value={manualOrder.shippingAddress}
-                      onChange={(e) => setManualOrder({ ...manualOrder, shippingAddress: e.target.value })}
+                      type="number"
+                      value={manualOrder.cost}
+                      onChange={(e) => setManualOrder({ ...manualOrder, cost: e.target.value })}
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="0.00"
                     />
                   </div>
                 </div>
@@ -994,6 +1001,22 @@ export function Orders() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Cost Info */}
+                  {selectedOrder.cost != null && (
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <span className="p-1 bg-green-100 dark:bg-green-900/30 rounded text-green-600 dark:text-green-400">
+                          <Download className="w-4 h-4" />
+                        </span>
+                        Cost Information
+                      </h3>
+                      <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-4 border border-green-100 dark:border-green-800 flex justify-between items-center">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">Purchase Cost / Expense</p>
+                        <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatPrice(selectedOrder.cost)}</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Checkout Note / Instructions */}
                   {selectedOrder.shipping_address && (

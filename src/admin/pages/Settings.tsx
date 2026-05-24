@@ -16,7 +16,9 @@ import {
   Gamepad, 
   Trophy, 
   Flame, 
-  Skull 
+  Skull,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 import { authAPI, categoriesAPI, productsAPI, uploadAPI } from '../../utils/api';
@@ -278,6 +280,30 @@ export function Settings() {
       console.error('Error uploading logo:', error);
       alert('Failed to upload logo');
     }
+  };
+
+  const moveCategory = (idx: number, direction: 'up' | 'down') => {
+    const nextIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (nextIdx < 0 || nextIdx >= formData.homepage_categories.length) return;
+    
+    const nextCategories = [...formData.homepage_categories];
+    const item = nextCategories[idx];
+    nextCategories.splice(idx, 1);
+    nextCategories.splice(nextIdx, 0, item);
+    
+    setFormData({ ...formData, homepage_categories: nextCategories });
+  };
+
+  const moveSection = (idx: number, direction: 'up' | 'down') => {
+    const nextIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (nextIdx < 0 || nextIdx >= formData.homepage_sections.length) return;
+    
+    const nextSections = [...formData.homepage_sections];
+    const item = nextSections[idx];
+    nextSections.splice(idx, 1);
+    nextSections.splice(nextIdx, 0, item);
+    
+    setFormData({ ...formData, homepage_sections: nextSections });
   };
 
   const bestSellingFilteredProducts = allProducts.filter((p: any) => {
@@ -652,6 +678,27 @@ export function Settings() {
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                      
+                      {/* Reorder Buttons Overlay */}
+                      <div className="absolute top-3 left-3 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => moveCategory(idx, 'up')}
+                          disabled={idx === 0}
+                          className="p-1.5 bg-black/60 backdrop-blur-md text-white rounded-lg hover:bg-red-600 disabled:opacity-30 disabled:hover:bg-black/60 transition-colors"
+                          title="Move Up"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveCategory(idx, 'down')}
+                          disabled={idx === formData.homepage_categories.length - 1}
+                          className="p-1.5 bg-black/60 backdrop-blur-md text-white rounded-lg hover:bg-red-600 disabled:opacity-30 disabled:hover:bg-black/60 transition-colors"
+                          title="Move Down"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
                       <div className="absolute bottom-3 left-3 flex items-center gap-2">
                         <span className="px-2 py-1 bg-red-600/80 backdrop-blur-sm text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
                           {cat.icon ?? 'Gamepad'}
@@ -978,6 +1025,26 @@ export function Settings() {
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">SECTION</span>
                           <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
+                          
+                          {/* Reorder Buttons */}
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={() => moveSection(idx, 'up')}
+                              disabled={idx === 0}
+                              className="p-1 text-gray-500 hover:text-white disabled:opacity-20 transition-colors"
+                              title="Move Up"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => moveSection(idx, 'down')}
+                              disabled={idx === formData.homepage_sections.length - 1}
+                              className="p-1 text-gray-500 hover:text-white disabled:opacity-20 transition-colors"
+                              title="Move Down"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                         <button
                           onClick={() => {

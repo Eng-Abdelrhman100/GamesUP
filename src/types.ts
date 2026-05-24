@@ -33,6 +33,7 @@ export interface Game {
   categorySlug?: string;
   subCategorySlug?: string;
   accountTypes: AccountType[];
+  attributes?: Record<string, any>;
 }
 
 export interface AccountType {

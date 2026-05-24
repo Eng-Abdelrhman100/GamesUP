@@ -100,6 +100,71 @@ async function attachVariants(products) {
   return products.map((p) => ({ ...p, product_variants: byProductId.get(p.id) || [] }));
 }
 
+function processProductExpiration(product) {
+  if (!product || product.category_slug !== 'playstation-plus') return product;
+  
+  const digitalItems = Array.isArray(product.digitalItems) ? product.digitalItems : [];
+  const subCategory = String(product.sub_category_slug || '').toLowerCase();
+  
+  const limitDays = subCategory.includes('1-month') ? 5 : 10;
+  const now = new Date();
+  
+  const updatedDigitalItems = digitalItems.map(item => {
+    if (!item) return item;
+    const dateStr = item.createdAt || product.created_at || new Date().toISOString();
+    const createdDate = new Date(dateStr);
+    const diffDays = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (diffDays >= limitDays) {
+      if (item.slots) {
+        const updatedSlots = {};
+        for (const [slotName, slotData] of Object.entries(item.slots)) {
+          if (slotData && slotData.sold) {
+            updatedSlots[slotName] = slotData;
+          } else {
+            updatedSlots[slotName] = { ...slotData, code: '', expired: true };
+          }
+        }
+        return { ...item, slots: updatedSlots, expired: true };
+      }
+    }
+    return item;
+  });
+  
+  let computedStock = 0;
+  for (const item of updatedDigitalItems) {
+    if (item && item.slots) {
+      for (const slot of Object.values(item.slots)) {
+        if (slot && slot.code && !slot.sold && !slot.expired) {
+          computedStock += 1;
+        }
+      }
+    }
+  }
+  
+  const product_variants = Array.isArray(product.product_variants) ? product.product_variants.map(v => {
+    let vStock = 0;
+    for (const item of updatedDigitalItems) {
+      const slot = item && item.slots?.[v.name];
+      if (slot && slot.code && !slot.sold && !slot.expired) {
+        vStock += 1;
+      }
+    }
+    return { ...v, stock: vStock };
+  }) : [];
+  
+  const availabilityStock = computedStock;
+  const status = availabilityStock > 10 ? 'In Stock' : availabilityStock > 0 ? 'Low Stock' : 'Out of Stock';
+  
+  return {
+    ...product,
+    digitalItems: updatedDigitalItems,
+    product_variants,
+    stock: computedStock,
+    status
+  };
+}
+
 productsRoutes.get('/public/products', async (req, res) => {
   try {
     const category = req.query.category ? String(req.query.category) : null;
@@ -120,7 +185,8 @@ productsRoutes.get('/public/products', async (req, res) => {
     const [rows] = await pool.query(`SELECT * FROM products ${whereSql} ORDER BY created_at DESC`, params);
     const products = rows.map(normalizeProductRow);
     const withVariants = await attachVariants(products);
-    return res.json({ products: withVariants });
+    const processedProducts = withVariants.map(processProductExpiration);
+    return res.json({ products: processedProducts });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to fetch products' });
   }
@@ -136,7 +202,9 @@ productsRoutes.get('/public/products/:id', async (req, res) => {
       'SELECT id, product_id, name, price, cost, stock FROM product_variants WHERE product_id = ? ORDER BY id ASC',
       [id]
     );
-    return res.json({ product: { ...product, product_variants: variants } });
+    const withVariants = { ...product, product_variants: variants };
+    const processed = processProductExpiration(withVariants);
+    return res.json({ product: processed });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to fetch product' });
   }

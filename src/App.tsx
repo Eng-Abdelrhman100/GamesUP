@@ -111,6 +111,7 @@ export default function App() {
             status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
             description: p.description || '',
             instructions: p.instructions || '',
+            attributes: p.attributes || {},
             accountTypes: Array.isArray(p.product_variants) && p.product_variants.length > 0
               ? p.product_variants.map((v: any) => ({
                   tier: v.name.toUpperCase(),

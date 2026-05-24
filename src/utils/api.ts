@@ -403,7 +403,15 @@ export const posAPI = {
   },
 };
 
-// Init API - No longer needed for Supabase
+// Balance Inventory API
+export const balanceInventoryAPI = {
+  getAll: async () => requestJson<{ items: any[] }>(`/balance-inventory`, { auth: 'admin' }),
+  create: async (item: any) => requestJson<any>(`/balance-inventory`, { method: 'POST', body: item, auth: 'admin' }),
+  update: async (id: string | number, item: any) => requestJson<any>(`/balance-inventory/${id}`, { method: 'PUT', body: item, auth: 'admin' }),
+  delete: async (id: string | number) => requestJson(`/balance-inventory/${id}`, { method: 'DELETE', auth: 'admin' }),
+};
+
+// Init API - No longer needed with MySQL backend
 export const initAPI = {
   initialize: async () => { return { success: true }; },
 };

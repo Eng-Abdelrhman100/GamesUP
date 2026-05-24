@@ -48,27 +48,47 @@ interface DigitalItem {
   totalCodes?: number;
 }
 
-function countAvailableSlots(digitalItems: any[]) {
+function countAvailableSlots(digitalItems: any[], categorySlug?: string, subCategorySlug?: string) {
   if (!Array.isArray(digitalItems)) return 0;
   let count = 0;
+  const now = new Date().getTime();
+  const limitDays = String(subCategorySlug || '').toLowerCase().includes('1-month') ? 5 : 10;
   for (const item of digitalItems) {
     if (!item || !item.slots) continue;
+    let isExpired = false;
+    if (categorySlug === 'playstation-plus' && item.createdAt) {
+      const createdDate = new Date(item.createdAt).getTime();
+      const diffDays = (now - createdDate) / (1000 * 60 * 60 * 24);
+      if (diffDays >= limitDays) {
+        isExpired = true;
+      }
+    }
     for (const slot of Object.values(item.slots)) {
       const code = (slot as any)?.code ? String((slot as any).code).trim() : '';
-      if (code && !(slot as any)?.sold) count += 1;
+      if (code && !(slot as any)?.sold && !isExpired) count += 1;
     }
   }
   return count;
 }
 
-function countAvailableForSlot(digitalItems: any[], slotName: string) {
+function countAvailableForSlot(digitalItems: any[], slotName: string, categorySlug?: string, subCategorySlug?: string) {
   if (!Array.isArray(digitalItems) || !slotName) return 0;
   let count = 0;
+  const now = new Date().getTime();
+  const limitDays = String(subCategorySlug || '').toLowerCase().includes('1-month') ? 5 : 10;
   for (const item of digitalItems) {
     const slot = item?.slots?.[slotName];
     if (!slot) continue;
+    let isExpired = false;
+    if (categorySlug === 'playstation-plus' && item.createdAt) {
+      const createdDate = new Date(item.createdAt).getTime();
+      const diffDays = (now - createdDate) / (1000 * 60 * 60 * 24);
+      if (diffDays >= limitDays) {
+        isExpired = true;
+      }
+    }
     const code = slot?.code ? String(slot.code).trim() : '';
-    if (code && !slot.sold) count += 1;
+    if (code && !slot.sold && !isExpired) count += 1;
   }
   return count;
 }
@@ -529,7 +549,6 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {groupItems.map((item: any, idx: number) => (
                     <tr key={item.id || idx} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                      {/* Account credentials */}
                       <td className="px-3.5 py-3 align-top min-w-[150px]">
                         <input
                           type="text"
@@ -552,9 +571,13 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                           className={`w-full bg-transparent border-b text-[9px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5 ${isOffline ? 'border-gray-700 text-gray-400' : 'border-gray-300 dark:border-gray-700 text-gray-500'}`}
                           placeholder="Online ID"
                         />
+                        {item.createdAt && (
+                          <p className="text-[9px] text-gray-400 mt-1.5 italic">
+                            Added: {new Date(item.createdAt).toLocaleDateString()}
+                          </p>
+                        )}
                       </td>
                       
-                      {/* Recovery & Region */}
                       <td className="px-3.5 py-3 align-top text-[10px] space-y-1.5 min-w-[150px]">
                         <div className="flex items-center gap-1">
                           <span className="text-[9px] font-bold text-gray-400 uppercase w-10">Reg:</span>
@@ -598,35 +621,61 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                         </div>
                       </td>
                       
-                      {/* Slots status */}
-                      {slotsInGroup.map((slot: any) => {
-                        const slotData = item.slots?.[slot.name] || { code: '', sold: false };
-                        const code = slotData.code || '';
-                        const isSold = !!slotData.sold;
-                        
-                        return (
-                          <td key={slot.id || slot.name} className="px-3.5 py-3 align-top min-w-[120px]">
-                            <input
-                              type="text"
-                              value={code}
-                              onChange={(e) => onUpdateItemSlot(item.id, slot.name, { code: e.target.value })}
-                              className={`w-full bg-transparent border-b text-xs py-0.5 focus:border-red-500 focus:outline-none font-mono ${isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white'}`}
-                              placeholder="CODE-XXXX"
-                            />
-                            <div className="flex items-center gap-1.5 mt-1.5">
+                      {(() => {
+                        const now = new Date().getTime();
+                        const categorySlug = formData?.category || '';
+                        const subCategorySlug = String(formData?.subCategory || '').toLowerCase();
+                        const limitDays = subCategorySlug.includes('1-month') ? 5 : 10;
+                        let isItemExpired = false;
+                        if (categorySlug === 'playstation-plus' && item.createdAt) {
+                          const createdDate = new Date(item.createdAt).getTime();
+                          const diffDays = (now - createdDate) / (1000 * 60 * 60 * 24);
+                          if (diffDays >= limitDays) isItemExpired = true;
+                        }
+                        return slotsInGroup.map((slot: any) => {
+                          const slotData = item.slots?.[slot.name] || { code: '', sold: false };
+                          const code = slotData.code || '';
+                          const isSold = !!slotData.sold;
+                          const isExpiredUnsold = isItemExpired && !isSold;
+                          return (
+                            <td key={slot.id || slot.name} className={`px-3.5 py-3 align-top min-w-[120px] ${isExpiredUnsold ? 'bg-red-50/40 dark:bg-red-950/10' : ''}`}>
                               <input
-                                type="checkbox"
-                                checked={isSold}
-                                onChange={(e) => onUpdateItemSlot(item.id, slot.name, { sold: e.target.checked })}
-                                className="w-3.5 h-3.5 text-red-600 focus:ring-red-500 border-gray-300 rounded dark:bg-gray-800"
+                                type="text"
+                                value={code}
+                                onChange={(e) => onUpdateItemSlot(item.id, slot.name, { code: e.target.value })}
+                                className={`w-full bg-transparent border-b text-xs py-0.5 focus:border-red-500 focus:outline-none font-mono ${
+                                  isExpiredUnsold
+                                    ? 'border-red-300 text-red-400 opacity-60 line-through'
+                                    : isOffline ? 'border-gray-700 text-white' : 'border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white'
+                                }`}
+                                placeholder="CODE-XXXX"
                               />
-                              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sold</span>
-                            </div>
-                          </td>
-                        );
-                      })}
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                {isExpiredUnsold && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                    ⏰ Expired
+                                  </span>
+                                )}
+                                {isSold && !isExpiredUnsold && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
+                                    ✓ Sold
+                                  </span>
+                                )}
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSold}
+                                    onChange={(e) => onUpdateItemSlot(item.id, slot.name, { sold: e.target.checked })}
+                                    className="w-3.5 h-3.5 text-red-600 focus:ring-red-500 border-gray-300 rounded dark:bg-gray-800"
+                                  />
+                                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sold</span>
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        });
+                      })()}
                       
-                      {/* Backup Codes */}
                       <td className="px-3.5 py-3 align-top min-w-[140px]">
                         <textarea
                           value={item.backupCodes || ''}
@@ -637,7 +686,6 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                         />
                       </td>
                       
-                      {/* Delete */}
                       <td className="px-3.5 py-3 align-middle text-right">
                         <button
                           type="button"
@@ -787,7 +835,7 @@ const VariantGenerator = ({ customSlots, setCustomSlots }: any) => {
   );
 };
 
-export function Products() {
+export function Products({ filterCategory }: { filterCategory?: string } = {}) {
   const { settings, formatPrice } = useStoreSettings();
   const [products, setProducts] = useState<Product[]>([]);
   const [isAdmin, setIsAdmin] = useState(true);
@@ -800,8 +848,8 @@ export function Products() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'products' | 'giftcards'>('all');
-  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [activeTab, setActiveTab] = useState<'all' | 'products' | 'giftcards'>(filterCategory ? 'products' : 'all');
+  const [categoryFilter, setCategoryFilter] = useState(filterCategory || 'All');
   const [giftCategoryFilter, setGiftCategoryFilter] = useState('All');
   const [isAlertsBannerCollapsed, setIsAlertsBannerCollapsed] = useState(false);
   
@@ -820,6 +868,7 @@ export function Products() {
     sendEmailEnabled: false,
     emailTemplate: '',
     isRulesTemplate: false,
+    productCreatedAt: null as string | null,
   });
 
   const [newItem, setNewItem] = useState({ 
@@ -835,21 +884,23 @@ export function Products() {
     assignedGroup: 'All Groups'
   });
 
-  const [customSlots, setCustomSlots] = useState<{ id: string; originalName: string; name: string; price: string; cost: string }[]>([
-    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
-    { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
-  ]);
+  const [customSlots, setCustomSlots] = useState<{ id: string; originalName: string; name: string; price: string; cost: string }[]>([]);
 
   const isDigitalGames = (formData.category || '').toLowerCase().includes('digital') || 
                          (formData.category || '').toLowerCase().includes('games') || 
+                         (formData.category || '').toLowerCase().includes('playstation-plus') ||
                          (formData.name || '').toLowerCase().includes('[digital account]');
   const isGiftCards = (formData.category || '').toLowerCase().includes('gift-cards');
   const isPhysical = !isDigitalGames && !isGiftCards;
 
-  const getInitialCustomSlots = () => {
+  const getInitialCustomSlots = (cat = formData.category || filterCategory) => {
+    if (cat === 'playstation-plus') {
+      return [
+        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
+        { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' }
+      ];
+    }
     const activeAttrs = (attributes || []).filter(a => a.is_active);
     if (activeAttrs.length > 0) {
       return activeAttrs.map(a => ({
@@ -868,6 +919,18 @@ export function Products() {
       { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
     ];
   };
+
+  useEffect(() => {
+    if (filterCategory) {
+      setCategoryFilter(filterCategory);
+      setActiveTab('products');
+    }
+  }, [filterCategory]);
+
+  useEffect(() => {
+    if (editingProduct) return;
+    setCustomSlots(getInitialCustomSlots(formData.category));
+  }, [formData.category, editingProduct]);
 
   useEffect(() => {
     loadData();
@@ -1067,7 +1130,7 @@ export function Products() {
     setFormData(prev => ({
       ...prev,
       digitalItems: nextItems,
-      stock: countAvailableSlots(nextItems as any[])
+      stock: countAvailableSlots(nextItems as any[], prev.category, prev.subCategory)
     }));
     setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
     setCustomSlots(customSlots.map(s => ({ ...s, price: '', cost: '' })));
@@ -1079,7 +1142,7 @@ export function Products() {
       return {
         ...prev,
         digitalItems: nextItems,
-        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[])
+        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[], prev.category, prev.subCategory)
       };
     });
   };
@@ -1103,7 +1166,7 @@ export function Products() {
       return {
         ...prev,
         digitalItems: nextItems,
-        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[])
+        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[], prev.category, prev.subCategory)
       };
     });
   };
@@ -1129,7 +1192,7 @@ export function Products() {
       return {
         ...prev,
         digitalItems: nextItems,
-        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[])
+        stock: prev.category === 'gift-cards' ? prev.stock : countAvailableSlots(nextItems as any[], prev.category, prev.subCategory)
       };
     });
   };
@@ -1164,7 +1227,8 @@ export function Products() {
       slots,
       backupCodes: String(localNewItem.backupCodes || ''),
       totalCodes: Object.values(slots).filter((s: any) => s?.code).length + (String(localNewItem.backupCodes || '').trim() ? String(localNewItem.backupCodes).split('\n').filter((x: string) => x.trim()).length : 0),
-      assignedGroup: targetGroupName
+      assignedGroup: targetGroupName,
+      createdAt: new Date().toISOString()
     };
 
     const currentItems = formData.digitalItems || [];
@@ -1179,18 +1243,18 @@ export function Products() {
       return {
         ...prev,
         digitalItems: nextItems,
-        stock: countAvailableSlots(nextItems as any[])
+        stock: countAvailableSlots(nextItems as any[], prev.category, prev.subCategory)
       };
     });
   };
 
-const handleRemoveDigitalItem = (index: number) => {
+  const handleRemoveDigitalItem = (index: number) => {
     setFormData(prev => {
       const nextItems = (Array.isArray(prev.digitalItems) ? prev.digitalItems : []).filter((_, i) => i !== index);
       return {
         ...prev,
         digitalItems: nextItems,
-        stock: countAvailableSlots(nextItems as any[])
+        stock: countAvailableSlots(nextItems as any[], prev.category, prev.subCategory)
       };
     });
   };
@@ -1383,7 +1447,7 @@ const handleRemoveDigitalItem = (index: number) => {
           name: slot.name,
           price: slot.price ? parseFloat(slot.price) : null,
           cost: slot.cost ? parseFloat(slot.cost) : null,
-          stock: isGiftCards ? 0 : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name)
+          stock: isGiftCards ? 0 : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name, formData.category, formData.subCategory)
         })),
         sendEmailEnabled: formData.sendEmailEnabled || false,
         emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : (formData.emailTemplate || ''),
@@ -1411,7 +1475,7 @@ const handleRemoveDigitalItem = (index: number) => {
       await loadData();
       setIsAddModalOpen(false);
       setEditingProduct(null);
-      setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+      setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false, productCreatedAt: null });
       setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
       setCustomSlots(getInitialCustomSlots());
     } catch (error) {
@@ -1503,7 +1567,7 @@ const handleRemoveDigitalItem = (index: number) => {
       subCategory: product.sub_category_slug || '',
       price: product.price.toString().replace('$', ''),
       cost: product.cost ? product.cost.toString().replace('$', '') : '',
-      stock: product.category_slug === 'gift-cards' ? product.stock : ((parsedDigitalItems && parsedDigitalItems.length > 0) ? countAvailableSlots(parsedDigitalItems as any[]) : product.stock),
+      stock: product.category_slug === 'gift-cards' ? product.stock : ((parsedDigitalItems && parsedDigitalItems.length > 0) ? countAvailableSlots(parsedDigitalItems as any[], product.category_slug, product.sub_category_slug) : product.stock),
       image: product.image,
       attributes: (product.attributes || {}) as Record<string, any>,
       digitalItems: parsedDigitalItems,
@@ -1512,8 +1576,20 @@ const handleRemoveDigitalItem = (index: number) => {
       isRulesTemplate: product.emailTemplate === 'rules_for_games' || product.isRulesTemplate || false,
       fullAccountPrice,
       fullAccountCost,
+      productCreatedAt: product.created_at || null,
     });
     setIsAddModalOpen(true);
+  };
+
+  const getDisplayStock = (product: Product) => {
+    if (product.category_slug === 'gift-cards') return product.stock;
+    const parsedItems = typeof product.digitalItems === 'string'
+      ? JSON.parse(product.digitalItems)
+      : (product.digitalItems || []);
+    if (parsedItems.length > 0) {
+      return countAvailableSlots(parsedItems, product.category_slug, product.sub_category_slug);
+    }
+    return product.stock;
   };
 
   const filteredProducts = (products || []).filter((product) => {
@@ -1598,7 +1674,10 @@ const handleRemoveDigitalItem = (index: number) => {
           <div className="admin-page-header">
             <div>
               <p className="admin-page-subtitle">Inventory</p>
-              <h1 className="admin-page-title">Products<span className="text-brand-red">.</span></h1>
+              <h1 className="admin-page-title">
+                {filterCategory === 'playstation-plus' ? 'Playstation Plus' : 'Products'}
+                <span className="text-brand-red">.</span>
+              </h1>
             </div>
             <div className="flex items-center gap-3 mt-4 md:mt-0">
               <p className="hidden md:block text-xs font-bold text-text-secondary uppercase tracking-widest italic mr-2">
@@ -1607,10 +1686,10 @@ const handleRemoveDigitalItem = (index: number) => {
               <Button
                 onClick={() => {
                   setEditingProduct(null);
-                  const defaultCategory = activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '';
-                  setFormData({ name: '', description: '', instructions: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+                  const defaultCategory = filterCategory || (activeTab === 'giftcards' ? 'gift-cards' : categories[0]?.slug || '');
+                  setFormData({ name: '', description: '', instructions: '', category: defaultCategory, subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false, productCreatedAt: null });
                   setNewItem({ email: '', password: '', code: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '', assignedGroup: 'All Groups' });
-                  setCustomSlots(getInitialCustomSlots());
+                  setCustomSlots(getInitialCustomSlots(defaultCategory));
                   setIsAddModalOpen(true);
                 }}
                 className="btn-primary"
@@ -1621,7 +1700,8 @@ const handleRemoveDigitalItem = (index: number) => {
             </div>
           </div>
 
-          <div className="inline-flex p-1 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          {!filterCategory && (
+            <div className="inline-flex p-1 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setActiveTab('all')}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -1653,6 +1733,7 @@ const handleRemoveDigitalItem = (index: number) => {
               Gift Cards
             </button>
           </div>
+          )}
 
           <Card className="p-8">
             <div className="flex flex-col md:flex-row gap-4">
@@ -1666,7 +1747,7 @@ const handleRemoveDigitalItem = (index: number) => {
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
-              {activeTab === 'giftcards' ? (
+              {!filterCategory && (activeTab === 'giftcards' ? (
                 <select
                   value={giftCategoryFilter}
                   onChange={(e) => setGiftCategoryFilter(e.target.value)}
@@ -1700,7 +1781,7 @@ const handleRemoveDigitalItem = (index: number) => {
                       </option>
                     ))}
                 </select>
-              )}
+              ))}
             </div>
           </Card>
 
@@ -1747,7 +1828,7 @@ const handleRemoveDigitalItem = (index: number) => {
                         return formatPrice(0);
                       })()}
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Stock: {product.stock}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Stock: {getDisplayStock(product)}</span>
                   </div>
                   <div className="mt-4 flex gap-2">
                     <Button
@@ -1778,7 +1859,7 @@ const handleRemoveDigitalItem = (index: number) => {
             onClose={() => {
               setIsAddModalOpen(false);
               setEditingProduct(null);
-              setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
+              setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false, productCreatedAt: null });
             }}
             title={editingProduct ? 'Edit Product' : 'Add New Product'}
             maxWidth="4xl"
@@ -1830,10 +1911,16 @@ const handleRemoveDigitalItem = (index: number) => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Category</label>                           <select
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Category</label>
+                          <select
                             value={formData.category || ''}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
+                            disabled={!!filterCategory}
+                            className={`w-full px-4 py-2.5 border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none ${
+                              filterCategory
+                                ? 'bg-gray-200 dark:bg-gray-600 cursor-not-allowed border-gray-300 dark:border-gray-500'
+                                : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                            }`}
                           >
                             <option value="">Select Category</option>
                             {categories.map(c => (
@@ -2087,6 +2174,51 @@ const handleRemoveDigitalItem = (index: number) => {
                       </p>
                     </div>
 
+                    {/* Stock Summary Table */}
+                    <div className="mb-8 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600">
+                          <Layout className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">Inventory Breakdown</h4>
+                      </div>
+                      
+                      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                            <tr>
+                              <th className="px-4 py-2.5 font-bold uppercase tracking-tighter">Variant / Sub-Attribute</th>
+                              <th className="px-4 py-2.5 font-bold uppercase tracking-tighter text-center">Available Stock</th>
+                              <th className="px-4 py-2.5 font-bold uppercase tracking-tighter text-right">Price</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-transparent">
+                            {customSlots.map((slot) => {
+                              const stockCount = countAvailableForSlot(formData.digitalItems as any[], slot.name, formData.category, formData.subCategory);
+                              return (
+                                <tr key={slot.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                                  <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 italic">{slot.name}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`px-2.5 py-1 rounded-full font-black text-[10px] ${stockCount > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                      {stockCount} in stock
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-black text-red-600 dark:text-red-400">
+                                    {formatPrice(parseFloat(slot.price) || parseFloat(formData.price as any) || 0)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {customSlots.length === 0 && (
+                              <tr>
+                                <td colSpan={3} className="px-4 py-8 text-center text-gray-500 italic uppercase tracking-widest">No variants defined</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                       {(() => {
                         // Group slots by prefix before " - "
@@ -2147,20 +2279,45 @@ const handleRemoveDigitalItem = (index: number) => {
                           <Plus className="w-3.5 h-3.5 mr-2" /> Add New Group
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
-                            const offlineSlots = [
-                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS4`, price: '', cost: '' },
-                              { id: crypto.randomUUID(), originalName: '', name: `Offline PS5`, price: '', cost: '' }
-                            ].filter((s) => !existing.has(String(s.name).toLowerCase()));
-                            if (offlineSlots.length) setCustomSlots([...customSlots, ...offlineSlots]);
-                          }}
-                          className="text-xs text-white hover:bg-indigo-700 font-black flex items-center bg-indigo-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5 mr-2" /> Add Offline Group (PS4/PS5)
-                        </button>
+                        {formData.category === 'playstation-plus' && (
+                          <div className="flex gap-2">
+                            {['1 Month', '3 Months', '12 Months'].map(duration => (
+                              <button
+                                key={duration}
+                                type="button"
+                                onClick={() => {
+                                  const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
+                                  const psPlusSlots = [
+                                    { id: crypto.randomUUID(), originalName: '', name: `${duration} - Primary PS5`, price: '', cost: '' },
+                                    { id: crypto.randomUUID(), originalName: '', name: `${duration} - Primary PS4`, price: '', cost: '' },
+                                    { id: crypto.randomUUID(), originalName: '', name: `${duration} - Secondary`, price: '', cost: '' }
+                                  ].filter((s) => !existing.has(String(s.name).toLowerCase()));
+                                  if (psPlusSlots.length) setCustomSlots([...customSlots, ...psPlusSlots]);
+                                }}
+                                className="text-[10px] text-indigo-600 hover:text-white border border-indigo-600 hover:bg-indigo-600 font-black flex items-center px-4 py-2 rounded-full transition-all active:scale-95"
+                              >
+                                <Plus className="w-3 h-3 mr-1.5" /> {duration}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {formData.category !== 'playstation-plus' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
+                              const offlineSlots = [
+                                { id: crypto.randomUUID(), originalName: '', name: `Offline PS4`, price: '', cost: '' },
+                                { id: crypto.randomUUID(), originalName: '', name: `Offline PS5`, price: '', cost: '' }
+                              ].filter((s) => !existing.has(String(s.name).toLowerCase()));
+                              if (offlineSlots.length) setCustomSlots([...customSlots, ...offlineSlots]);
+                            }}
+                            className="text-xs text-white hover:bg-indigo-700 font-black flex items-center bg-indigo-600 px-6 py-2.5 rounded-full transition-all shadow-md active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-2" /> Add Offline Group (PS4/PS5)
+                          </button>
+                        )}
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 italic font-medium">
                           * Groups visually organize your slots (e.g., PS4, PS5).
                         </p>
@@ -2188,7 +2345,17 @@ const handleRemoveDigitalItem = (index: number) => {
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Technical Details</h3>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Region</label>
+                    <input
+                      type="text"
+                      value={(formData.attributes as any)?.region || ''}
+                      onChange={(e) => setFormData({ ...formData, attributes: { ...(formData.attributes || {}), region: e.target.value } })}
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Global / US / UK"
+                    />
+                  </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Genre</label>
                     <input
@@ -2394,14 +2561,8 @@ const handleRemoveDigitalItem = (index: number) => {
                   onClick={() => {
                     setIsAddModalOpen(false);
                     setEditingProduct(null);
-                    setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false });
-                    setCustomSlots([
-                      { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
-                      { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
-                      { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-                      { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
-                      { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
-                    ]);
+                    setFormData({ name: '', description: '', instructions: '', category: categories[0]?.slug || '', subCategory: '', price: '', cost: '', stock: 0, image: '', attributes: {}, digitalItems: [], sendEmailEnabled: false, emailTemplate: '', isRulesTemplate: false, productCreatedAt: null });
+                    setCustomSlots(getInitialCustomSlots(categories[0]?.slug));
                   }}
                   className="px-8 py-3 rounded-full font-black text-gray-500 hover:text-gray-700 transition-all border-2 active:scale-95"
                 >

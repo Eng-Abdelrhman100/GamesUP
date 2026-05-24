@@ -72,8 +72,8 @@ ordersRoutes.post('/orders', async (req, res) => {
       `INSERT INTO orders
        (order_number, customer_name, customer_email, phone, product_name, date, status, amount,
         digital_email, digital_password, digital_code, digital_delivery, inventory_id,
-        payment_method, payment_proof, shipping_address)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        payment_method, payment_proof, shipping_address, cost)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         o.order_number,
         o.customer_name,
@@ -91,6 +91,7 @@ ordersRoutes.post('/orders', async (req, res) => {
         o.payment_method || null,
         o.payment_proof || null,
         o.shipping_address ? JSON.stringify(o.shipping_address) : null,
+        o.cost ?? null,
       ]
     );
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
@@ -130,6 +131,7 @@ ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req
     setIfDefined('payment_method', o.payment_method);
     setIfDefined('payment_proof', o.payment_proof);
     if (o.shipping_address !== undefined) setIfDefined('shipping_address', o.shipping_address ? JSON.stringify(o.shipping_address) : null);
+    setIfDefined('cost', o.cost);
 
     if (updates.length) {
       values.push(id);

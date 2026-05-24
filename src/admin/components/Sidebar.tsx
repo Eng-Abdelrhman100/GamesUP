@@ -31,7 +31,8 @@ const menuItems: MenuItem[] = [
     icon: Package, 
     children: [
       { id: 'data-overview' as Screen, label: 'Data Overview', icon: Database },
-      { id: 'inventory-sheet' as Screen, label: 'Inventory Sheet', icon: TableProperties }
+      { id: 'inventory-sheet' as Screen, label: 'Inventory Sheet', icon: TableProperties },
+      { id: 'playstation-plus' as Screen, label: 'Playstation Plus', icon: Gamepad2 }
     ]
   },
   { 
@@ -50,6 +51,7 @@ const menuItems: MenuItem[] = [
   { id: 'game-requests' as Screen, label: 'Requested Games', icon: Gamepad2 },
   { id: 'banners' as Screen, label: 'Banners', icon: Image },
   { id: 'hero-slider' as Screen, label: 'Hero Slider', icon: SlidersHorizontal },
+  { id: 'balance-inventory' as Screen, label: 'Balance Inventory', icon: CreditCard },
   { id: 'outlook' as Screen, label: 'Outlook Accounts', icon: Mail },
   { id: 'hr' as Screen, label: 'HR & Attendance', icon: Clock },
   { id: 'tasks' as Screen, label: 'Tasks', icon: CheckSquare },
@@ -65,9 +67,11 @@ export function Sidebar({ collapsed, onToggleCollapse, onLogout, userRole = 'adm
   const { settings } = useStoreSettings();
   // Helper to check permission
   const hasPermission = (item: MenuItem) => {
+    // Map playstation-plus screen permission to products permission
+    const permKey = item.id === 'playstation-plus' ? 'products' : item.id;
     // If permissions are present, use them
     if (userPermissions && Object.keys(userPermissions).length > 0) {
-      const val = userPermissions[item.id];
+      const val = userPermissions[permKey];
       // Allow if explicit permission exists
       if (val === true || val === 'read' || val === 'write') return true;
       return false;

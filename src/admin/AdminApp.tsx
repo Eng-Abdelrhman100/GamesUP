@@ -26,10 +26,11 @@ import { EmailTemplates } from './pages/EmailTemplates';
 import { Expenses } from './pages/Expenses';
 import { SupportChats } from './pages/SupportChats';
 import { GameRequests } from './pages/GameRequests';
+import { BalanceInventory } from './pages/BalanceInventory';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory';
 
 export default function AdminApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -192,7 +193,9 @@ export default function AdminApp() {
     if (!effectivePermissions || Object.keys(effectivePermissions).length === 0) {
       return role === 'manager';
     }
-    const val = effectivePermissions[screenId];
+    // Map playstation-plus to products permission
+    const permKey = screenId === 'playstation-plus' ? 'products' : screenId;
+    const val = effectivePermissions[permKey];
     return val === true || val === 'read' || val === 'write';
   };
 
@@ -247,6 +250,7 @@ export default function AdminApp() {
               <Route path="products" element={<ProtectedRoute id="products"><Products /></ProtectedRoute>} />
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><ProductDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
+              <Route path="playstation-plus" element={<ProtectedRoute id="playstation-plus"><Products filterCategory="playstation-plus" /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute id="orders"><Orders /></ProtectedRoute>} />
               <Route path="order-chats" element={<ProtectedRoute id="order-chats"><SupportChats /></ProtectedRoute>} />
               <Route path="sold-products" element={<ProtectedRoute id="sold-products"><SoldProducts /></ProtectedRoute>} />
@@ -266,6 +270,7 @@ export default function AdminApp() {
               <Route path="settings" element={<ProtectedRoute id="settings"><Settings /></ProtectedRoute>} />
               <Route path="delivery" element={<ProtectedRoute id="delivery"><Delivery /></ProtectedRoute>} />
               <Route path="email-templates" element={<ProtectedRoute id="email-templates"><EmailTemplates /></ProtectedRoute>} />
+              <Route path="balance-inventory" element={<ProtectedRoute id="balance-inventory"><BalanceInventory /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
           </main>
