@@ -148,11 +148,25 @@ export function InventorySheet() {
   
   const [originalRows, setOriginalRows] = useState<ProductRow[]>([]);
   const [rows, setRows] = useState<ProductRow[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(true);
+
+  // Compute a map of orderId -> Customer Email for quick lookup in inventory
+  const orderMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    orders.forEach(o => {
+      const id = String(o.id);
+      const num = String(o.order_number || '');
+      const email = o.customer_email || o.customer_name || 'Unknown';
+      map[id] = email;
+      if (num) map[num] = email;
+    });
+    return map;
+  }, [orders]);
 
   // Search & filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -208,14 +222,16 @@ export function InventorySheet() {
       setLoading(true);
       setError(null);
 
-      const [catsRes, subCatsRes, productsRes] = await Promise.all([
+      const [catsRes, subCatsRes, productsRes, ordersRes] = await Promise.all([
         categoriesAPI.getAll(),
         api.get('sub_categories'),
-        productsAPI.getAll()
+        productsAPI.getAll(),
+        api.get('orders')
       ]);
 
       setCategories(catsRes || []);
       setSubCategories(subCatsRes || []);
+      setOrders(ordersRes?.orders || ordersRes || []);
       
       const productList = productsRes.products || productsRes || [];
       setProducts(productList);
@@ -1620,14 +1636,21 @@ export function InventorySheet() {
                                                   />
                                                 </td>
                                                 {/* Sold Checkbox Cell */}
-                                                <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center">
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={!!item.slots?.[slotName]?.sold}
-                                                    disabled={!item.slots?.[slotName]?.code}
-                                                    onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
-                                                    className="rounded text-brand-red focus:ring-brand-red"
-                                                  />
+                                                <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center relative group">
+                                                  <div className="flex flex-col items-center justify-center gap-1">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={!!item.slots?.[slotName]?.sold}
+                                                      disabled={!item.slots?.[slotName]?.code}
+                                                      onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
+                                                      className="rounded text-brand-red focus:ring-brand-red"
+                                                    />
+                                                    {item.slots?.[slotName]?.sold && (
+                                                      <span className="text-[8px] text-gray-400 font-medium tracking-tighter truncate max-w-[50px]" title={item.slots?.[slotName]?.orderId ? `Order #${item.slots[slotName].orderId}: ${orderMap[String(item.slots[slotName].orderId)] || 'Manual'}` : 'Sold (No Order ID)'}>
+                                                        {item.slots?.[slotName]?.orderId ? `#${item.slots[slotName].orderId}` : 'Sold'}
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </td>
                                               </React.Fragment>
                                             );
