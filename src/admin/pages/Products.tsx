@@ -889,6 +889,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
   const isDigitalGames = (formData.category || '').toLowerCase().includes('digital') || 
                          (formData.category || '').toLowerCase().includes('games') || 
                          (formData.category || '').toLowerCase().includes('playstation-plus') ||
+                         (formData.category || '').toLowerCase().includes('gift-cards') ||
                          (formData.name || '').toLowerCase().includes('[digital account]');
   const isGiftCards = (formData.category || '').toLowerCase().includes('gift-cards');
   const isPhysical = !isDigitalGames && !isGiftCards;
@@ -1406,9 +1407,14 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
 
       let computedStock = 0;
       if (isDigitalGames) {
-        computedStock = (finalDigitalItems && finalDigitalItems.length > 0) ? countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : []) : (parseInt(formData.stock as any) || 0);
-      } else if (isGiftCards) {
-        computedStock = (finalDigitalItems && finalDigitalItems.length > 0) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : (parseInt(formData.stock as any) || 0);
+        // If it's a gift card but has NO slots defined in any item, it might be using the legacy flat code list
+        const usingSlots = Array.isArray(finalDigitalItems) && finalDigitalItems.some(item => item.slots && Object.keys(item.slots).length > 0);
+        
+        if (formData.category === 'gift-cards' && !usingSlots) {
+          computedStock = (finalDigitalItems && finalDigitalItems.length > 0) ? finalDigitalItems.filter((x: any) => String(x?.code || '').trim()).length : (parseInt(formData.stock as any) || 0);
+        } else {
+          computedStock = (finalDigitalItems && finalDigitalItems.length > 0) ? countAvailableSlots(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], formData.category, formData.subCategory) : (parseInt(formData.stock as any) || 0);
+        }
       } else {
         computedStock = parseInt(formData.stock as any) || 0;
       }
@@ -2480,97 +2486,6 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                 </div>
               )}
 
-              {/* Gift Cards Section - Multiple 12-digit codes */}
-              {isGiftCards && (
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded">Gift Cards</span>
-                      Gift Card Stock
-                    </h3>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {formData.digitalItems?.length || 0} codes in stock
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-4">
-                    <div className="mb-4">
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Gift Card Codes (one per line)
-                      </label>
-                      <textarea
-                        value={newItem.code}
-                        onChange={(e) => setNewItem({ ...newItem, code: e.target.value })}
-                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-mono tracking-wider"
-                        placeholder={"123456789012\n987654321012\n456789123012"}
-                        rows={6}
-                      />
-                      <div className="flex justify-between items-center mt-2">
-                        <p className="text-xs text-gray-500">Enter one 12-digit code per line</p>
-                        {newItem.code && (
-                          <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">
-                            {newItem.code.split('\n').filter(line => line.trim().length === 12).length} code(s) detected
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={handleAddDigitalItem} 
-                      className="w-full text-sm py-3 bg-green-600 hover:bg-green-700 text-white font-black rounded-full shadow-lg shadow-green-100 dark:shadow-none transition-all active:scale-[0.98]"
-                      disabled={!newItem.code || newItem.code.split('\n').filter(line => line.trim().length === 12).length === 0}
-                    >
-                      <span className="flex items-center justify-center">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Gift Card Codes
-                      </span>
-                    </Button>
-                  </div>
-
-                  {(formData.digitalItems?.length || 0) > 0 && (
-                    <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
-                          <tr>
-                            <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-16">#</th>
-                            <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Gift Card Code</th>
-                            <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-24 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {(formData.digitalItems || []).map((item, index) => (
-                            <tr key={item.id || index} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                              <td className="px-4 py-2 text-gray-500">{index + 1}</td>
-                              <td className="px-4 py-2">
-                                <input
-                                  type="text"
-                                  value={item.code || ''}
-                                  onChange={(e) => {
-                                    const nextItems = [...(formData.digitalItems || [])];
-                                    nextItems[index] = { ...nextItems[index], code: e.target.value };
-                                    setFormData({ ...formData, digitalItems: nextItems });
-                                  }}
-                                  className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-xs py-0.5 focus:border-red-500 focus:outline-none font-mono"
-                                />
-                              </td>
-                              <td className="px-4 py-2 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveDigitalItem(index)}
-                                  className="text-red-600 hover:text-red-800 p-1"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-              
               <div className="flex justify-end gap-3 pt-8 border-t border-gray-100 dark:border-gray-700">
                 <Button
                   variant="secondary"
