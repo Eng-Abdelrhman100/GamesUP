@@ -2279,9 +2279,9 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                           <Plus className="w-3.5 h-3.5 mr-2" /> Add New Group
                         </button>
 
-                        {formData.category === 'playstation-plus' && (
-                          <div className="flex gap-2">
-                            {['1 Month', '3 Months', '12 Months'].map(duration => (
+                        {(formData.category === 'playstation-plus' || formData.category === 'gift-cards') && (
+                          <div className="flex flex-wrap gap-2">
+                            {formData.category === 'playstation-plus' && ['1 Month', '3 Months', '12 Months'].map(duration => (
                               <button
                                 key={duration}
                                 type="button"
@@ -2299,10 +2299,26 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                                 <Plus className="w-3 h-3 mr-1.5" /> {duration}
                               </button>
                             ))}
+
+                            {formData.category === 'gift-cards' && ['$10', '$20', '$50', '$100', 'Global', 'US Region'].map(tier => (
+                              <button
+                                key={tier}
+                                type="button"
+                                onClick={() => {
+                                  const existing = new Set(customSlots.map((s) => String(s.name || '').toLowerCase()));
+                                  if (!existing.has(tier.toLowerCase())) {
+                                    setCustomSlots([...customSlots, { id: crypto.randomUUID(), originalName: '', name: tier, price: '', cost: '' }]);
+                                  }
+                                }}
+                                className="text-[10px] text-emerald-600 hover:text-white border border-emerald-600 hover:bg-emerald-600 font-black flex items-center px-4 py-2 rounded-full transition-all active:scale-95"
+                              >
+                                <Plus className="w-3 h-3 mr-1.5" /> {tier}
+                              </button>
+                            ))}
                           </div>
                         )}
 
-                        {formData.category !== 'playstation-plus' && (
+                        {(formData.category !== 'playstation-plus' && formData.category !== 'gift-cards') && (
                           <button
                             type="button"
                             onClick={() => {
