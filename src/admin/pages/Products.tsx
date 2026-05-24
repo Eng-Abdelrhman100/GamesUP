@@ -1554,16 +1554,10 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
     }
     
     if (newCustomSlots.length === 0) {
-      newCustomSlots.push(
-        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS4', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Primary PS5', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Secondary', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS4', price: '', cost: '' },
-        { id: crypto.randomUUID(), originalName: '', name: 'Offline PS5', price: '', cost: '' }
-      );
+      setCustomSlots(getInitialCustomSlots(product.category_slug));
+    } else {
+      setCustomSlots(newCustomSlots);
     }
-
-    setCustomSlots(newCustomSlots);
 
     setFormData({
       name: product.name,
