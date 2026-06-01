@@ -18,6 +18,7 @@ import { FavoritesPage } from './components/FavoritesPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { RequestGamePage } from './components/RequestGamePage';
+import { ClientUploadPage } from './components/ClientUploadPage';
 import { DashboardPage } from './components/DashboardPage';
 import { CheckoutPage } from './components/CheckoutPage';
 import { OrderConfirmationPage } from './components/OrderConfirmationPage';
@@ -276,6 +277,14 @@ export default function App() {
       return true;
     }
 
+    if (path === '/upload-assets' || path === '/upload' || path.startsWith('/upload')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('client_upload');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
     if (path === '/instructions-for-ps4' || path === '/instructions-ps4' || path.startsWith('/instructions-for-ps4')) {
       setSelectedGame(null);
       setCollection(null);
@@ -407,6 +416,14 @@ export default function App() {
       setCollection(null);
       setView('request');
       window.history.pushState({}, '', '/request-game');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'client_upload') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('client_upload');
+      window.history.pushState({}, '', '/upload-assets');
       window.scrollTo(0, 0);
       return;
     }
@@ -722,6 +739,8 @@ export default function App() {
         return <ContactPage onBack={handleBackToHome} />;
       case 'request':
         return <RequestGamePage onBack={handleBackToHome} />;
+      case 'client_upload':
+        return <ClientUploadPage />;
       case 'instructions_ps4':
         return <InstructionsPS4Page onBack={handleBackToHome} />;
       case 'instructions_ps5':

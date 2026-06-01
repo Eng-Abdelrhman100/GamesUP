@@ -344,3 +344,30 @@ CREATE TABLE IF NOT EXISTS balance_inventory (
   PRIMARY KEY (id),
   KEY idx_balance_inventory_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS client_folders (
+  id CHAR(36) NOT NULL,
+  name VARCHAR(191) NOT NULL,
+  description TEXT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'Active',
+  is_public BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  KEY idx_client_folders_status (status),
+  KEY idx_client_folders_public (is_public)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS client_folder_items (
+  id CHAR(36) NOT NULL,
+  folder_id CHAR(36) NOT NULL,
+  type VARCHAR(32) NOT NULL,
+  content TEXT NOT NULL,
+  uploader_info VARCHAR(255) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  KEY idx_cfi_folder_id (folder_id),
+  CONSTRAINT fk_cfi_folder
+    FOREIGN KEY (folder_id) REFERENCES client_folders(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

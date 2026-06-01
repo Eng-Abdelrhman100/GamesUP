@@ -41,6 +41,11 @@ const requestImagesUpload = multer({
   },
 });
 
+const clientAssetsUpload = multer({
+  storage: createStorage('client_assets'),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
+
 uploadRoutes.post('/uploads/products', requireRoles(['admin', 'manager']), productsUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
   const url = `/uploads/products/${req.file.filename}`;
@@ -68,5 +73,11 @@ uploadRoutes.post('/uploads/chat-images', requireRoles(['customer', 'admin', 'ma
 uploadRoutes.post('/uploads/payment-proofs', paymentProofUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
   const url = `/uploads/payment_proofs/${req.file.filename}`;
+  return res.json({ url });
+});
+
+uploadRoutes.post('/uploads/client-assets', clientAssetsUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+  const url = `/uploads/client_assets/${req.file.filename}`;
   return res.json({ url });
 });
