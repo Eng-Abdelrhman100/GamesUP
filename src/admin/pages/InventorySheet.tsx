@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/Modal';
-import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc } from '@/utils/api';
+import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc, ordersAPI } from '@/utils/api';
 import { 
   Search, Plus, Trash2, Save, RotateCcw, Download, Upload, 
   ChevronDown, ChevronUp, Check, AlertCircle, RefreshCw, Eye, Edit
@@ -33,6 +33,14 @@ interface ProductRow {
   _isDeleted?: boolean;
 }
 
+// Helper to generate UUID with fallback
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
   const emails = new Set();
   const codes = new Set();
@@ -40,7 +48,7 @@ function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
   for (const item of itemsToCheck) {
     const itemEmails = new Set();
     if (item.email) {
-      const emailClean = item.email.trim().toLowerCase();
+      const emailClean = String(item.email).trim().toLowerCase();
       if (emailClean) {
         if (emails.has(emailClean)) {
           return `Duplicate email "${item.email}" found in the stock list.`;
@@ -49,7 +57,7 @@ function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
       }
     }
     if (item.outlookEmail) {
-      const outlookClean = item.outlookEmail.trim().toLowerCase();
+      const outlookClean = String(item.outlookEmail).trim().toLowerCase();
       if (outlookClean) {
         if (emails.has(outlookClean) && !itemEmails.has(outlookClean)) {
           return `Duplicate email "${item.outlookEmail}" found in the stock list.`;
@@ -61,7 +69,7 @@ function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
 
     const itemCodes = new Set();
     if (item.code) {
-      const codeClean = item.code.trim().toLowerCase();
+      const codeClean = String(item.code).trim().toLowerCase();
       if (codeClean) {
         if (codes.has(codeClean)) {
           return `Duplicate code "${item.code}" found in the stock list.`;
@@ -95,13 +103,13 @@ function getProductDuplicates(digitalItems: any[]) {
   for (const item of digitalItems) {
     const itemEmails = new Set<string>();
     if (item.email) {
-      const emailClean = item.email.trim().toLowerCase();
+      const emailClean = String(item.email).trim().toLowerCase();
       if (emailClean) {
         itemEmails.add(emailClean);
       }
     }
     if (item.outlookEmail) {
-      const outlookClean = item.outlookEmail.trim().toLowerCase();
+      const outlookClean = String(item.outlookEmail).trim().toLowerCase();
       if (outlookClean) {
         itemEmails.add(outlookClean);
       }
@@ -112,7 +120,7 @@ function getProductDuplicates(digitalItems: any[]) {
     });
 
     if (item.code) {
-      const codeClean = item.code.trim().toLowerCase();
+      const codeClean = String(item.code).trim().toLowerCase();
       if (codeClean) {
         codesCount[codeClean] = (codesCount[codeClean] || 0) + 1;
       }
@@ -158,6 +166,7 @@ export function InventorySheet() {
   // Compute a map of orderId -> Customer Email for quick lookup in inventory
   const orderMap = useMemo(() => {
     const map: Record<string, string> = {};
+    if (!Array.isArray(orders)) return map;
     orders.forEach(o => {
       const id = String(o.id);
       const num = String(o.order_number || '');
@@ -201,7 +210,7 @@ export function InventorySheet() {
   });
 
   const calculateProductStock = (row: ProductRow) => {
-    if (!row.digitalItems || row.digitalItems.length === 0) {
+    if (!Array.isArray(row.digitalItems) || row.digitalItems.length === 0) {
       return row.stock; // If physical/giftcard without items, return manual stock value
     }
     let count = 0;
@@ -226,14 +235,17 @@ export function InventorySheet() {
         categoriesAPI.getAll(),
         api.get('sub_categories'),
         productsAPI.getAll(),
-        api.get('orders')
+        ordersAPI.getAll()
       ]);
 
-      setCategories(catsRes || []);
-      setSubCategories(subCatsRes || []);
+      setCategories(Array.isArray(catsRes) ? catsRes : []);
+      setSubCategories(Array.isArray(subCatsRes) ? subCatsRes : []);
       setOrders(ordersRes?.orders || ordersRes || []);
       
-      const productList = productsRes.products || productsRes || [];
+      const productList = productsRes?.products || productsRes || [];
+      if (!Array.isArray(productList)) {
+        throw new Error('Products data is not in the correct format');
+      }
       setProducts(productList);
 
       const formatted: ProductRow[] = productList.map((p: any) => {
@@ -241,7 +253,10 @@ export function InventorySheet() {
         try {
           const rawItems = p.digitalItems || p.digital_items;
           if (rawItems) {
-            items = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+            const parsed = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+            if (Array.isArray(parsed)) {
+              items = parsed;
+            }
           }
         } catch (e) {
           console.error('Failed to parse digital items for product', p.id, e);
@@ -288,9 +303,10 @@ export function InventorySheet() {
         const role = String(parsed?.user_metadata?.role || '').toLowerCase();
         const perms = parsed?.user_metadata?.permissions || {};
         
-        // Check if user has at least read permission for products
-        const canRead = perms.products === 'read' || perms.products === 'write' || perms.products === true;
-        const isLegacyAdmin = role === 'admin' || role === 'manager';
+        // Check if user has at least read permission for products or inventory-sheet
+        const canRead = perms.products === 'read' || perms.products === 'write' || perms.products === true ||
+                        perms['inventory-sheet'] === 'read' || perms['inventory-sheet'] === 'write' || perms['inventory-sheet'] === true;
+        const isLegacyAdmin = role === 'admin' || role === 'manager' || role.startsWith('manager');
 
         setIsAdmin(isLegacyAdmin || canRead);
         setIsSuperAdmin(role === 'admin');
@@ -398,7 +414,7 @@ export function InventorySheet() {
   // Add blank product row
   const handleAddProductRow = () => {
     const newProduct: ProductRow = {
-      id: 'new_' + crypto.randomUUID(),
+      id: 'new_' + generateUUID(),
       name: '',
       category_slug: categories[0]?.slug || null,
       sub_category_slug: null,
@@ -425,7 +441,7 @@ export function InventorySheet() {
     setRows(prev => prev.map(row => {
       if (row.id === productId) {
         const newItem = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           email: '',
           password: '',
           outlookEmail: '',
@@ -529,17 +545,17 @@ export function InventorySheet() {
       if (searchTerm.trim() !== '') {
         const s = searchTerm.toLowerCase();
         const matches = 
-          row.name.toLowerCase().includes(s) ||
-          (row.category_slug || '').toLowerCase().includes(s) ||
-          (row.status || '').toLowerCase().includes(s) ||
-          (row.productCode || '').toLowerCase().includes(s) ||
-          (row.purchasedEmail || '').toLowerCase().includes(s) ||
+          String(row.name || '').toLowerCase().includes(s) ||
+          String(row.category_slug || '').toLowerCase().includes(s) ||
+          String(row.status || '').toLowerCase().includes(s) ||
+          String(row.productCode || '').toLowerCase().includes(s) ||
+          String(row.purchasedEmail || '').toLowerCase().includes(s) ||
           (row.digitalItems || []).some((item: any) => 
-            (item.email || '').toLowerCase().includes(s) ||
-            (item.password || '').toLowerCase().includes(s) ||
-            (item.outlookEmail || '').toLowerCase().includes(s) ||
+            String(item.email || '').toLowerCase().includes(s) ||
+            String(item.password || '').toLowerCase().includes(s) ||
+            String(item.outlookEmail || '').toLowerCase().includes(s) ||
             Object.values(item.slots || {}).some((slot: any) => 
-              (slot?.code || '').toLowerCase().includes(s)
+              String(slot?.code || '').toLowerCase().includes(s)
             )
           );
         
@@ -734,39 +750,39 @@ export function InventorySheet() {
 
     filteredRows.forEach(row => {
       const prodInfo = [
-        `"${(row.name || '').replace(/"/g, '""')}"`,
-        `"${(row.category_slug || '').replace(/"/g, '""')}"`,
-        `"${(row.sub_category_slug || '').replace(/"/g, '""')}"`,
+        `"${String(row.name || '').replace(/"/g, '""')}"`,
+        `"${String(row.category_slug || '').replace(/"/g, '""')}"`,
+        `"${String(row.sub_category_slug || '').replace(/"/g, '""')}"`,
         row.price || 0,
         row.cost || 0,
         row.stock || 0,
-        `"${(row.status || '').replace(/"/g, '""')}"`,
-        `"${(row.productCode || '').replace(/"/g, '""')}"`,
-        `"${(row.purchasedEmail || '').replace(/"/g, '""')}"`,
-        `"${(row.purchasedPassword || '').replace(/"/g, '""')}"`,
+        `"${String(row.status || '').replace(/"/g, '""')}"`,
+        `"${String(row.productCode || '').replace(/"/g, '""')}"`,
+        `"${String(row.purchasedEmail || '').replace(/"/g, '""')}"`,
+        `"${String(row.purchasedPassword || '').replace(/"/g, '""')}"`,
         row.sendEmailEnabled ? 'true' : 'false',
-        `"${(row.emailTemplate || '').replace(/"/g, '""')}"`
+        `"${String(row.emailTemplate || '').replace(/"/g, '""')}"`
       ];
 
-      if (row.digitalItems && row.digitalItems.length > 0) {
+      if (Array.isArray(row.digitalItems) && row.digitalItems.length > 0) {
         row.digitalItems.forEach(item => {
           const itemInfo = [
-            `"${(item.email || '').replace(/"/g, '""')}"`,
-            `"${(item.password || '').replace(/"/g, '""')}"`,
-            `"${(item.outlookEmail || '').replace(/"/g, '""')}"`,
-            `"${(item.outlookPassword || '').replace(/"/g, '""')}"`,
-            `"${(item.region || '').replace(/"/g, '""')}"`,
-            `"${(item.onlineId || '').replace(/"/g, '""')}"`,
-            `"${(item.backupCodes || '').replace(/"/g, '""')}"`,
-            `"${(item.slots?.['Primary ps4']?.code || '').replace(/"/g, '""')}"`,
+            `"${String(item.email || '').replace(/"/g, '""')}"`,
+            `"${String(item.password || '').replace(/"/g, '""')}"`,
+            `"${String(item.outlookEmail || '').replace(/"/g, '""')}"`,
+            `"${String(item.outlookPassword || '').replace(/"/g, '""')}"`,
+            `"${String(item.region || '').replace(/"/g, '""')}"`,
+            `"${String(item.onlineId || '').replace(/"/g, '""')}"`,
+            `"${String(item.backupCodes || '').replace(/"/g, '""')}"`,
+            `"${String(item.slots?.['Primary ps4']?.code || '').replace(/"/g, '""')}"`,
             item.slots?.['Primary ps4']?.sold ? 'true' : 'false',
-            `"${(item.slots?.['Primary ps5']?.code || '').replace(/"/g, '""')}"`,
+            `"${String(item.slots?.['Primary ps5']?.code || '').replace(/"/g, '""')}"`,
             item.slots?.['Primary ps5']?.sold ? 'true' : 'false',
-            `"${(item.slots?.['Secondary']?.code || '').replace(/"/g, '""')}"`,
+            `"${String(item.slots?.['Secondary']?.code || '').replace(/"/g, '""')}"`,
             item.slots?.['Secondary']?.sold ? 'true' : 'false',
-            `"${(item.slots?.['Offline ps4']?.code || '').replace(/"/g, '""')}"`,
+            `"${String(item.slots?.['Offline ps4']?.code || '').replace(/"/g, '""')}"`,
             item.slots?.['Offline ps4']?.sold ? 'true' : 'false',
-            `"${(item.slots?.['Offline ps5']?.code || '').replace(/"/g, '""')}"`,
+            `"${String(item.slots?.['Offline ps5']?.code || '').replace(/"/g, '""')}"`,
             item.slots?.['Offline ps5']?.sold ? 'true' : 'false'
           ];
           csvLines.push([...prodInfo, ...itemInfo].join(','));
@@ -829,7 +845,7 @@ export function InventorySheet() {
             if (obj['OfflinePS5Code']) slots['Offline ps5'] = { sold: obj['OfflinePS5Sold'] === 'true', orderId: null, code: obj['OfflinePS5Code'] };
 
             digitalItem = {
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               email: obj['Email'] || '',
               password: obj['Password'] || '',
               outlookEmail: obj['OutlookEmail'] || '',
@@ -845,7 +861,7 @@ export function InventorySheet() {
 
           if (targetProdIdx >= 0) {
             const prod = updatedRows[targetProdIdx];
-            const updatedItems = digitalItem ? [...(prod.digitalItems || []), digitalItem] : (prod.digitalItems || []);
+            const updatedItems = digitalItem ? [digitalItem, ...(Array.isArray(prod.digitalItems) ? prod.digitalItems : [])] : (prod.digitalItems || []);
             
             updatedRows[targetProdIdx] = {
               ...prod,
@@ -855,7 +871,7 @@ export function InventorySheet() {
             updatedRows[targetProdIdx].stock = calculateProductStock(updatedRows[targetProdIdx]);
           } else {
             const newProd: ProductRow = {
-              id: 'new_' + crypto.randomUUID(),
+              id: 'new_' + generateUUID(),
               name: pName,
               category_slug: obj['Category'] || categories[0]?.slug || 'games',
               sub_category_slug: obj['SubCategory'] || null,
@@ -944,7 +960,7 @@ export function InventorySheet() {
       if (offlinePs5Code) slots['Offline ps5'] = { sold: false, orderId: null, code: offlinePs5Code };
 
       newItems.push({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         email,
         password,
         outlookEmail,
@@ -1422,7 +1438,7 @@ export function InventorySheet() {
                         <input
                           type="number"
                           value={calculateProductStock(row)}
-                          disabled={row.digitalItems && row.digitalItems.length > 0}
+                          disabled={Array.isArray(row.digitalItems) && row.digitalItems.length > 0}
                           onChange={(e) => handleCellChange(row.id, 'stock', e.target.value ? parseInt(e.target.value) : 0)}
                           className="w-full h-9 px-3 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red text-xs text-center disabled:opacity-75 disabled:text-orange-500 font-bold"
                         />
@@ -1524,10 +1540,11 @@ export function InventorySheet() {
 
                     {/* Expand Detail View (Nested digital stock table) */}
                     {isExpanded && (() => {
-                      const { duplicateEmails, duplicateCodes } = getProductDuplicates(row.digitalItems || []);
+                      const { duplicateEmails, duplicateCodes } = getProductDuplicates(Array.isArray(row.digitalItems) ? row.digitalItems : []);
+                      const colSpanCount = isSuperAdmin ? 16 : 15;
                       return (
                         <tr className="bg-gray-50/50 dark:bg-gray-950/40">
-                          <td colSpan={16} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                          <td colSpan={colSpanCount} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                             <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
                               <div className="flex justify-between items-center">
                                 <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
@@ -1543,7 +1560,7 @@ export function InventorySheet() {
                               </div>
 
                               {/* Sub-grid table */}
-                              {(!row.digitalItems || row.digitalItems.length === 0) ? (
+                              {(!Array.isArray(row.digitalItems) || row.digitalItems.length === 0) ? (
                                 <p className="text-xs text-gray-400 italic py-2">No digital stock accounts added yet. Click "+ Add Stock Credentials Set" to populate.</p>
                               ) : (
                                 <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 max-h-[400px] overflow-y-auto">
@@ -1586,7 +1603,8 @@ export function InventorySheet() {
                                             { field: 'onlineId', placeholder: 'Online ID' },
                                             { field: 'backupCodes', placeholder: '2FA Backup Codes' }
                                           ].map(col => {
-                                            const val = item[col.field] || '';
+                                            const rawVal = item[col.field] || '';
+                                            const val = String(rawVal);
                                             const isDup = (col.field === 'email' || col.field === 'outlookEmail') &&
                                               val.trim() &&
                                               duplicateEmails.has(val.trim().toLowerCase());
@@ -1594,7 +1612,7 @@ export function InventorySheet() {
                                               <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-800">
                                                 <input
                                                   type="text"
-                                                  value={item[col.field] || ''}
+                                                  value={val}
                                                   placeholder={col.placeholder}
                                                   onChange={(e) => handleDigitalItemChange(row.id, item.id, col.field, e.target.value)}
                                                   title={isDup ? "⚠️ Duplicate: Already added for this product!" : col.placeholder}
@@ -1616,15 +1634,16 @@ export function InventorySheet() {
                                             'Offline ps4',
                                             'Offline ps5'
                                           ].map(slotName => {
-                                            const slotVal = item.slots?.[slotName]?.code || '';
+                                            const slotVal = String(item.slots?.[slotName]?.code || '');
                                             const isSlotDup = slotVal.trim() && duplicateCodes.has(slotVal.trim().toLowerCase());
+                                            const orderId = item.slots?.[slotName]?.orderId;
                                             return (
                                               <React.Fragment key={slotName}>
                                                 {/* Code Cell */}
                                                 <td className="p-0 border-r border-gray-200 dark:border-gray-800">
                                                   <input
                                                     type="text"
-                                                    value={item.slots?.[slotName]?.code || ''}
+                                                    value={slotVal}
                                                     placeholder={`${slotName} Key`}
                                                     onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'code', e.target.value)}
                                                     title={isSlotDup ? "⚠️ Duplicate slot code: Already added for this product!" : `${slotName} Key`}
@@ -1646,8 +1665,8 @@ export function InventorySheet() {
                                                       className="rounded text-brand-red focus:ring-brand-red"
                                                     />
                                                     {item.slots?.[slotName]?.sold && (
-                                                      <span className="text-[8px] text-gray-400 font-medium tracking-tighter truncate max-w-[50px]" title={item.slots?.[slotName]?.orderId ? `Order #${item.slots[slotName].orderId}: ${orderMap[String(item.slots[slotName].orderId)] || 'Manual'}` : 'Sold (No Order ID)'}>
-                                                        {item.slots?.[slotName]?.orderId ? `#${item.slots[slotName].orderId}` : 'Sold'}
+                                                      <span className="text-[8px] text-gray-400 font-medium tracking-tighter truncate max-w-[50px]" title={orderId ? `Order #${orderId}: ${orderMap[String(orderId)] || 'Manual'}` : 'Sold (No Order ID)'}>
+                                                        {orderId ? `#${orderId}` : 'Sold'}
                                                       </span>
                                                     )}
                                                   </div>
@@ -1683,7 +1702,7 @@ export function InventorySheet() {
 
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={16} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 font-display">
+                  <td colSpan={isSuperAdmin ? 16 : 15} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 font-display">
                     No matching products/games found in spreadsheet
                   </td>
                 </tr>

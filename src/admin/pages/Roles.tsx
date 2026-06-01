@@ -24,7 +24,7 @@ interface AdminUser {
 }
 
 const permissionKeys = [
-  'dashboard', 'products', 'orders', 'pos', 'analytics', 
+  'dashboard', 'products', 'inventory-sheet', 'orders', 'pos', 'analytics', 
   'customers', 'banners', 'outlook', 'hr', 'tasks', 
   'team', 'roles', 'system', 'delivery', 'settings', 'game-requests'
 ];
@@ -32,6 +32,7 @@ const permissionKeys = [
 const permissionLabels: { [key: string]: string } = {
   dashboard: 'Dashboard',
   products: 'Products',
+  'inventory-sheet': 'Inventory Sheet',
   orders: 'Orders',
   pos: 'Point of Sale',
   analytics: 'Analytics',

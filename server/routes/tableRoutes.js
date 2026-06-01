@@ -28,6 +28,36 @@ const tableConfig = {
     orderBy: 'id ASC',
     roles: ['admin'],
   },
+  orders: {
+    allowed: [
+      'order_number', 'customer_name', 'customer_email', 'phone', 'product_name', 
+      'date', 'status', 'amount', 'digital_email', 'digital_password', 
+      'digital_code', 'digital_delivery', 'inventory_id', 'payment_method', 
+      'payment_proof', 'shipping_address', 'cost'
+    ],
+    orderBy: 'created_at DESC',
+    roles: ['admin', 'manager', 'staff'],
+  },
+  products: {
+    allowed: [
+      'name', 'category_slug', 'sub_category_slug', 'price', 'cost', 'stock', 
+      'image', 'description', 'attributes', 'digitalItems', 'productCode', 
+      'purchasedEmail', 'purchasedPassword', 'instructions', 'status', 
+      'sendEmailEnabled', 'emailTemplate'
+    ],
+    orderBy: 'id DESC',
+    roles: ['admin', 'manager', 'staff'],
+  },
+  categories: {
+    allowed: ['name', 'slug', 'icon', 'display_order', 'is_active'],
+    orderBy: 'display_order ASC, id ASC',
+    roles: ['admin', 'manager', 'staff'],
+  },
+  customers: {
+    allowed: ['name', 'email', 'phone', 'total_spent', 'orders_count', 'last_order_date', 'status'],
+    orderBy: 'created_at DESC',
+    roles: ['admin', 'manager', 'staff'],
+  },
 };
 
 function getConfig(table) {
