@@ -83,7 +83,6 @@ export const Footer = ({ isDark, onViewChange }: FooterProps) => {
                 { label: 'Best Sellers', action: () => onViewChange?.('best_sellers') },
                 { label: 'New Missions', action: () => onViewChange?.('shop') },
                 { label: 'About GamesUp', action: () => onViewChange?.('about') },
-                { label: 'Nexus Submission', action: () => onViewChange?.('client_upload') },
               ].map(l => (
                 <li key={l.label}>
                   <button 

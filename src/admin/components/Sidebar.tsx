@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties, Folder } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { Screen } from '../AdminApp';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
@@ -48,7 +48,6 @@ const menuItems: MenuItem[] = [
   { id: 'analytics' as Screen, label: 'Analytics & Revenue', icon: TrendingUp },
   { id: 'expenses' as Screen, label: 'Expenses', icon: Receipt },
   { id: 'customers' as Screen, label: 'Customers', icon: Users },
-  { id: 'client-folders' as Screen, label: 'Folders', icon: Folder },
   { id: 'game-requests' as Screen, label: 'Requested Games', icon: Gamepad2 },
   { id: 'banners' as Screen, label: 'Banners', icon: Image },
   { id: 'hero-slider' as Screen, label: 'Hero Slider', icon: SlidersHorizontal },

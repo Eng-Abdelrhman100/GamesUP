@@ -20,7 +20,6 @@ import { chatRoutes } from './chatRoutes.js';
 import { uploadRoutes } from './uploadRoutes.js';
 import { customersRoutes } from './customersRoutes.js';
 import { balanceInventoryRoutes } from './balanceInventoryRoutes.js';
-import { clientFoldersRoutes } from './clientFoldersRoutes.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
 export const apiRouter = Router();
@@ -47,4 +46,3 @@ apiRouter.use(chatRoutes);
 apiRouter.use(uploadRoutes);
 apiRouter.use(tableRoutes);
 apiRouter.use(balanceInventoryRoutes);
-apiRouter.use(clientFoldersRoutes);

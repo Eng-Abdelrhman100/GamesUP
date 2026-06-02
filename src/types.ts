@@ -14,8 +14,7 @@ export type AppView =
   | 'confirmation'
   | 'instructions_ps4'
   | 'instructions_ps5'
-  | 'search'
-  | 'client_upload';
+  | 'search';
 
 export type GameStatus = 'IN STOCK' | 'OUT OF STOCK' | 'LIMITED' | 'NEW';
 

@@ -7,7 +7,6 @@ import { Dashboard } from './pages/Dashboard';
 import { Products } from './pages/Products';
 import { ProductDataOverview } from './pages/ProductDataOverview';
 import { InventorySheet } from './pages/InventorySheet';
-import { ClientFolders } from './pages/ClientFolders';
 import { OrderDataOverview } from './pages/OrderDataOverview';
 import { Orders } from './pages/Orders';
 import { Analytics } from './pages/Analytics';
@@ -31,7 +30,7 @@ import { BalanceInventory } from './pages/BalanceInventory';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'client-folders' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory';
 
 export default function AdminApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -251,7 +250,6 @@ export default function AdminApp() {
               <Route path="products" element={<ProtectedRoute id="products"><Products /></ProtectedRoute>} />
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><ProductDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
-              <Route path="client-folders" element={<ProtectedRoute id="client-folders"><ClientFolders /></ProtectedRoute>} />
               <Route path="playstation-plus" element={<ProtectedRoute id="playstation-plus"><Products filterCategory="playstation-plus" /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute id="orders"><Orders /></ProtectedRoute>} />
               <Route path="order-chats" element={<ProtectedRoute id="order-chats"><SupportChats /></ProtectedRoute>} />

@@ -411,18 +411,6 @@ export const balanceInventoryAPI = {
   delete: async (id: string | number) => requestJson(`/balance-inventory/${id}`, { method: 'DELETE', auth: 'admin' }),
 };
 
-// Client Folders API
-export const clientFoldersAPI = {
-  getAll: async () => requestJson<any[]>(`/client-folders`, { auth: 'any' }),
-  create: async (data: any) => requestJson<any>(`/client-folders`, { method: 'POST', body: data, auth: 'admin' }),
-  update: async (id: string, data: any) => requestJson<any>(`/client-folders/${id}`, { method: 'PUT', body: data, auth: 'admin' }),
-  delete: async (id: string) => requestJson<any>(`/client-folders/${id}`, { method: 'DELETE', auth: 'admin' }),
-  getItems: async (folderId: string) => requestJson<any[]>(`/client-folders/${folderId}/items`, { auth: 'any' }),
-  addItem: async (folderId: string, data: { type: 'image' | 'link'; content: string; uploader_info?: string }) =>
-    requestJson<any>(`/client-folders/${folderId}/items`, { method: 'POST', body: data, auth: 'any' }),
-  deleteItem: async (itemId: string) => requestJson<any>(`/client-folder-items/${itemId}`, { method: 'DELETE', auth: 'admin' }),
-};
-
 // Init API - No longer needed with MySQL backend
 export const initAPI = {
   initialize: async () => { return { success: true }; },
