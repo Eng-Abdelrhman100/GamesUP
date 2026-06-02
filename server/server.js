@@ -90,6 +90,7 @@ async function ensureGameRequestsTableExists() {
   );
 }
 
+
 async function ensureProductAttributesSeeded() {
   const [rows] = await pool.query('SELECT name FROM product_attributes');
   const existingNames = new Set((rows || []).map((r) => String(r.name || '').trim().toLowerCase()).filter(Boolean));
@@ -169,10 +170,37 @@ async function ensureSystemCategoriesSeeded() {
 }
 
 async function bootstrap() {
-  await ensureGameRequestsTableExists();
-  await ensureProductAttributesSeeded();
-  await ensureHomepageCategoriesSeeded();
-  await ensureSystemCategoriesSeeded();
+  // Test database connectivity first
+  try {
+    await pool.query('SELECT 1');
+    console.log('Database connection successful');
+  } catch (dbErr) {
+    console.error('CRITICAL: Database connection failed:', dbErr.message);
+    console.error('Check DB_HOST, DB_USER, DB_PASSWORD, DB_NAME in server/.env');
+    throw dbErr; // This IS fatal — no DB means no working API
+  }
+
+  // Seed operations — each is optional, failures should not crash the server
+  const seedSteps = [
+    { name: 'game_requests table', fn: ensureGameRequestsTableExists },
+    { name: 'product attributes', fn: ensureProductAttributesSeeded },
+    { name: 'homepage categories', fn: ensureHomepageCategoriesSeeded },
+    { name: 'system categories', fn: ensureSystemCategoriesSeeded },
+  ];
+
+  for (const step of seedSteps) {
+    try {
+      await step.fn();
+    } catch (seedErr) {
+      console.error(`Warning: Failed to seed ${step.name}:`, seedErr.message);
+      try {
+        const fs = await import('fs');
+        const logPath = path.join(__dirname, '..', 'dist', 'error_log.txt');
+        fs.appendFileSync(logPath, `[${new Date().toISOString()}] SEED WARNING (${step.name}): ${seedErr.message}\n`, 'utf8');
+      } catch (_) { /* ignore logging failure */ }
+    }
+  }
+
   app.listen(port, async () => {
     console.log(`API Server running at http://localhost:${port}`);
     try {
@@ -196,3 +224,4 @@ bootstrap().catch(async (err) => {
   }
   process.exit(1);
 });
+

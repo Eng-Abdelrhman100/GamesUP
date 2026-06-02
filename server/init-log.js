@@ -25,7 +25,7 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   writeError(reason);
-  process.exit(1);
+  // Don't exit — let the server continue running for other requests
 });
 
 // Write a clean start entry
