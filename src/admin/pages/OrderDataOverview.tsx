@@ -873,18 +873,21 @@ export function OrderDataOverview() {
                     <td className="px-4 py-3">{renderEditableCell(account, 'emailPass', account.emailPass)}</td>
                     <td className="px-4 py-3">
                       {account.inventory.length > 0 ? (
-                        <select className="bg-transparent border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 max-w-[200px]">
-                          <option value="">View {account.inventory.length} Slots</option>
+                        <div className="flex flex-wrap gap-1 max-w-[200px]">
                           {account.inventory.map((item, idx) => (
-                            <option 
+                            <span 
                               key={idx} 
-                              value={item.code}
-                              className={item.status === 'Sold' ? 'text-red-600 font-medium' : 'text-green-600'}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter border ${
+                                item.status === 'Sold' 
+                                  ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' 
+                                  : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
+                              }`}
+                              title={`${item.label}: ${item.code}`}
                             >
-                              {item.status === 'Sold' ? '🔴' : '🟢'} {item.label} ({item.status})
-                            </option>
+                              {item.label}
+                            </span>
                           ))}
-                        </select>
+                        </div>
                       ) : (
                         <span className="text-gray-400 italic">No inventory</span>
                       )}
@@ -956,13 +959,20 @@ export function OrderDataOverview() {
                   const getCustomerForSlot = (slotType: string) => {
                     const slot = account.inventory.find(i => i.label.toLowerCase().includes(slotType.toLowerCase()));
                     const initialValue = slot?.customerName || '';
+                    const isSold = slot?.status === 'Sold';
                     
                     return (
-                      <EditableCell 
-                        initialValue={initialValue}
-                        onSave={(newValue) => saveSlotCustomer(account, slotType, newValue)}
-                        placeholder="Customer Name"
-                      />
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSold ? 'bg-red-500' : 'bg-green-500'}`} />
+                        <div className="flex-1">
+                          <EditableCell 
+                            initialValue={initialValue}
+                            onSave={(newValue) => saveSlotCustomer(account, slotType, newValue)}
+                            placeholder="Customer Name"
+                            className={isSold ? 'text-red-600 font-bold' : 'text-green-600'}
+                          />
+                        </div>
+                      </div>
                     );
                   };
 
