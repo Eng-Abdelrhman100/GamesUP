@@ -102,6 +102,60 @@ categoriesRoutes.get('/sub-categories', async (req, res) => {
   }
 });
 
+categoriesRoutes.get('/sub-sub-categories', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM sub_sub_categories WHERE is_active = TRUE ORDER BY display_order ASC, id ASC');
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'Failed to fetch sub-sub-categories' });
+  }
+});
+
+categoriesRoutes.post('/sub-sub-categories', async (req, res) => {
+  return requireRoles(['admin', 'manager'])(req, res, async () => {
+    try {
+      const { sub_category_id, name, slug, display_order = 0, is_active = true } = req.body || {};
+      const [result] = await pool.query(
+        'INSERT INTO sub_sub_categories (sub_category_id, name, slug, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
+        [sub_category_id, name, slug, display_order, !!is_active]
+      );
+      const [rows] = await pool.query('SELECT * FROM sub_sub_categories WHERE id = ? LIMIT 1', [result.insertId]);
+      return res.json(rows[0]);
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message || 'Failed to create sub-sub-category' });
+    }
+  });
+});
+
+categoriesRoutes.put('/sub-sub-categories/:id', async (req, res) => {
+  return requireRoles(['admin', 'manager'])(req, res, async () => {
+    try {
+      const id = req.params.id;
+      const { sub_category_id, name, slug, display_order, is_active } = req.body || {};
+      await pool.query(
+        'UPDATE sub_sub_categories SET sub_category_id = ?, name = ?, slug = ?, display_order = ?, is_active = ? WHERE id = ?',
+        [sub_category_id, name, slug, display_order ?? 0, !!is_active, id]
+      );
+      const [rows] = await pool.query('SELECT * FROM sub_sub_categories WHERE id = ? LIMIT 1', [id]);
+      return res.json(rows[0]);
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message || 'Failed to update sub-sub-category' });
+    }
+  });
+});
+
+categoriesRoutes.delete('/sub-sub-categories/:id', async (req, res) => {
+  return requireRoles(['admin', 'manager'])(req, res, async () => {
+    try {
+      const id = req.params.id;
+      await pool.query('DELETE FROM sub_sub_categories WHERE id = ?', [id]);
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message || 'Failed to delete sub-sub-category' });
+    }
+  });
+});
+
 categoriesRoutes.post('/game-requests', async (req, res) => {
   try {
     await ensureGameRequestsTableExists();

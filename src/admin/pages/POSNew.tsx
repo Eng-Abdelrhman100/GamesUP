@@ -310,7 +310,8 @@ export function POSNew() {
               for (let i = 0; i < digitalItems.length; i++) {
                 const di = digitalItems[i];
                 
-                if (item.selectedSlot === 'Full Account') {
+                const isFullAccount = String(item.selectedSlot || '').toLowerCase().endsWith('full account');
+                if (isFullAccount) {
                   // Full Account: available only if NO slots are sold
                   const anySlotSold = di.slots ? Object.values(di.slots).some((s: any) => s.sold) : false;
                   if (!anySlotSold) {
@@ -358,7 +359,7 @@ export function POSNew() {
             if (digitalItem) {
               try {
                 // If Full Account, we send all details. If Slot, we send the slot code.
-                const isFullAccount = item.selectedSlot === 'Full Account';
+                const isFullAccount = String(item.selectedSlot || '').toLowerCase().endsWith('full account');
                 
                 await emailService.sendDigitalDelivery(
                   {
@@ -747,7 +748,8 @@ export function POSNew() {
                               // Calculate real available count from digitalItems slots
                               let availableCount = variant.stock;
                               if (selectedProduct.digitalItems && availableCount === 0) {
-                                if (variant.name === 'Full Account') {
+                                const isFullAccount = String(variant.name || '').toLowerCase().endsWith('full account');
+                                if (isFullAccount) {
                                   // Full Account is available if an account has ZERO sold slots
                                   availableCount = selectedProduct.digitalItems.reduce((count, item) => {
                                     if (!item.slots) return count + 1; // Basic account, no slots defined yet

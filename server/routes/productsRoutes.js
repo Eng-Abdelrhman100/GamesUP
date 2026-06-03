@@ -78,6 +78,7 @@ function normalizeProductRow(row) {
     ...row,
     attributes: parseJsonColumn(row.attributes),
     digitalItems: parseJsonColumn(row.digitalItems),
+    sub_sub_category_slug: row.sub_sub_category_slug || null,
   };
 }
 
@@ -101,12 +102,18 @@ async function attachVariants(products) {
 }
 
 function processProductExpiration(product) {
-  if (!product || product.category_slug !== 'playstation-plus') return product;
+  if (!product) return product;
+  
+  // If it's a specialized PS Plus type, make it always available
+  const isSpecialPSPlus = ['essential', 'extra', 'deluxe'].includes(product.digital_game_type);
+  
+  if (product.category_slug !== 'playstation-plus' && !isSpecialPSPlus) return product;
   
   const digitalItems = Array.isArray(product.digitalItems) ? product.digitalItems : [];
-  const subCategory = String(product.sub_category_slug || '').toLowerCase();
+  // Duration is now in sub_sub_category_slug
+  const durationSlug = String(product.sub_sub_category_slug || product.sub_category_slug || '').toLowerCase();
   
-  const limitDays = subCategory.includes('1-month') ? 5 : 10;
+  const limitDays = durationSlug.includes('1-month') ? 5 : 10;
   const now = new Date();
   
   const updatedDigitalItems = digitalItems.map(item => {
@@ -141,20 +148,29 @@ function processProductExpiration(product) {
       }
     }
   }
+
+  // Override stock for special PS Plus types
+  if (isSpecialPSPlus) {
+    computedStock = 999;
+  }
   
   const product_variants = Array.isArray(product.product_variants) ? product.product_variants.map(v => {
     let vStock = 0;
-    for (const item of updatedDigitalItems) {
-      const slot = item && item.slots?.[v.name];
-      if (slot && slot.code && !slot.sold && !slot.expired) {
-        vStock += 1;
+    if (isSpecialPSPlus) {
+      vStock = 999;
+    } else {
+      for (const item of updatedDigitalItems) {
+        const slot = item && item.slots?.[v.name];
+        if (slot && slot.code && !slot.sold && !slot.expired) {
+          vStock += 1;
+        }
       }
     }
     return { ...v, stock: vStock };
   }) : [];
   
   const availabilityStock = computedStock;
-  const status = availabilityStock > 10 ? 'In Stock' : availabilityStock > 0 ? 'Low Stock' : 'Out of Stock';
+  const status = isSpecialPSPlus ? 'In Stock' : (availabilityStock > 10 ? 'In Stock' : availabilityStock > 0 ? 'Low Stock' : 'Out of Stock');
   
   return {
     ...product,
@@ -270,13 +286,14 @@ productsRoutes.post('/products', async (req, res) => {
 
       const [result] = await conn.query(
         `INSERT INTO products
-         (name, category_slug, sub_category_slug, price, cost, stock, image, description, attributes, \`digitalItems\`,
-          \`productCode\`, \`purchasedEmail\`, \`purchasedPassword\`, instructions, status, sendEmailEnabled, emailTemplate)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (name, category_slug, sub_category_slug, sub_sub_category_slug, price, cost, stock, image, description, attributes, \`digitalItems\`,
+          \`productCode\`, \`purchasedEmail\`, \`purchasedPassword\`, instructions, status, sendEmailEnabled, emailTemplate, digital_game_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           productData.name,
           productData.category_slug || null,
           productData.sub_category_slug || null,
+          productData.sub_sub_category_slug || null,
           productData.price ?? null,
           productData.cost ?? null,
           productData.stock ?? 0,
@@ -291,6 +308,7 @@ productsRoutes.post('/products', async (req, res) => {
           productData.status || 'In Stock',
           !!productData.sendEmailEnabled,
           productData.emailTemplate || null,
+          productData.digital_game_type || 'normal',
         ]
       );
 
@@ -357,6 +375,7 @@ productsRoutes.put('/products/:id', async (req, res) => {
       setIfDefined('name', productData.name);
       setIfDefined('category_slug', productData.category_slug);
       setIfDefined('sub_category_slug', productData.sub_category_slug);
+      setIfDefined('sub_sub_category_slug', productData.sub_sub_category_slug);
       setIfDefined('price', productData.price);
       setIfDefined('cost', productData.cost);
       setIfDefined('stock', productData.stock);
@@ -369,6 +388,7 @@ productsRoutes.put('/products/:id', async (req, res) => {
       setIfDefined('`purchasedPassword`', productData.purchasedPassword);
       setIfDefined('instructions', productData.instructions);
       setIfDefined('status', productData.status);
+      setIfDefined('digital_game_type', productData.digital_game_type);
       if (productData.sendEmailEnabled !== undefined) setIfDefined('sendEmailEnabled', !!productData.sendEmailEnabled);
       setIfDefined('emailTemplate', productData.emailTemplate);
 

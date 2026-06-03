@@ -152,18 +152,42 @@ async function ensureSystemCategoriesSeeded() {
   if (psPlusRows.length > 0) {
     const categoryId = psPlusRows[0].id;
     const defaultSubCategories = [
-      { category_id: categoryId, name: '1 Month', slug: '1-month', display_order: 1, is_active: true },
-      { category_id: categoryId, name: '3 Months', slug: '3-months', display_order: 2, is_active: true },
-      { category_id: categoryId, name: '1 Year', slug: '1-year', display_order: 3, is_active: true }
+      { category_id: categoryId, name: 'Essential', slug: 'essential', display_order: 1, is_active: true },
+      { category_id: categoryId, name: 'Extra', slug: 'extra', display_order: 2, is_active: true },
+      { category_id: categoryId, name: 'Deluxe', slug: 'deluxe', display_order: 3, is_active: true }
     ];
+
+    const durations = [
+      { name: '1 Month', slug: '1-month', display_order: 1 },
+      { name: '3 Months', slug: '3-months', display_order: 2 },
+      { name: '1 Year', slug: '1-year', display_order: 3 }
+    ];
+
     for (const sub of defaultSubCategories) {
+      let subCategoryId;
       const [subRows] = await pool.query('SELECT id FROM sub_categories WHERE category_id = ? AND slug = ? LIMIT 1', [categoryId, sub.slug]);
+      
       if (subRows.length === 0) {
         console.log(`Seeding subcategory: ${sub.name} for Playstation Plus`);
-        await pool.query(
+        const [result] = await pool.query(
           'INSERT INTO sub_categories (category_id, name, slug, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
           [sub.category_id, sub.name, sub.slug, sub.display_order, sub.is_active]
         );
+        subCategoryId = result.insertId;
+      } else {
+        subCategoryId = subRows[0].id;
+      }
+
+      // Seed sub-sub-categories (Durations)
+      for (const dur of durations) {
+        const [ssRows] = await pool.query('SELECT id FROM sub_sub_categories WHERE sub_category_id = ? AND slug = ? LIMIT 1', [subCategoryId, dur.slug]);
+        if (ssRows.length === 0) {
+          console.log(`Seeding sub-sub-category: ${dur.name} for ${sub.name}`);
+          await pool.query(
+            'INSERT INTO sub_sub_categories (sub_category_id, name, slug, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
+            [subCategoryId, dur.name, dur.slug, dur.display_order, true]
+          );
+        }
       }
     }
   }

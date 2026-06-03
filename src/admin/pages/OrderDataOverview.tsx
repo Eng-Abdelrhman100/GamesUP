@@ -24,6 +24,9 @@ interface Order {
   amount: number;
   created_at: string;
   payment_method: string;
+  digital_email?: string;
+  digital_password?: string;
+  digital_code?: string;
 }
 
 interface GameAccount {
@@ -187,6 +190,16 @@ export function OrderDataOverview() {
       ...prev,
       [slotId]: !prev[slotId]
     }));
+  };
+
+  const updateOrder = async (id: string, updates: any) => {
+    try {
+      await ordersAPI.update(id, updates);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to update order:', err);
+      throw err;
+    }
   };
 
   const saveField = async (account: GameAccount, field: string, newValue: string) => {
@@ -717,6 +730,96 @@ export function OrderDataOverview() {
           </div>
         </Card>
       </div>
+
+      {/* Orders Fulfillment Tracking Table */}
+      <Card className="p-6 mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Orders Fulfillment Tracking</h2>
+          <button 
+            onClick={() => loadData()}
+            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+          >
+            <Clock className="w-3 h-3" /> Refresh Data
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
+              <tr>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Order #</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Customer</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Product</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Digital Email</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Sony Password</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Slot / Code</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Status</th>
+                <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {originalOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    No recent orders found
+                  </td>
+                </tr>
+              ) : (
+                originalOrders.map((order: Order) => (
+                  <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <td className="px-4 py-3 font-black text-red-600 dark:text-red-400">#{order.order_number}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900 dark:text-white">{order.customer_name}</div>
+                      <div className="text-[10px] text-gray-500">{order.customer_email}</div>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
+                      {order.product_name}
+                    </td>
+                    <td className="px-4 py-3">
+                      <EditableCell 
+                        initialValue={order.digital_email || ''} 
+                        onSave={(val) => updateOrder(order.id, { digital_email: val })}
+                        placeholder="Enter email"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <EditableCell 
+                        initialValue={order.digital_password || ''} 
+                        onSave={(val) => updateOrder(order.id, { digital_password: val })}
+                        placeholder="Enter password"
+                        isMono
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <EditableCell 
+                        initialValue={order.digital_code || ''} 
+                        onSave={(val) => updateOrder(order.id, { digital_code: val })}
+                        placeholder="Enter slot/code"
+                        isMono
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateOrder(order.id, { status: e.target.value })}
+                        className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider outline-none ${getStatusColor(order.status)}`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="paid">Paid</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-[10px] text-gray-500 font-mono">
+                      {formatDate(order.created_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {/* Game Accounts Table */}
       <Card className="p-6 mb-8">

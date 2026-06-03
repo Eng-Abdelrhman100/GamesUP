@@ -842,6 +842,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
   const [isSuperAdmin, setIsSuperAdmin] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [subSubCategories, setSubSubCategories] = useState<any[]>([]);
   const [attributes, setAttributes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -859,6 +860,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
     instructions: '',
     category: '',
     subCategory: '',
+    subSubCategory: '',
     price: '',
     cost: '',
     stock: 0,
@@ -869,6 +871,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
     emailTemplate: '',
     isRulesTemplate: false,
     productCreatedAt: null as string | null,
+    digital_game_type: 'normal',
   });
 
   const [newItem, setNewItem] = useState({ 
@@ -959,14 +962,15 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         console.log('Loading data...');
         setLoading(true);
         
-        const [catsRes, subCatsRes, attrsRes, productsRes] = await Promise.all([
+        const [catsRes, subCatsRes, subSubCatsRes, attrsRes, productsRes] = await Promise.all([
             categoriesAPI.getAll(),
             api.get('sub_categories'),
+            api.get('sub_sub_categories'),
             api.get('product_attributes'),
             productsAPI.getAll()
         ]);
 
-        console.log('API responses:', { catsRes, subCatsRes, attrsRes, productsRes });
+        console.log('API responses:', { catsRes, subCatsRes, subSubCatsRes, attrsRes, productsRes });
 
         // Handle categories
         if (catsRes) {
@@ -993,6 +997,13 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         } else {
             setSubCategories([]);
         }
+
+        // Handle sub-sub-categories
+        if (subSubCatsRes) {
+            setSubSubCategories(subSubCatsRes);
+        } else {
+            setSubSubCategories([]);
+        }
         
         // Handle attributes
         if (attrsRes) {
@@ -1008,11 +1019,6 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         setError(null);
     } catch (err: any) {
         console.error("Failed to load data", err);
-        console.error('Error details:', {
-            message: err?.message,
-            stack: err?.stack,
-            name: err?.name
-        });
         setError(err?.message || 'Failed to load data');
     } finally {
         setLoading(false);
@@ -1441,6 +1447,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         instructions: formData.instructions || '',
         category_slug: formData.category, // This is the slug from the select
         sub_category_slug: formData.subCategory, // This is the slug/name from subcats
+        sub_sub_category_slug: formData.subSubCategory || null,
         price: parseFloat(formData.price as any) || 0,
         cost: parseFloat(formData.cost as any) || 0,
         stock: computedStock,
@@ -1460,6 +1467,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         isRulesTemplate: formData.isRulesTemplate || false,
         fullAccountPrice: formData.fullAccountPrice ? parseFloat(formData.fullAccountPrice as any) : null,
         fullAccountCost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null,
+        digital_game_type: formData.digital_game_type || 'normal',
       };
 
       // Add Full Account variant if price is set
@@ -1565,6 +1573,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
       instructions: product.instructions || '',
       category: product.category_slug || '',
       subCategory: product.sub_category_slug || '',
+      subSubCategory: (product as any).sub_sub_category_slug || '',
       price: product.price.toString().replace('$', ''),
       cost: product.cost ? product.cost.toString().replace('$', '') : '',
       stock: product.category_slug === 'gift-cards' ? product.stock : ((parsedDigitalItems && parsedDigitalItems.length > 0) ? countAvailableSlots(parsedDigitalItems as any[], product.category_slug, product.sub_category_slug) : product.stock),
@@ -1577,6 +1586,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
       fullAccountPrice,
       fullAccountCost,
       productCreatedAt: product.created_at || null,
+      digital_game_type: (product as any).digital_game_type || 'normal',
     });
     setIsAddModalOpen(true);
   };
@@ -1909,12 +1919,12 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Category</label>
                           <select
                             value={formData.category || ''}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value, subCategory: '', subSubCategory: '' })}
                             disabled={!!filterCategory}
                             className={`w-full px-4 py-2.5 border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none ${
                               filterCategory
@@ -1932,7 +1942,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Sub Category</label>
                           <select
                             value={formData.subCategory || ''}
-                            onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, subCategory: e.target.value, subSubCategory: '' })}
                             className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
                           >
                             <option value="">Select Sub Category</option>
@@ -1944,7 +1954,50 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                             })()}
                           </select>
                         </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Sub-Sub Category</label>
+                          <select
+                            value={formData.subSubCategory || ''}
+                            onChange={(e) => setFormData({ ...formData, subSubCategory: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-all appearance-none"
+                          >
+                            <option value="">Select Sub-Sub Category</option>
+                            {(() => {
+                                const sub = subCategories.find(s => s.slug === formData.subCategory);
+                                return sub ? subSubCategories.filter(ss => ss.sub_category_id === sub.id && ss.is_active).map(ss => (
+                                    <option key={ss.id} value={ss.slug}>{ss.name}</option>
+                                )) : [];
+                            })()}
+                          </select>
+                        </div>
                       </div>
+
+                      {isDigitalGames && (
+                        <div className="pt-2">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-3 ml-1">Digital Game Type (Always Available Stock)</label>
+                          <div className="flex flex-wrap gap-2">
+                            {['normal', 'essential', 'extra', 'deluxe'].map((type) => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, digital_game_type: type })}
+                                className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+                                  formData.digital_game_type === type
+                                    ? 'bg-red-600 text-white shadow-lg'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'
+                                }`}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                          {formData.digital_game_type !== 'normal' && (
+                            <p className="text-[10px] text-red-600 dark:text-red-400 mt-2 font-bold italic animate-pulse">
+                              * Stock will be marked as "Always Available" for customers.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
