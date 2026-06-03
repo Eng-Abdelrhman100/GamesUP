@@ -18,6 +18,11 @@ const tableConfig = {
     orderBy: 'display_order ASC, id ASC',
     roles: ['admin', 'manager', 'staff'],
   },
+  sub_sub_categories: {
+    allowed: ['sub_category_id', 'name', 'slug', 'display_order', 'is_active'],
+    orderBy: 'display_order ASC, id ASC',
+    roles: ['admin', 'manager', 'staff'],
+  },
   product_attributes: {
     allowed: ['name', 'type', 'options', 'is_required', 'display_order', 'is_active'],
     orderBy: 'display_order ASC, id ASC',
@@ -40,10 +45,10 @@ const tableConfig = {
   },
   products: {
     allowed: [
-      'name', 'category_slug', 'sub_category_slug', 'price', 'cost', 'stock', 
+      'name', 'category_slug', 'sub_category_slug', 'sub_sub_category_slug', 'price', 'cost', 'stock', 
       'image', 'description', 'attributes', 'digitalItems', 'productCode', 
       'purchasedEmail', 'purchasedPassword', 'instructions', 'status', 
-      'sendEmailEnabled', 'emailTemplate'
+      'sendEmailEnabled', 'emailTemplate', 'digital_game_type'
     ],
     orderBy: 'id DESC',
     roles: ['admin', 'manager', 'staff'],
