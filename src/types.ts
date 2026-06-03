@@ -37,7 +37,9 @@ export interface Game {
 }
 
 export interface AccountType {
-  tier: 'PLATINUM' | 'GOLD' | 'SILVER';
+  group: string;
+  tier: string;
+  originalName: string;
   price: number;
   save: string;
   status: GameStatus;

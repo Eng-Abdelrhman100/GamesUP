@@ -12,7 +12,8 @@ interface ProductPageProps {
 }
 
 export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFavorite }: ProductPageProps) => {
-  const [selectedTier, setSelectedTier] = useState<number>(1);
+  const [selectedTier, setSelectedTier] = useState<number>(0);
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -25,9 +26,20 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
     return true;
   });
 
-  const hasOptions = visibleAccountTypes.length > 0;
-  const safeSelectedTier = hasOptions ? Math.min(Math.max(0, selectedTier), visibleAccountTypes.length - 1) : 0;
-  const activeOption = hasOptions ? visibleAccountTypes[safeSelectedTier] : null;
+  const groups = Array.from(new Set(visibleAccountTypes.map(opt => opt.group)));
+  
+  useEffect(() => {
+    if (groups.length > 0 && (!selectedGroup || !groups.includes(selectedGroup))) {
+      setSelectedGroup(groups[0]);
+      setSelectedTier(0);
+    }
+  }, [groups, selectedGroup]);
+
+  const activeGroup = selectedGroup || groups[0] || 'General';
+  const optionsForGroup = visibleAccountTypes.filter(opt => opt.group === activeGroup);
+  const hasOptions = optionsForGroup.length > 0;
+  const safeSelectedTier = hasOptions ? Math.min(Math.max(0, selectedTier), optionsForGroup.length - 1) : 0;
+  const activeOption = hasOptions ? optionsForGroup[safeSelectedTier] : null;
 
   return (
     <div className="min-h-screen bg-bg-dark pt-32 pb-20 transition-colors duration-300">
@@ -105,52 +117,52 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
 
             <div className="space-y-10">
               <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-[11px] font-black text-[var(--text-primary)] tracking-[0.4em] uppercase italic">Select Tier</h3>
-                  <span className="text-[10px] font-bold text-green-500 uppercase flex items-center gap-2">
-                     <Check className="h-3 w-3" /> Best Value Secured
-                  </span>
-                </div>
-                
-                {/* Account Tiers */}
-                <div className="grid grid-cols-1 gap-4">
-                  {visibleAccountTypes.map((option, idx) => (
-                    <button 
-                      key={idx}
-                      onClick={() => option.isAvailable && setSelectedTier(idx)}
-                      className={`group relative p-6 rounded-3xl text-left border-2 transition-all flex items-center gap-6 ${
-                        !option.isAvailable 
-                          ? 'border-border-subtle bg-black/5 dark:bg-white/[0.01] cursor-not-allowed opacity-30 shadow-none' 
-                          : safeSelectedTier === idx 
-                            ? 'border-brand-red bg-brand-red/[0.03] shadow-[0_0_30px_-10px_rgba(235,59,59,0.1)]' 
-                            : 'border-border-subtle hover:border-brand-red/30 bg-black/5 dark:bg-white/[0.02] shadow-none'
-                      }`}
-                      disabled={!option.isAvailable}
-                    >
-                      <div className={`p-4 rounded-2xl transition-all ${safeSelectedTier === idx ? 'bg-brand-red text-white scale-110 shadow-lg shadow-brand-red/30' : 'bg-bg-dark text-text-secondary'}`}>
-                        <span className="text-2xl">{option.icon}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-black text-text-secondary tracking-widest uppercase italic">{option.tier} ACCESS</span>
-                          <span className="text-[9px] font-black text-green-500 italic">SAVE {option.save}</span>
-                        </div>
-                        <div className="text-3xl font-black text-[var(--text-primary)] tracking-tighter font-display">
-                          {option.price} <span className="text-xs text-text-secondary">L.E</span>
-                        </div>
-                      </div>
-                      {safeSelectedTier === idx && (
-                        <div className="bg-brand-red text-white p-2 rounded-full shadow-lg shadow-brand-red/20">
-                          <Check className="h-4 w-4" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                  {!hasOptions && (
-                    <div className="p-6 rounded-3xl border border-border-subtle bg-black/5 dark:bg-white/[0.01] text-text-secondary text-xs font-bold uppercase tracking-widest italic">
-                      No tiers available
+                {groups.length > 0 && !(groups.length === 1 && groups[0] === 'General') && (
+                  <div className="mb-6">
+                    <h3 className="text-[11px] font-black text-text-secondary tracking-[0.2em] uppercase italic mb-3">Group</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {groups.map((group) => (
+                        <button
+                          key={group}
+                          onClick={() => { setSelectedGroup(group); setSelectedTier(0); }}
+                          className={`px-6 py-2.5 rounded-full text-sm font-black transition-all border-2 italic ${
+                            activeGroup === group
+                              ? 'bg-brand-red text-white border-brand-red shadow-[0_0_15px_rgba(235,59,59,0.3)]'
+                              : 'bg-transparent text-text-secondary border-border-subtle hover:border-brand-red/50 hover:text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {group}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <h3 className="text-[11px] font-black text-text-secondary tracking-[0.2em] uppercase italic mb-3">Type</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {optionsForGroup.map((option, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={() => option.isAvailable && setSelectedTier(idx)}
+                        className={`px-5 py-2.5 rounded-full text-sm font-black transition-all border-2 italic flex items-center gap-2 ${
+                          !option.isAvailable 
+                            ? 'border-border-subtle bg-black/5 dark:bg-white/[0.01] cursor-not-allowed opacity-30 text-text-secondary' 
+                            : safeSelectedTier === idx 
+                              ? 'bg-transparent text-[var(--text-primary)] border-[var(--text-primary)] shadow-sm' 
+                              : 'bg-transparent text-text-secondary border-border-subtle hover:border-[var(--text-primary)]/50 hover:text-[var(--text-primary)]'
+                        }`}
+                        disabled={!option.isAvailable}
+                      >
+                        {option.tier}
+                      </button>
+                    ))}
+                    {!hasOptions && (
+                      <div className="px-5 py-2.5 rounded-full border border-border-subtle bg-black/5 dark:bg-white/[0.01] text-text-secondary text-xs font-bold uppercase tracking-widest italic">
+                        No types available
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

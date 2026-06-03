@@ -29,8 +29,7 @@ interface Product {
   sendEmailEnabled?: boolean;
   emailTemplate?: string;
   isRulesTemplate?: boolean;
-  fullAccountPrice?: number;
-  fullAccountCost?: number;
+
 }
 
 interface DigitalItem {
@@ -93,10 +92,11 @@ function countAvailableForSlot(digitalItems: any[], slotName: string, categorySl
   return count;
 }
 
-function countAvailableFullAccounts(digitalItems: any[], slotNames?: string[]) {
+function countAvailableFullAccounts(digitalItems: any[], groupName: string) {
   if (!Array.isArray(digitalItems)) return 0;
   let count = 0;
   for (const item of digitalItems) {
+    if (item.assignedGroup !== groupName) continue;
     if (item.fullAccountSold) continue;
     const slots = item.slots || {};
     const anySlotSold = Object.values(slots).some((s: any) => !!s?.sold);
@@ -1425,12 +1425,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         computedStock = parseInt(formData.stock as any) || 0;
       }
 
-      const fullAccountStock =
-        !isDigitalGames || !formData.fullAccountPrice
-          ? 0
-          : countAvailableFullAccounts(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], customSlots.map((s) => s.name));
-
-      const availabilityStock = isDigitalGames ? Math.max(computedStock, fullAccountStock) : computedStock;
+      const availabilityStock = computedStock;
 
       const status =
         availabilityStock > 10
@@ -1456,29 +1451,27 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         attributes: formData.attributes || {},
         // For gift-cards, save the codes. For other products, save digital items with slots
         digitalItems: isPhysical ? [] : finalDigitalItems,
-        product_variants: isPhysical ? [] : customSlots.map(slot => ({
-          name: slot.name,
-          price: slot.price ? parseFloat(slot.price) : null,
-          cost: slot.cost ? parseFloat(slot.cost) : null,
-          stock: isGiftCards ? 0 : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name, formData.category, formData.subCategory)
-        })),
+        product_variants: isPhysical ? [] : customSlots.map(slot => {
+          const isFullAccount = slot.name.toLowerCase().endsWith('full account');
+          const groupName = slot.name.includes(' - ') ? slot.name.split(' - ')[0].trim() : 'General';
+          const stock = isGiftCards ? 0 : (
+            isFullAccount
+              ? countAvailableFullAccounts(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], groupName)
+              : countAvailableForSlot(Array.isArray(finalDigitalItems) ? (finalDigitalItems as any[]) : [], slot.name, formData.category, formData.subCategory)
+          );
+          
+          return {
+            name: slot.name,
+            price: slot.price ? parseFloat(slot.price) : null,
+            cost: slot.cost ? parseFloat(slot.cost) : null,
+            stock
+          };
+        }),
         sendEmailEnabled: formData.sendEmailEnabled || false,
         emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : (formData.emailTemplate || ''),
         isRulesTemplate: formData.isRulesTemplate || false,
-        fullAccountPrice: formData.fullAccountPrice ? parseFloat(formData.fullAccountPrice as any) : null,
-        fullAccountCost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null,
         digital_game_type: formData.digital_game_type || 'normal',
       };
-
-      // Add Full Account variant if price is set
-      if (formData.fullAccountPrice) {
-        productData.product_variants.push({
-          name: 'Full Account',
-          price: parseFloat(formData.fullAccountPrice as any),
-          cost: formData.fullAccountCost ? parseFloat(formData.fullAccountCost as any) : null,
-          stock: fullAccountStock
-        });
-      }
 
       if (editingProduct) {
         await productsAPI.update(editingProduct.id, productData);
@@ -1545,18 +1538,13 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
       const itemWithSlots = parsedDigitalItems.find((item: any) => item.slots);
       if (itemWithSlots && itemWithSlots.slots) {
         Object.entries(itemWithSlots.slots).forEach(([attr, slot]: [string, any]) => {
-          if (attr.toLowerCase() === 'full account') {
-            fullAccountPrice = slot.price ? String(slot.price) : '';
-            fullAccountCost = slot.cost ? String(slot.cost) : '';
-          } else {
-            newCustomSlots.push({
-              id: crypto.randomUUID(),
-              originalName: attr,
-              name: attr,
-              price: slot.price ? String(slot.price) : '',
-              cost: slot.cost ? String(slot.cost) : ''
-            });
-          }
+          newCustomSlots.push({
+            id: crypto.randomUUID(),
+            originalName: attr,
+            name: attr,
+            price: slot.price ? String(slot.price) : '',
+            cost: slot.cost ? String(slot.cost) : ''
+          });
         });
       }
     }
@@ -1583,8 +1571,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
       sendEmailEnabled: product.sendEmailEnabled || false,
       emailTemplate: product.emailTemplate === 'rules_for_games' ? '' : (product.emailTemplate || ''),
       isRulesTemplate: product.emailTemplate === 'rules_for_games' || product.isRulesTemplate || false,
-      fullAccountPrice,
-      fullAccountCost,
+
       productCreatedAt: product.created_at || null,
       digital_game_type: (product as any).digital_game_type || 'normal',
     });
@@ -2190,42 +2177,6 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                     </h4>
                     
                     <VariantGenerator customSlots={customSlots} setCustomSlots={setCustomSlots} />
-
-                    <div className="mb-4 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-purple-700 dark:text-purple-400">Full Account Option</span>
-                          <span className="text-[10px] text-gray-500">Allow customers to buy the entire account exclusively</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Price ({settings.currency_symbol})</label>
-                          <input
-                            type="number" step="0.01"
-                            value={formData.fullAccountPrice || ''}
-                            onChange={(e) => setFormData({ ...formData, fullAccountPrice: e.target.value })}
-                            className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder="e.g. 50.00"
-                          />
-                        </div>
-                        {isSuperAdmin && (
-                          <div>
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Full Account Cost ({settings.currency_symbol})</label>
-                            <input
-                              type="number" step="0.01"
-                              value={formData.fullAccountCost || ''}
-                              onChange={(e) => setFormData({ ...formData, fullAccountCost: e.target.value })}
-                              className="w-full px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500"
-                              placeholder="e.g. 20.00"
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-purple-600/70 italic">
-                        * Note: If a user buys a "Full Account", all other slots for that specific email will be locked. If any slot is sold, the "Full Account" option for that email becomes unavailable.
-                      </p>
-                    </div>
 
                     {/* Stock Summary Table */}
                     <div className="mb-8 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
