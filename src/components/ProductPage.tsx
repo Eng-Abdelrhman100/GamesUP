@@ -79,7 +79,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                  )}
                  <span className="bg-white/10 backdrop-blur-xl text-white text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase border border-white/10 italic">Digital Authority Verified</span>
               </div>
-              <h1 className="text-4xl md:text-8xl font-black tracking-[-0.05em] text-white uppercase font-display leading-[0.8] italic mb-6">
+              <h1 className="text-3xl md:text-6xl lg:text-8xl font-black tracking-[-0.05em] text-white uppercase font-display leading-[0.8] italic mb-6">
                 {game.title}
               </h1>
               <div className="flex flex-wrap items-center gap-4 md:gap-6 text-[9px] md:text-[11px] font-black uppercase tracking-widest text-gray-400 italic">
