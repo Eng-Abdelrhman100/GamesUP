@@ -110,6 +110,17 @@ async function ensureSubSubCategoriesTableExists() {
   );
 }
 
+async function ensureProductSubSubCategorySlugColumnExists() {
+  try {
+    await pool.query(
+      `ALTER TABLE products ADD COLUMN sub_sub_category_slug VARCHAR(191) NULL DEFAULT NULL AFTER sub_category_slug`
+    );
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') {
+      throw err;
+    }
+  }
+}
 
 async function ensureProductAttributesSeeded() {
   const [rows] = await pool.query('SELECT name FROM product_attributes');
@@ -228,6 +239,7 @@ async function bootstrap() {
   const seedSteps = [
     { name: 'game_requests table', fn: ensureGameRequestsTableExists },
     { name: 'sub_sub_categories table', fn: ensureSubSubCategoriesTableExists },
+    { name: 'products sub_sub_category_slug column', fn: ensureProductSubSubCategorySlugColumnExists },
     { name: 'product attributes', fn: ensureProductAttributesSeeded },
     { name: 'homepage categories', fn: ensureHomepageCategoriesSeeded },
     { name: 'system categories', fn: ensureSystemCategoriesSeeded },

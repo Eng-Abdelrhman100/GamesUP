@@ -299,7 +299,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                   className={`w-full px-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all ${isOffline ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-700 dark:text-gray-300'}`}
                 />
               </div>
-              <div className={`col-span-6 md:col-span-${isAdmin ? '3' : '6'}`}>
+              <div className={`col-span-6 md:col-span-${isSuperAdmin ? '3' : '6'}`}>
                 <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>Price ({settings.currency_symbol})</label>
                 <input
                   type="number" step="0.01" value={slot.price}
@@ -308,7 +308,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                   placeholder={formData.price || "0.00"}
                 />
               </div>
-              {isAdmin && (
+              {isSuperAdmin && (
               <div className="col-span-6 md:col-span-3">
                 <label className={`block text-[10px] font-bold uppercase mb-1.5 ml-1 ${isOffline ? 'text-gray-400' : 'text-gray-500'}`}>Cost ({settings.currency_symbol})</label>
                 <input
