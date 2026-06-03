@@ -109,9 +109,13 @@ tableRoutes.get('/table/:table', async (req, res) => {
   try {
     const { table } = req.params;
     const config = getConfig(table);
-    requireRoles(config.roles)(req, res, async () => {
-      const [rows] = await pool.query(`SELECT * FROM \`${table}\` ORDER BY ${config.orderBy}`);
-      return res.json(rows);
+    await requireRoles(config.roles)(req, res, async () => {
+      try {
+        const [rows] = await pool.query(`SELECT * FROM \`${table}\` ORDER BY ${config.orderBy}`);
+        return res.json(rows);
+      } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
     });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Failed to fetch' });

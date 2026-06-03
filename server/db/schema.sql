@@ -76,6 +76,22 @@ CREATE TABLE IF NOT EXISTS sub_categories (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS sub_sub_categories (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  sub_category_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(191) NOT NULL,
+  slug VARCHAR(191) NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  KEY idx_sub_sub_categories_sub_category_id (sub_category_id),
+  KEY idx_sub_sub_categories_active_order (is_active, display_order),
+  CONSTRAINT fk_sub_sub_categories_sub_category
+    FOREIGN KEY (sub_category_id) REFERENCES sub_categories(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS product_attributes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(191) NOT NULL,
