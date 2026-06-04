@@ -114,11 +114,20 @@ ordersRoutes.post('/orders', async (req, res) => {
             </div>
           </div>
         `;
-        await sendMailInternal({
-          to: 'info@games-up.co',
-          subject: `New Order: #${o.order_number}`,
-          html: adminHtml
-        });
+
+        const [adminUsers] = await pool.query("SELECT email FROM users WHERE role != 'customer' AND role IS NOT NULL AND email IS NOT NULL");
+        const adminEmails = adminUsers.map(u => u.email);
+        if (!adminEmails.includes('info@games-up.co')) {
+          adminEmails.push('info@games-up.co');
+        }
+
+        for (const email of adminEmails) {
+          await sendMailInternal({
+            to: email,
+            subject: `New Order: #${o.order_number}`,
+            html: adminHtml
+          }).catch(err => console.error(`Failed to send to ${email}:`, err));
+        }
 
         if (o.customer_email) {
           const userHtml = `
