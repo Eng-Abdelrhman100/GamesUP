@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { Router } from 'express';
-import { requireRoles } from '../middleware/authMiddleware.js';
+import { requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,13 +41,13 @@ const requestImagesUpload = multer({
   },
 });
 
-uploadRoutes.post('/uploads/products', requireRoles(['admin', 'manager']), productsUpload.single('file'), async (req, res) => {
+uploadRoutes.post('/uploads/products', requirePermission('products', 'write'), productsUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
   const url = `/uploads/products/${req.file.filename}`;
   return res.json({ url });
 });
 
-uploadRoutes.post('/uploads/banners', requireRoles(['admin', 'manager']), bannersUpload.single('file'), async (req, res) => {
+uploadRoutes.post('/uploads/banners', requirePermission('banners', 'write'), bannersUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
   const url = `/uploads/banners/${req.file.filename}`;
   return res.json({ url });
