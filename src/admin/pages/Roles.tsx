@@ -24,21 +24,27 @@ interface AdminUser {
 }
 
 const permissionKeys = [
-  'dashboard', 'products', 'inventory-sheet', 'orders', 'pos', 'analytics', 
-  'customers', 'banners', 'outlook', 'hr', 'tasks', 
-  'team', 'roles', 'system', 'delivery', 'settings', 'game-requests'
+  'dashboard', 'products', 'data-overview', 'inventory-sheet', 'orders', 'sold-products',
+  'order-chats', 'pos', 'analytics', 'customers', 'game-requests', 'balance-inventory',
+  'banners', 'hero-slider', 'outlook', 'hr', 'tasks', 'team', 'roles', 'system',
+  'delivery', 'email-templates', 'expenses', 'settings'
 ];
 
 const permissionLabels: { [key: string]: string } = {
   dashboard: 'Dashboard',
   products: 'Products',
+  'data-overview': 'Order Data Overview',
   'inventory-sheet': 'Inventory Sheet',
   orders: 'Orders',
+  'sold-products': 'Sold Products',
+  'order-chats': 'Order Chats / Support',
   pos: 'Point of Sale',
   analytics: 'Analytics',
   customers: 'Customers',
   'game-requests': 'Requested Games',
+  'balance-inventory': 'Balance Inventory',
   banners: 'Banners',
+  'hero-slider': 'Hero Slider',
   outlook: 'Outlook Accounts',
   hr: 'HR & Attendance',
   tasks: 'Tasks',
@@ -46,6 +52,8 @@ const permissionLabels: { [key: string]: string } = {
   roles: 'Roles & Access',
   system: 'System',
   delivery: 'Delivery Options',
+  'email-templates': 'Email Templates',
+  expenses: 'Expenses',
   settings: 'Settings',
 };
 
