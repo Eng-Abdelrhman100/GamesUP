@@ -17,11 +17,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendEmail(req, res) {
-  const { to, subject, html } = req.body;
-
+export async function sendMailInternal({ to, subject, html }) {
   if (!to || !subject || !html) {
-    return res.status(400).json({ success: false, error: 'Missing required fields' });
+    throw new Error('Missing required fields');
   }
 
   const mailOptions = {
@@ -34,7 +32,7 @@ export async function sendEmail(req, res) {
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log('Email sent successfully:', info.messageId);
-    res.status(200).json({ success: true, messageId: info.messageId });
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     console.warn('Primary SMTP failed, trying Ethereal fallback...', error.message);
     try {
@@ -61,15 +59,25 @@ export async function sendEmail(req, res) {
       console.log('Ethereal Fallback Success! Message ID:', info.messageId);
       console.log('Preview URL:', previewUrl);
 
-      res.status(200).json({
+      return {
         success: true,
         messageId: info.messageId,
         isEthereal: true,
         previewUrl,
-      });
+      };
     } catch (fallbackError) {
       console.error('Ethereal Fallback also failed:', fallbackError);
-      res.status(500).json({ success: false, error: error.message });
+      throw new Error(error.message);
     }
+  }
+}
+
+export async function sendEmail(req, res) {
+  try {
+    const { to, subject, html } = req.body;
+    const result = await sendMailInternal({ to, subject, html });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 }

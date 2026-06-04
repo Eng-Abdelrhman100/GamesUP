@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth, requireRoles, requirePermission } from '../middleware/authMiddleware.js';
+import { sendMailInternal } from '../controllers/emailController.js';
 
 export const ordersRoutes = Router();
 
@@ -95,7 +96,57 @@ ordersRoutes.post('/orders', async (req, res) => {
       ]
     );
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
-    return res.json(normalizeOrderRow(rows[0]));
+    const orderObj = normalizeOrderRow(rows[0]);
+
+    // Fire and forget email notifications
+    (async () => {
+      try {
+        const adminHtml = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+            <h2 style="color: #dc2626; border-bottom: 2px solid #eee; padding-bottom: 10px;">New Order Alert: #${o.order_number}</h2>
+            <p><strong>Customer:</strong> ${o.customer_name} (<a href="mailto:${o.customer_email}">${o.customer_email}</a>)</p>
+            <p><strong>Phone:</strong> ${o.phone || 'N/A'}</p>
+            <p><strong>Product:</strong> ${o.product_name || 'N/A'}</p>
+            <p><strong>Amount:</strong> L.E ${o.amount || 0}</p>
+            <p><strong>Payment Method:</strong> ${o.payment_method?.toUpperCase() || 'N/A'}</p>
+            <div style="margin-top: 20px;">
+              <a href="https://admin.games-up.co/orders" style="background: #dc2626; color: white; padding: 10px 16px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Order in Admin Panel</a>
+            </div>
+          </div>
+        `;
+        await sendMailInternal({
+          to: 'info@games-up.co',
+          subject: `New Order: #${o.order_number}`,
+          html: adminHtml
+        });
+
+        if (o.customer_email) {
+          const userHtml = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+              <h2 style="color: #dc2626;">Thank you for your order!</h2>
+              <p>Hi ${o.customer_name},</p>
+              <p>Your order <strong>#${o.order_number}</strong> has been received successfully and is currently being processed by our team.</p>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr><td style="padding: 8px; border: 1px solid #eee; font-weight: bold;">Product</td><td style="padding: 8px; border: 1px solid #eee;">${o.product_name}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #eee; font-weight: bold;">Total Amount</td><td style="padding: 8px; border: 1px solid #eee;">L.E ${o.amount}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #eee; font-weight: bold;">Payment Method</td><td style="padding: 8px; border: 1px solid #eee;">${o.payment_method?.toUpperCase()}</td></tr>
+              </table>
+              <p style="margin-top: 20px;">If this was a digital product, your game account details will be delivered shortly.</p>
+              <p>Thanks for choosing GamesUp!</p>
+            </div>
+          `;
+          await sendMailInternal({
+            to: o.customer_email,
+            subject: `Order Confirmation: #${o.order_number}`,
+            html: userHtml
+          });
+        }
+      } catch (emailErr) {
+        console.error('Failed to send order notification emails:', emailErr);
+      }
+    })();
+
+    return res.json(orderObj);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to create order' });
   }

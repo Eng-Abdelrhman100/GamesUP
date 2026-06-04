@@ -279,7 +279,7 @@ adminRoutes.get('/admin/users', async (req, res) => {
       const [rows] = await pool.query(
         `SELECT id, email, name, role, permissions, job_title, phone, avatar, identity_document, created_at
          FROM users
-         WHERE role IN ('admin', 'manager', 'staff')
+         WHERE role != 'customer' AND role IS NOT NULL
          ORDER BY id DESC`
       );
       const normalized = rows.map((u) => {
