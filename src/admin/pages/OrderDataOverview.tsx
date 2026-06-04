@@ -321,6 +321,51 @@ export function OrderDataOverview() {
     }
   };
 
+  const saveSlotCode = async (account: GameAccount, slotType: string, newValue: string) => {
+    try {
+      const normalizedSlotType = slotType.toLowerCase();
+      
+      const productIndex = originalProducts.findIndex(p => p.id === account.productId);
+      if (productIndex === -1) throw new Error('Product not found: ' + account.productId);
+      
+      const product = { ...originalProducts[productIndex] };
+      const digitalItems = Array.isArray(product.digitalItems) ? [...product.digitalItems] : [];
+      
+      const itemIndex = digitalItems.findIndex(item => (item.id && item.id === account.id) || item.email === account.email);
+      if (itemIndex === -1) throw new Error('Digital item not found for: ' + account.email);
+      
+      const item = { ...digitalItems[itemIndex] };
+      if (!item.slots) item.slots = {};
+      const slots = { ...item.slots };
+      
+      let actualSlotKey: string | null = null;
+      for (const key of Object.keys(slots)) {
+        if (key.toLowerCase() === normalizedSlotType || key.toLowerCase().includes(normalizedSlotType)) {
+          actualSlotKey = key;
+          break;
+        }
+      }
+      
+      if (!actualSlotKey) {
+        actualSlotKey = slotType;
+        slots[actualSlotKey] = { sold: false, orderId: null, code: '', price: 0, cost: 0, customerName: '' };
+      }
+      
+      slots[actualSlotKey] = { ...slots[actualSlotKey], code: newValue };
+      
+      item.slots = slots;
+      digitalItems[itemIndex] = item;
+      product.digitalItems = digitalItems;
+      
+      await productsAPI.update(product.id, { digitalItems: product.digitalItems });
+      await loadData();
+    } catch (err) {
+      console.error('Error saving slot code:', err);
+      alert('Failed to save code: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      throw err;
+    }
+  };
+
   const markGiftCardAsSold = async (giftCard: GiftCard) => {
     try {
       const customerName = prompt('Enter customer name:');
@@ -955,22 +1000,36 @@ export function OrderDataOverview() {
                 gameAccounts
                   .filter(acc => !acc.gameName.toLowerCase().includes('gift card') && (selectedProduct === 'all' || acc.gameName === selectedProduct))
                   .map((account) => {
-                  // Helper to find customer for a specific slot type
                   const getCustomerForSlot = (slotType: string) => {
                     const slot = account.inventory.find(i => i.label.toLowerCase().includes(slotType.toLowerCase()));
-                    const initialValue = slot?.customerName || '';
+                    const initialCustomerValue = slot?.customerName || '';
+                    const initialCodeValue = slot?.code || '';
                     const isSold = slot?.status === 'Sold';
                     
                     return (
-                      <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSold ? 'bg-red-500' : 'bg-green-500'}`} />
-                        <div className="flex-1">
-                          <EditableCell 
-                            initialValue={initialValue}
-                            onSave={(newValue) => saveSlotCustomer(account, slotType, newValue)}
-                            placeholder="Customer Name"
-                            className={isSold ? 'text-red-600 font-bold' : 'text-green-600'}
-                          />
+                      <div className="flex flex-col gap-1 min-w-[140px]">
+                        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 p-1 rounded">
+                          <div className="w-4 h-4 text-[9px] bg-gray-200 dark:bg-gray-700 rounded text-center leading-4 font-mono text-gray-500 shrink-0" title="Slot Code">C</div>
+                          <div className="flex-1">
+                            <EditableCell 
+                              initialValue={initialCodeValue}
+                              onSave={(newValue) => saveSlotCode(account, slotType, newValue)}
+                              placeholder="Add code..."
+                              className="text-gray-700 dark:text-gray-300 font-mono text-xs"
+                              isMono
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 px-1">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSold ? 'bg-red-500' : 'bg-green-500'}`} title={isSold ? 'Sold' : 'Available'} />
+                          <div className="flex-1">
+                            <EditableCell 
+                              initialValue={initialCustomerValue}
+                              onSave={(newValue) => saveSlotCustomer(account, slotType, newValue)}
+                              placeholder="Customer Name"
+                              className={isSold ? 'text-red-600 dark:text-red-400 font-bold' : 'text-green-600 dark:text-green-400'}
+                            />
+                          </div>
                         </div>
                       </div>
                     );

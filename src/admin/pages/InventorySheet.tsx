@@ -7,6 +7,7 @@ import {
   Search, Plus, Trash2, Save, RotateCcw, Download, Upload, 
   ChevronDown, ChevronUp, Check, AlertCircle, RefreshCw, Eye, Edit
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ProductRow {
   id: string | number;
@@ -913,6 +914,43 @@ export function InventorySheet() {
     reader.readAsText(file);
   };
 
+  // Smart Bulk Excel Upload Parser
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+        let extractedText = '';
+        if (bulkAddFormat === 'email:pass') {
+          extractedText = jsonData.map(row => `${row[0] || ''}:${row[1] || ''}`).join('\n');
+        } else if (bulkAddFormat === 'email:pass:outlook:outlookpass') {
+          extractedText = jsonData.map(row => `${row[0] || ''}:${row[1] || ''}:${row[2] || ''}:${row[3] || ''}`).join('\n');
+        } else {
+          // codes_only
+          extractedText = jsonData.map(row => `${row[0] || ''}`).join('\n');
+        }
+        
+        // Remove empty lines
+        extractedText = extractedText.split('\n').filter(line => line.replace(/:/g, '').trim() !== '').join('\n');
+        
+        setBulkAddRawText(extractedText);
+      } catch (err: any) {
+        alert('Failed to parse Excel file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // Reset file input
+    e.target.value = '';
+  };
+
   // Smart Bulk Copy Paste account parser
   const handleBulkAddSubmit = () => {
     if (!bulkAddProductId || !bulkAddRawText.trim()) {
@@ -934,12 +972,18 @@ export function InventorySheet() {
       let offlinePs4Code = '';
       let offlinePs5Code = '';
 
+      const splitLine = (l: string) => {
+        if (l.includes(':')) return l.split(':').map(s => s.trim());
+        if (l.includes('\t')) return l.split('\t').map(s => s.trim());
+        return l.split(/\s+/).map(s => s.trim());
+      };
+
       if (bulkAddFormat === 'email:pass') {
-        const parts = line.split(':');
+        const parts = splitLine(line);
         email = parts[0] || '';
         password = parts[1] || '';
       } else if (bulkAddFormat === 'email:pass:outlook:outlookpass') {
-        const parts = line.split(':');
+        const parts = splitLine(line);
         email = parts[0] || '';
         password = parts[1] || '';
         outlookEmail = parts[2] || '';
@@ -1801,19 +1845,30 @@ export function InventorySheet() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase">
-              3. Paste Raw Accounts List (one per line)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                3. Paste Raw Accounts List or Upload Excel
+              </label>
+              <label className="cursor-pointer flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg transition-colors">
+                <Upload className="w-3.5 h-3.5" /> Extract Excel
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleExcelUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
             <textarea
               rows={6}
               value={bulkAddRawText}
               onChange={(e) => setBulkAddRawText(e.target.value)}
               placeholder={
                 bulkAddFormat === 'email:pass'
-                  ? 'alex@gmail.com:sonyPass123\nsam@outlook.com:sonyPass456'
+                  ? 'alex@gmail.com:sonyPass123\nalex@gmail.com sonyPass123'
                   : bulkAddFormat === 'codes_only'
                   ? 'KEY-ABCD-1234\nKEY-EFGH-5678'
-                  : 'alex@gmail.com:sonyPass123:alex_outlook@outlook.com:outlookPass123\nsam@outlook.com:sonyPass456:sam_outlook@outlook.com:outlookPass456'
+                  : 'alex@gmail.com:sonyPass123:alex_outlook@outlook.com:outlookPass123\nsam@outlook.com samPass456 sam_outlook@outlook.com outlookPass456'
               }
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-red"
             />
