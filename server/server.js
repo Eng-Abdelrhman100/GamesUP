@@ -122,6 +122,18 @@ async function ensureProductSubSubCategorySlugColumnExists() {
   }
 }
 
+async function ensureDigitalGameTypeColumnExists() {
+  try {
+    await pool.query(
+      `ALTER TABLE products ADD COLUMN digital_game_type VARCHAR(32) NOT NULL DEFAULT 'normal' AFTER emailTemplate`
+    );
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') {
+      throw err;
+    }
+  }
+}
+
 async function ensureProductAttributesSeeded() {
   const [rows] = await pool.query('SELECT name FROM product_attributes');
   const existingNames = new Set((rows || []).map((r) => String(r.name || '').trim().toLowerCase()).filter(Boolean));
@@ -240,6 +252,7 @@ async function bootstrap() {
     { name: 'game_requests table', fn: ensureGameRequestsTableExists },
     { name: 'sub_sub_categories table', fn: ensureSubSubCategoriesTableExists },
     { name: 'products sub_sub_category_slug column', fn: ensureProductSubSubCategorySlugColumnExists },
+    { name: 'products digital_game_type column', fn: ensureDigitalGameTypeColumnExists },
     { name: 'product attributes', fn: ensureProductAttributesSeeded },
     { name: 'homepage categories', fn: ensureHomepageCategoriesSeeded },
     { name: 'system categories', fn: ensureSystemCategoriesSeeded },

@@ -116,10 +116,13 @@ ordersRoutes.post('/orders', async (req, res) => {
         `;
 
         const [adminUsers] = await pool.query("SELECT email FROM users WHERE role != 'customer' AND role IS NOT NULL AND email IS NOT NULL");
-        const adminEmails = adminUsers.map(u => u.email);
-        if (!adminEmails.includes('info@games-up.co')) {
-          adminEmails.push('info@games-up.co');
-        }
+        const [employeeList] = await pool.query("SELECT email FROM employees WHERE email IS NOT NULL");
+        
+        const emailSet = new Set(adminUsers.map(u => u.email));
+        employeeList.forEach(e => emailSet.add(e.email));
+        emailSet.add('info@games-up.co');
+        
+        const adminEmails = Array.from(emailSet);
 
         for (const email of adminEmails) {
           await sendMailInternal({

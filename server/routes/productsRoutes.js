@@ -201,7 +201,9 @@ productsRoutes.get('/public/products', async (req, res) => {
     const [rows] = await pool.query(`SELECT * FROM products ${whereSql} ORDER BY created_at DESC`, params);
     const products = rows.map(normalizeProductRow);
     const withVariants = await attachVariants(products);
-    const processedProducts = withVariants.map(processProductExpiration);
+    const processedProducts = withVariants
+      .map(processProductExpiration)
+      .filter((p) => p.stock > 0);
     return res.json({ products: processedProducts });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to fetch products' });

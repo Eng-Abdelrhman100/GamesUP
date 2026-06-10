@@ -39,6 +39,16 @@ async function main() {
     console.log('"instructions" column already exists in products table.');
   }
 
+  // 2b. Check if products table has 'digital_game_type' column
+  const [digitalGameTypeCols] = await connection.query('SHOW COLUMNS FROM products LIKE "digital_game_type"');
+  if (digitalGameTypeCols.length === 0) {
+    console.log('Adding "digital_game_type" column to products table...');
+    await connection.query('ALTER TABLE products ADD COLUMN digital_game_type VARCHAR(32) NOT NULL DEFAULT "normal" AFTER emailTemplate');
+    console.log('"digital_game_type" column added successfully.');
+  } else {
+    console.log('"digital_game_type" column already exists in products table.');
+  }
+
   // 3. Check if orders table has 'cost' column
   const [costColumns] = await connection.query('SHOW COLUMNS FROM orders LIKE "cost"');
   if (costColumns.length === 0) {
