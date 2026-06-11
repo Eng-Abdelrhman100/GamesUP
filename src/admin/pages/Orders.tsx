@@ -154,14 +154,47 @@ export function Orders() {
           }
           
           if (digitalItems.length > 0) {
-            await emailService.sendDigitalDelivery(updatedOrder, digitalItems);
+            const res = await emailService.sendDigitalDelivery(updatedOrder, digitalItems);
+            if (res?.success) {
+              alert('Digital delivery email sent successfully with order details and slot data!');
+            } else {
+              alert('Failed to send digital delivery email: ' + (res?.error || 'Unknown error'));
+            }
+          } else {
+            // No digital items found on the order
+            const res = await emailService.sendEmail(updatedOrder.customer_email, 'status_update', {
+              name: updatedOrder.customer_name,
+              orderId: updatedOrder.order_number || updatedOrder.id,
+              status: newStatus.toUpperCase(),
+              total: updatedOrder.amount,
+              date: new Date().toLocaleDateString()
+            });
+            if (res?.success) {
+               alert('Order marked as completed, but no digital credentials were found on this order. A generic order completion email was sent instead.');
+            } else {
+               alert('Order marked as completed, but failed to send completion email.');
+            }
           }
-        } catch (parseError) {
+        } catch (parseError: any) {
           console.error('Error parsing digital items for email:', parseError);
+          alert('Error processing digital delivery: ' + parseError.message);
+        }
+      } else if (newStatus !== 'pending' && updatedOrder) {
+        // Send a generic status update for shipped, processing, cancelled
+        const res = await emailService.sendEmail(updatedOrder.customer_email, 'status_update', {
+           name: updatedOrder.customer_name,
+           orderId: updatedOrder.order_number || updatedOrder.id,
+           status: newStatus.toUpperCase(),
+           total: updatedOrder.amount,
+           date: new Date().toLocaleDateString()
+        });
+        if (res?.success) {
+           alert(`Status update email (${newStatus}) sent to customer.`);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update order status:', err);
+      alert('Failed to update order status: ' + err.message);
     }
   };
 

@@ -27,6 +27,11 @@ export const emailService = {
             subject: 'Your Digital Items for Order #{{orderId}}',
             body: 'Hello {{name}},\n\nYour order #{{orderId}} is complete! Here are your digital items:\n\n{{digitalCodes}}\n\nThank you for shopping with us!'
           };
+        } else if (templateType === 'status_update') {
+          template = {
+            subject: 'Order Status Update #{{orderId}}',
+            body: 'Hello {{name}},\n\nYour order #{{orderId}} is now marked as {{status}}!\n\nTotal: {{total}}\nDate: {{date}}\n\nThank you for shopping with us!'
+          };
         } else {
           template = {
             subject: 'Notification',
