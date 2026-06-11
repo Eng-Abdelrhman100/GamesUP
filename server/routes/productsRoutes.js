@@ -107,7 +107,9 @@ function processProductExpiration(product) {
   // If it's a specialized PS Plus type, make it always available
   const isSpecialPSPlus = ['essential', 'extra', 'deluxe'].includes(product.digital_game_type);
   
-  if (product.category_slug !== 'playstation-plus' && !isSpecialPSPlus) return product;
+  const usesSlots = ['playstation-plus', 'digital-games'].includes(product.category_slug) || isSpecialPSPlus;
+  
+  if (!usesSlots) return product;
   
   const digitalItems = Array.isArray(product.digitalItems) ? product.digitalItems : [];
   // Duration is now in sub_sub_category_slug
@@ -122,7 +124,10 @@ function processProductExpiration(product) {
     const createdDate = new Date(dateStr);
     const diffDays = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
     
-    if (diffDays >= limitDays) {
+    // Only expire playstation-plus based on limitDays
+    const shouldExpire = product.category_slug === 'playstation-plus' && diffDays >= limitDays;
+    
+    if (shouldExpire) {
       if (item.slots) {
         const updatedSlots = {};
         for (const [slotName, slotData] of Object.entries(item.slots)) {
@@ -139,13 +144,17 @@ function processProductExpiration(product) {
   });
   
   let computedStock = 0;
+  let hasAnySlots = false;
   for (const item of updatedDigitalItems) {
-    if (item && item.slots) {
+    if (item && item.slots && Object.keys(item.slots).length > 0) {
+      hasAnySlots = true;
       for (const slot of Object.values(item.slots)) {
         if (slot && slot.code && !slot.sold && !slot.expired) {
           computedStock += 1;
         }
       }
+    } else if (item && item.code && !item.sold && !item.expired) {
+      computedStock += 1;
     }
   }
 
@@ -158,13 +167,15 @@ function processProductExpiration(product) {
     let vStock = 0;
     if (isSpecialPSPlus) {
       vStock = 999;
-    } else {
+    } else if (hasAnySlots) {
       for (const item of updatedDigitalItems) {
         const slot = item && item.slots?.[v.name];
         if (slot && slot.code && !slot.sold && !slot.expired) {
           vStock += 1;
         }
       }
+    } else {
+      vStock = v.stock; // keep original if no slots
     }
     return { ...v, stock: vStock };
   }) : [];
