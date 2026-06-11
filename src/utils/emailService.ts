@@ -175,90 +175,90 @@ export const emailService = {
       const isCodeOnlyType = !isAccountType && !!(item.code || selectedSlotCode);
 
       // --- STUNNING GAMESUP THEME HTML ---
-      let html = \`
+      let html = `
         <div style="margin-bottom: 30px; border: 1px solid #27272a; padding: 24px; border-radius: 16px; background: linear-gradient(145deg, #18181b, #09090b); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif; color: #e4e4e7;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid #3f3f46; padding-bottom: 12px;">
-            <h3 style="margin: 0; color: #fafafa; font-size: 18px; font-weight: 700; letter-spacing: -0.02em;">\${item.name || 'Digital Product'}</h3>
-            \${matchedSlotKey ? \`<span style="background-color: #7f1d1d; color: #fecaca; font-size: 11px; padding: 4px 10px; border-radius: 9999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">\${matchedSlotKey}</span>\` : ''}
+            <h3 style="margin: 0; color: #fafafa; font-size: 18px; font-weight: 700; letter-spacing: -0.02em;">${item.name || 'Digital Product'}</h3>
+            ${matchedSlotKey ? `<span style="background-color: #7f1d1d; color: #fecaca; font-size: 11px; padding: 4px 10px; border-radius: 9999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${matchedSlotKey}</span>` : ''}
           </div>
-      \`;
+      `;
 
       if (isAccountType) {
-        html += \`
+        html += `
           <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
             <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Account Credentials</p>
             
             <div style="display: flex; flex-direction: column; gap: 12px;">
-              \${item.email ? \`
+              ${item.email ? `
               <div>
                 <span style="font-size: 12px; color: #71717a; display: block; margin-bottom: 4px;">Sign-in ID (Email)</span>
-                <div style="background-color: #000; padding: 10px 14px; border-radius: 8px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #ef4444; font-weight: 600;">\${item.email}</div>
-              </div>\` : ''}
+                <div style="background-color: #000; padding: 10px 14px; border-radius: 8px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #ef4444; font-weight: 600;">${item.email}</div>
+              </div>` : ''}
               
-              \${item.password ? \`
+              ${item.password ? `
               <div>
                 <span style="font-size: 12px; color: #71717a; display: block; margin-bottom: 4px;">Password</span>
-                <div style="background-color: #000; padding: 10px 14px; border-radius: 8px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #ef4444; font-weight: 600;">\${item.password}</div>
-              </div>\` : ''}
+                <div style="background-color: #000; padding: 10px 14px; border-radius: 8px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #ef4444; font-weight: 600;">${item.password}</div>
+              </div>` : ''}
             </div>
           </div>
-        \`;
+        `;
 
         if (selectedSlotCode || item.code) {
           const displayCode = selectedSlotCode || item.code;
-          html += \`
+          html += `
             <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
               <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Activation / Pin Code</p>
               <div style="background-color: #000; padding: 12px 16px; border-radius: 8px; border: 1px solid #dc2626; text-align: center;">
-                <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 18px; font-weight: 700; letter-spacing: 2px; color: #f87171;">\${displayCode}</span>
+                <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 18px; font-weight: 700; letter-spacing: 2px; color: #f87171;">${displayCode}</span>
               </div>
             </div>
-          \`;
+          `;
         }
       } else if (isCodeOnlyType) {
         // Pure gift card or key
-        html += \`
+        html += `
           <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center;">
             <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Your Digital Code</p>
             <div style="background-color: #000; padding: 16px; border-radius: 8px; border: 1px solid #dc2626; display: inline-block; min-width: 250px;">
-              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 20px; font-weight: 700; letter-spacing: 3px; color: #f87171;">\${item.code || selectedSlotCode}</span>
+              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 20px; font-weight: 700; letter-spacing: 3px; color: #f87171;">${item.code || selectedSlotCode}</span>
             </div>
           </div>
-        \`;
+        `;
       }
 
       // Additional Security Info
       if (item.outlookEmail || item.backupCodes || item.birthdate) {
-        html += \`<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+        html += `<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
           <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Security & Recovery Details</p>
-          <div style="display: grid; gap: 8px; font-size: 13px;">\`;
+          <div style="display: grid; gap: 8px; font-size: 13px;">`;
           
-        if (item.outlookEmail) html += \`<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">\${item.outlookEmail}</strong></div>\`;
-        if (item.outlookPassword) html += \`<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">\${item.outlookPassword}</strong></div>\`;
-        if (item.birthdate) html += \`<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">\${item.birthdate}</strong></div>\`;
-        if (item.region) html += \`<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">\${item.region}</strong></div>\`;
+        if (item.outlookEmail) html += `<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">${item.outlookEmail}</strong></div>`;
+        if (item.outlookPassword) html += `<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">${item.outlookPassword}</strong></div>`;
+        if (item.birthdate) html += `<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">${item.birthdate}</strong></div>`;
+        if (item.region) html += `<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">${item.region}</strong></div>`;
         
         if (item.backupCodes) {
-          html += \`
+          html += `
             <div style="margin-top: 8px;">
               <span style="color: #71717a; display: block; margin-bottom: 6px;">2FA Backup Codes:</span>
-              <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">\${item.backupCodes}</pre>
+              <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">${item.backupCodes}</pre>
             </div>
-          \`;
+          `;
         }
-        html += \`</div></div>\`;
+        html += `</div></div>`;
       }
 
       // Add dynamic Category Rules
       if (emailRules) {
-        html += \`
+        html += `
           <div style="background-color: #27272a; border-left: 4px solid #dc2626; border-radius: 0 8px 8px 0; padding: 16px; margin-top: 24px;">
-            <p style="margin: 0; font-size: 13px; color: #d4d4d8; line-height: 1.6; white-space: pre-wrap;">\${emailRules}</p>
+            <p style="margin: 0; font-size: 13px; color: #d4d4d8; line-height: 1.6; white-space: pre-wrap;">${emailRules}</p>
           </div>
-        \`;
+        `;
       }
 
-      html += \`</div>\`;
+      html += `</div>`;
       return html;
     }).join('');
 
