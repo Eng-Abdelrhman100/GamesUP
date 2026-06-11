@@ -82,7 +82,23 @@ export default function App() {
             banner: normalizeImageSrc(p.image || ''),
             price: (() => {
               const base = Number(p.price);
-              return Number.isFinite(base) ? base : 0;
+              if (Number.isFinite(base) && base > 0) return base;
+              
+              // Fallback to variant min price if base is 0
+              const variants = Array.isArray(p.product_variants) ? p.product_variants : [];
+              const toPrice = (v: any) => {
+                const n = Number(v?.price);
+                return Number.isFinite(n) && n > 0 ? n : null;
+              };
+
+              const usable = variants.filter((v: any) => String(v?.name || '').trim().toLowerCase() !== 'full account');
+              const inStock = usable.filter((v: any) => Number(v?.stock) > 0).map(toPrice).filter((x: any) => x != null) as number[];
+              const any = usable.map(toPrice).filter((x: any) => x != null) as number[];
+
+              const prices = inStock.length ? inStock : any;
+              if (prices.length) return Math.min(...prices);
+
+              return 0;
             })(),
             basePrice: (() => {
               const variants = Array.isArray(p.product_variants) ? p.product_variants : [];
@@ -115,8 +131,13 @@ export default function App() {
             accountTypes: Array.isArray(p.product_variants) && p.product_variants.length > 0
               ? p.product_variants.map((v: any) => {
                   const parts = v.name.split(' - ');
-                  const group = parts.length > 1 ? parts[0] : 'General';
-                  const tier = parts.length > 1 ? parts.slice(1).join(' - ') : v.name;
+                  let group = parts.length > 1 ? parts[0] : 'General';
+                  let tier = parts.length > 1 ? parts.slice(1).join(' - ') : v.name;
+
+                  const lowerName = v.name.toLowerCase();
+                  if (parts.length === 1 && (lowerName.includes('primary') || lowerName.includes('secondary') || lowerName.includes('full account'))) {
+                    group = 'Type';
+                  }
                   return {
                     group,
                     tier,

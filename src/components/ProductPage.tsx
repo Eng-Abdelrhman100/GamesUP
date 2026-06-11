@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Star, ShoppingCart, ShieldCheck, Zap, Info, ChevronRight, Check, Heart } from 'lucide-react';
+import { ArrowLeft, Star, ShoppingCart, ShieldCheck, Zap, Info, ChevronRight, Check, Heart, Box, CheckSquare, Square } from 'lucide-react';
 import { Game, AccountType } from '../types';
 
 interface ProductPageProps {
@@ -14,6 +14,8 @@ interface ProductPageProps {
 export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFavorite }: ProductPageProps) => {
   const [selectedTier, setSelectedTier] = useState<number>(0);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
+  const [quantity, setQuantity] = useState<number>(1);
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -41,6 +43,26 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
   const safeSelectedTier = hasOptions ? Math.min(Math.max(0, selectedTier), optionsForGroup.length - 1) : 0;
   const activeOption = hasOptions ? optionsForGroup[safeSelectedTier] : null;
 
+  // Find attributes like language
+  const language = game.attributes?.language || 'English';
+  const gameSize = game.attributes?.gameSize || 'N/A';
+  
+  // Extract discount tags if available
+  const getDiscounts = () => {
+    // Fake static discounts for visual effect as requested to match image, or pull from attributes
+    // In a real scenario these could be pulled from the product, but we'll add them as a UI element if it's a digital game
+    if (game.categorySlug?.includes('digital') || game.category?.toLowerCase().includes('digital')) {
+      return [
+        { label: 'Gold: 7% Off', color: 'bg-[#FFD700] text-black' },
+        { label: 'Silver: 3% Off', color: 'bg-[#C0C0C0] text-black' },
+        { label: 'Platinum: 10% Off', color: 'bg-[#4682B4] text-white' }
+      ];
+    }
+    return [];
+  };
+
+  const discounts = getDiscounts();
+
   return (
     <div className="min-h-screen bg-bg-dark pt-32 pb-20 transition-colors duration-300">
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
@@ -53,7 +75,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
           Back to Retrieval Zone
         </button>
 
-        <div className="bg-bg-card border border-border-subtle rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[70vh]">
+        <div className="bg-[#1a1a1a] border border-[#333] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[70vh]">
           {/* Visual Section (Left) */}
           <div className="lg:w-1/2 relative bg-black group overflow-hidden h-96 lg:h-auto">
             <motion.img 
@@ -81,7 +103,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                </motion.button>
             </div>
 
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-bg-card hidden lg:block"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#1a1a1a] hidden lg:block"></div>
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80"></div>
             
             <div className="absolute bottom-6 md:bottom-12 left-6 md:left-12 right-6 md:right-12">
@@ -91,7 +113,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                  )}
                  <span className="bg-white/10 backdrop-blur-xl text-white text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase border border-white/10 italic">Digital Authority Verified</span>
               </div>
-              <h1 className="text-3xl md:text-6xl lg:text-8xl font-black tracking-[-0.05em] text-white uppercase font-display leading-[0.8] italic mb-6">
+              <h1 className="text-3xl md:text-6xl lg:text-7xl font-black tracking-[-0.05em] text-white uppercase font-display leading-[0.9] italic mb-6">
                 {game.title}
               </h1>
               <div className="flex flex-wrap items-center gap-4 md:gap-6 text-[9px] md:text-[11px] font-black uppercase tracking-widest text-gray-400 italic">
@@ -105,84 +127,112 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
           </div>
           
           {/* Configuration Section (Right) */}
-          <div className="lg:w-1/2 p-6 md:p-10 lg:p-20 flex flex-col justify-center">
-            <div className="mb-12">
-               <div className="flex items-center gap-3 text-[10px] text-brand-red font-black mb-4 tracking-[0.3em] uppercase italic">
-                  <Zap className="h-4 w-4" /> Instant Deployment Available
-               </div>
-               <p className="text-text-secondary text-lg leading-relaxed font-medium tracking-tight italic">
-                 {game.description}
-               </p>
-            </div>
+          <div className="lg:w-1/2 p-6 md:p-10 lg:p-12 flex flex-col justify-start bg-[#1a1a1a] text-white font-sans">
+            
+            {/* Discounts */}
+            {discounts.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {discounts.map((d, i) => (
+                  <span key={i} className={`px-3 py-1 rounded-md text-xs font-bold ${d.color}`}>
+                    {d.label}
+                  </span>
+                ))}
+              </div>
+            )}
 
-            <div className="space-y-10">
-              <div>
-                {groups.length > 0 && !(groups.length === 1 && groups[0] === 'General') && (
-                  <div className="mb-6">
-                    <h3 className="text-[11px] font-black text-text-secondary tracking-[0.2em] uppercase italic mb-3">Group</h3>
+            <div className="space-y-6">
+              
+              {/* Language Group */}
+              {language && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-300 mb-3">Language</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="px-6 py-2 rounded-full text-sm font-semibold border border-white bg-white text-black">
+                      {language}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Groups (e.g. Type) */}
+              {groups.length > 0 && (
+                <div>
+                  {groups.length > 1 && (
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-gray-300 mb-3">Category</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {groups.map((group) => (
+                          <button
+                            key={group}
+                            onClick={() => { setSelectedGroup(group); setSelectedTier(0); }}
+                            className={`px-6 py-2 rounded-full text-sm font-semibold border transition-all ${
+                              activeGroup === group
+                                ? 'bg-white text-black border-white'
+                                : 'bg-transparent text-gray-300 border-[#444] hover:border-gray-400'
+                            }`}
+                          >
+                            {group}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-300 mb-3">{activeGroup}</h3>
                     <div className="flex flex-wrap gap-2">
-                      {groups.map((group) => (
-                        <button
-                          key={group}
-                          onClick={() => { setSelectedGroup(group); setSelectedTier(0); }}
-                          className={`px-6 py-2.5 rounded-full text-sm font-black transition-all border-2 italic ${
-                            activeGroup === group
-                              ? 'bg-brand-red text-white border-brand-red shadow-[0_0_15px_rgba(235,59,59,0.3)]'
-                              : 'bg-transparent text-text-secondary border-border-subtle hover:border-brand-red/50 hover:text-[var(--text-primary)]'
+                      {optionsForGroup.map((option, idx) => (
+                        <button 
+                          key={idx}
+                          onClick={() => option.isAvailable && setSelectedTier(idx)}
+                          className={`px-6 py-2 rounded-full text-sm font-semibold transition-all border relative overflow-hidden ${
+                            !option.isAvailable 
+                              ? 'border-[#333] text-gray-500 cursor-not-allowed' 
+                              : safeSelectedTier === idx 
+                                ? 'bg-white text-black border-white' 
+                                : 'bg-transparent text-gray-300 border-[#444] hover:border-gray-400'
                           }`}
+                          disabled={!option.isAvailable}
                         >
-                          {group}
+                          {!option.isAvailable && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="w-full h-[1px] bg-gray-500 rotate-[-10deg]"></div>
+                            </div>
+                          )}
+                          {option.tier}
                         </button>
                       ))}
+                      {!hasOptions && (
+                        <div className="px-6 py-2 rounded-full border border-[#333] text-gray-500 text-sm font-semibold">
+                          No types available
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-
-                <div className="mb-6">
-                  <h3 className="text-[11px] font-black text-text-secondary tracking-[0.2em] uppercase italic mb-3">Type</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {optionsForGroup.map((option, idx) => (
-                      <button 
-                        key={idx}
-                        onClick={() => option.isAvailable && setSelectedTier(idx)}
-                        className={`px-5 py-2.5 rounded-full text-sm font-black transition-all border-2 italic flex items-center gap-2 ${
-                          !option.isAvailable 
-                            ? 'border-border-subtle bg-black/5 dark:bg-white/[0.01] cursor-not-allowed opacity-30 text-text-secondary' 
-                            : safeSelectedTier === idx 
-                              ? 'bg-transparent text-[var(--text-primary)] border-[var(--text-primary)] shadow-sm' 
-                              : 'bg-transparent text-text-secondary border-border-subtle hover:border-[var(--text-primary)]/50 hover:text-[var(--text-primary)]'
-                        }`}
-                        disabled={!option.isAvailable}
-                      >
-                        {option.tier}
-                      </button>
-                    ))}
-                    {!hasOptions && (
-                      <div className="px-5 py-2.5 rounded-full border border-border-subtle bg-black/5 dark:bg-white/[0.01] text-text-secondary text-xs font-bold uppercase tracking-widest italic">
-                        No types available
-                      </div>
-                    )}
-                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="pt-10 mb-2 border-t border-border-subtle/50">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Selected Extraction Cost</span>
-                </div>
-                <div className="flex items-baseline gap-2 h-16">
+              {/* Price Display */}
+              <div className="pt-6">
+                <div className="flex items-end gap-3 mb-1">
+                  {/* Optional Old Price mockup */}
+                  <span className="text-lg text-gray-500 line-through font-semibold">
+                    LE {(activeOption ? activeOption.price * 1.4 : game.basePrice * 1.4).toFixed(2)} EGP
+                  </span>
+                  
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={safeSelectedTier}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="text-5xl md:text-6xl font-black text-[var(--text-primary)] tracking-tighter font-display italic transition-colors"
+                      transition={{ duration: 0.2 }}
+                      className="text-3xl font-bold text-white flex items-center gap-3"
                     >
                       {activeOption ? (
                         <>
-                          {activeOption.price} <span className="text-xl text-text-secondary font-sans not-italic ml-1">L.E</span>
+                          LE {activeOption.price.toFixed(2)} EGP
+                          <span className="px-3 py-1 bg-white text-black text-xs font-bold rounded-full">Sale</span>
                         </>
                       ) : (
                         <>N/A</>
@@ -190,48 +240,77 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                     </motion.div>
                   </AnimatePresence>
                 </div>
+                <div className="text-sm text-brand-red underline cursor-pointer mt-2">Shipping <span className="text-gray-400 no-underline">calculated at checkout.</span></div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Dynamic Note Text */}
+              <p className="text-xs text-gray-400 uppercase font-semibold leading-relaxed my-6 border-l-2 border-brand-red pl-3">
+                PRIMARY PS5 IS ONLY FOR PS5 CONSOLE AND PRIMARY PS4 IS ONLY FOR PS4 CONSOLE. SECONDARY CAN BE BOTH PS4 OR PS5.
+              </p>
+
+              {/* Features List */}
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center gap-3 text-white font-bold italic text-lg uppercase tracking-wide">
+                  <Zap className="h-6 w-6 text-white" />
+                  Instant Delivery
+                </div>
+                <div className="flex items-center gap-3 text-white font-bold italic text-lg uppercase tracking-wide">
+                  <Box className="h-6 w-6 text-white" />
+                  Game Size : {gameSize}
+                </div>
+              </div>
+
+              {/* Quantity (Mockup for design parity, mostly 1 for digital) */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-300 mb-2">Quantity</h3>
+                <div className="flex items-center border border-[#444] rounded-md w-32 bg-[#111]">
+                  <button className="px-4 py-2 text-gray-400 hover:text-white" onClick={() => setQuantity(Math.max(1, quantity - 1))}>−</button>
+                  <span className="flex-1 text-center font-semibold text-white">{quantity}</span>
+                  <button className="px-4 py-2 text-gray-400 hover:text-white" onClick={() => setQuantity(quantity + 1)}>+</button>
+                </div>
+              </div>
+
+              {/* Terms Checkbox */}
+              <div className="bg-[#222] border border-[#333] rounded-lg p-4 mb-6 cursor-pointer" onClick={() => setAgreedToTerms(!agreedToTerms)}>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 w-5 h-5 flex-shrink-0 flex items-center justify-center rounded ${agreedToTerms ? 'bg-[#ff0055]' : 'bg-[#111] border border-[#555]'}`}>
+                    {agreedToTerms && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                  </div>
+                  <p className="text-sm text-gray-200 font-medium">
+                    I agree to the <span className="text-[#ff0055] underline">Refund Policy & Game Share Terms</span> and understand that all sales are final.
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3">
                 <button 
-                  onClick={() => activeOption && onAddToCart(game, activeOption)}
-                  className="py-6 rounded-3xl font-black tracking-[0.2em] text-sm flex items-center justify-center gap-3 transition-all uppercase italic bg-[var(--text-primary)] text-bg-dark hover:scale-[1.02] active:scale-95 group shadow-2xl"
-                  disabled={!activeOption}
+                  onClick={() => {
+                    if (activeOption) {
+                       for(let i=0; i<quantity; i++) onAddToCart(game, activeOption);
+                    }
+                  }}
+                  className={`py-4 rounded-xl font-bold tracking-wide text-sm flex items-center justify-center gap-3 transition-all uppercase bg-white text-black hover:bg-gray-200 ${(!activeOption || !agreedToTerms) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!activeOption || !agreedToTerms}
                 >
                   Add to Inventory
-                  <ShoppingCart className="h-5 w-5 group-hover:rotate-12 transition-transform" />
+                  <ShoppingCart className="h-5 w-5" />
                 </button>
                 <button 
-                  onClick={() => activeOption && onAddToCart(game, activeOption)}
-                  className="py-6 rounded-3xl font-black tracking-[0.2em] text-sm flex items-center justify-center gap-3 transition-all uppercase italic bg-brand-red text-white hover:scale-[1.02] active:scale-95 group shadow-2xl shadow-brand-red/20"
-                  disabled={!activeOption}
+                  onClick={() => {
+                    if (activeOption) {
+                       for(let i=0; i<quantity; i++) onAddToCart(game, activeOption);
+                       // Add logic to go to checkout directly here
+                    }
+                  }}
+                  className={`py-4 rounded-xl font-bold tracking-wide text-sm flex items-center justify-center gap-3 transition-all uppercase bg-[#e62e2d] text-white hover:bg-[#ff3b3a] ${(!activeOption || !agreedToTerms) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!activeOption || !agreedToTerms}
                 >
                   Instant Buy 
-                  <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
-              
-              {/* Trust Badges */}
-              <div className="flex items-center justify-center gap-12 pt-8 border-t border-border-subtle">
-                <div className="flex flex-col items-center gap-3 text-[10px] font-black text-text-secondary uppercase tracking-widest italic group cursor-help transition-all hover:text-brand-red">
-                  <div className="p-3 bg-brand-red/5 rounded-full group-hover:bg-brand-red/10 transition-colors">
-                    <ShieldCheck className="h-5 w-5 text-brand-red" />
-                  </div>
-                  Anti-Ban Shield
-                </div>
-                <div className="flex flex-col items-center gap-3 text-[10px] font-black text-text-secondary uppercase tracking-widest italic group cursor-help transition-all hover:text-brand-red">
-                  <div className="p-3 bg-brand-red/5 rounded-full group-hover:bg-brand-red/10 transition-colors">
-                    <Zap className="h-5 w-5 text-brand-red" />
-                  </div>
-                  Flash Delivery
-                </div>
-                <div className="flex flex-col items-center gap-3 text-[10px] font-black text-text-secondary uppercase tracking-widest italic group cursor-help transition-all hover:text-brand-red">
-                  <div className="p-3 bg-brand-red/5 rounded-full group-hover:bg-brand-red/10 transition-colors">
-                    <Info className="h-5 w-5 text-brand-red" />
-                  </div>
-                  Elite Support
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -271,12 +350,6 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                 <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
                   <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Game Size</div>
                   <div className="text-white font-black text-sm uppercase italic">{game.attributes.gameSize}</div>
-                </div>
-              )}
-              {game.attributes.language && (
-                <div className="space-y-2 border-l-2 border-brand-red/20 pl-4">
-                  <div className="text-[9px] font-black text-text-secondary uppercase tracking-[0.2em] italic">Language</div>
-                  <div className="text-white font-black text-sm uppercase italic">{game.attributes.language}</div>
                 </div>
               )}
             </div>
