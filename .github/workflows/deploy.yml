@@ -87,6 +87,9 @@ jobs:
 
             cd /var/www/gamesup
 
+            # Run database schema migration before reloading
+            node server/db/update_db_schema.js || true
+
             # Restart/reload Node Express server via PM2
             if pm2 describe gamesup-api >/dev/null 2>&1; then
               pm2 reload gamesup-api --update-env

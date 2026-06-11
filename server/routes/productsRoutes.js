@@ -297,7 +297,7 @@ productsRoutes.post('/products', async (req, res) => {
           productData.sub_category_slug || null,
           productData.sub_sub_category_slug || null,
           productData.price ?? null,
-          productData.cost ?? null,
+          (productData.cost !== undefined && productData.cost !== null && String(productData.cost).trim() !== '') ? productData.cost : (productData.price ?? null),
           productData.stock ?? 0,
           productData.image || null,
           productData.description || null,
@@ -320,7 +320,8 @@ productsRoutes.post('/products', async (req, res) => {
         const values = [];
         const placeholders = variants
           .map((v) => {
-            values.push(productId, v.name, v.price ?? null, v.cost ?? null, v.stock ?? 0);
+            const vCost = (v.cost !== undefined && v.cost !== null && String(v.cost).trim() !== '') ? v.cost : (v.price ?? null);
+            values.push(productId, v.name, v.price ?? null, vCost, v.stock ?? 0);
             return '(?, ?, ?, ?, ?)';
           })
           .join(', ');
@@ -379,7 +380,17 @@ productsRoutes.put('/products/:id', async (req, res) => {
       setIfDefined('sub_category_slug', productData.sub_category_slug);
       setIfDefined('sub_sub_category_slug', productData.sub_sub_category_slug);
       setIfDefined('price', productData.price);
-      setIfDefined('cost', productData.cost);
+      
+      let finalCost = productData.cost;
+      if (finalCost === undefined || finalCost === null || String(finalCost).trim() === '') {
+        if (productData.price !== undefined) {
+          finalCost = productData.price;
+        } else {
+          finalCost = undefined; // Don't update if both are empty/missing
+        }
+      }
+      setIfDefined('cost', finalCost);
+
       setIfDefined('stock', productData.stock);
       setIfDefined('image', productData.image);
       setIfDefined('description', productData.description);
@@ -405,7 +416,8 @@ productsRoutes.put('/products/:id', async (req, res) => {
           const vValues = [];
           const vPlaceholders = variants
             .map((v) => {
-              vValues.push(id, v.name, v.price ?? null, v.cost ?? null, v.stock ?? 0);
+              const vCost = (v.cost !== undefined && v.cost !== null && String(v.cost).trim() !== '') ? v.cost : (v.price ?? null);
+              vValues.push(id, v.name, v.price ?? null, vCost, v.stock ?? 0);
               return '(?, ?, ?, ?, ?)';
             })
             .join(', ');

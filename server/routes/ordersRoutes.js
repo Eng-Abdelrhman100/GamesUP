@@ -92,7 +92,7 @@ ordersRoutes.post('/orders', async (req, res) => {
         o.payment_method || null,
         o.payment_proof || null,
         o.shipping_address ? JSON.stringify(o.shipping_address) : null,
-        o.cost ?? null,
+        (o.cost !== undefined && o.cost !== null && String(o.cost).trim() !== '') ? o.cost : (o.amount ?? null),
       ]
     );
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
