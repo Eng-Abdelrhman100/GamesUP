@@ -176,7 +176,7 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-[var(--bg-primary)] border-l border-border-subtle z-[70] flex flex-col shadow-2xl shadow-black/40"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-bg-primary border-l border-border-subtle z-[70] flex flex-col shadow-2xl shadow-black/40"
             >
               <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border-subtle">
                 <button

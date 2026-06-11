@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS categories (
   icon TEXT NULL,
   display_order INT NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  email_rules TEXT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   UNIQUE KEY uq_categories_slug (slug),

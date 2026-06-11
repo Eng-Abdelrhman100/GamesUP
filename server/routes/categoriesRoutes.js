@@ -51,10 +51,10 @@ categoriesRoutes.get('/categories/footer-top', async (req, res) => {
 categoriesRoutes.post('/categories', async (req, res) => {
   return requireRoles(['admin', 'manager'])(req, res, async () => {
     try {
-      const { name, slug, icon = null, display_order = 0, is_active = true } = req.body || {};
+      const { name, slug, icon = null, display_order = 0, is_active = true, email_rules = null } = req.body || {};
       const [result] = await pool.query(
-        'INSERT INTO categories (name, slug, icon, display_order, is_active) VALUES (?, ?, ?, ?, ?)',
-        [name, slug, icon, display_order, !!is_active]
+        'INSERT INTO categories (name, slug, icon, display_order, is_active, email_rules) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, slug, icon, display_order, !!is_active, email_rules]
       );
       const [rows] = await pool.query('SELECT * FROM categories WHERE id = ? LIMIT 1', [result.insertId]);
       return res.json(rows[0]);
@@ -68,10 +68,10 @@ categoriesRoutes.put('/categories/:id', async (req, res) => {
   return requireRoles(['admin', 'manager'])(req, res, async () => {
     try {
       const id = req.params.id;
-      const { name, slug, icon, display_order, is_active } = req.body || {};
+      const { name, slug, icon, display_order, is_active, email_rules } = req.body || {};
       await pool.query(
-        'UPDATE categories SET name = ?, slug = ?, icon = ?, display_order = ?, is_active = ? WHERE id = ?',
-        [name, slug, icon ?? null, display_order ?? 0, !!is_active, id]
+        'UPDATE categories SET name = ?, slug = ?, icon = ?, display_order = ?, is_active = ?, email_rules = ? WHERE id = ?',
+        [name, slug, icon ?? null, display_order ?? 0, !!is_active, email_rules ?? null, id]
       );
       const [rows] = await pool.query('SELECT * FROM categories WHERE id = ? LIMIT 1', [id]);
       return res.json(rows[0]);

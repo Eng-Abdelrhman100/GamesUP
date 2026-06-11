@@ -14,6 +14,7 @@ interface Category {
   icon: string;
   displayOrder: number;
   isActive: boolean;
+  emailRules?: string;
   createdAt: string;
 }
 
@@ -76,6 +77,7 @@ export function System() {
             ...item,
             displayOrder: item.display_order,
             isActive: item.is_active,
+            emailRules: item.email_rules || '',
         }));
         setCategories(mappedData);
       } else if (activeTab === 'subcategories') {
@@ -122,7 +124,8 @@ export function System() {
             slug: editingItem.slug,
             icon: editingItem.icon,
             display_order: parseInt(editingItem.displayOrder as any) || 0,
-            is_active: editingItem.isActive
+            is_active: editingItem.isActive,
+            email_rules: editingItem.emailRules || null
           };
 
           if (editingItem?.id) {
@@ -252,7 +255,7 @@ export function System() {
 
   const openAddModal = () => {
     if (activeTab === 'categories') {
-      setEditingItem({ name: '', slug: '', icon: '', displayOrder: 0, isActive: true });
+      setEditingItem({ name: '', slug: '', icon: '', displayOrder: 0, isActive: true, emailRules: '' });
     } else if (activeTab === 'subcategories') {
       setEditingItem({ categoryId: categories[0]?.id || '', name: '', description: '', slug: '', displayOrder: 0, isActive: true });
     } else if (activeTab === 'subsubcategories') {
@@ -490,6 +493,7 @@ export function System() {
               <div><label className="block text-sm font-medium text-text-secondary mb-2">Slug</label><input type="text" value={editingItem.slug} onChange={(e) => setEditingItem({ ...editingItem, slug: e.target.value })} disabled={editingItem.id && ['digital-games', 'games', 'digital', 'gift-cards', 'consoles', 'accessories'].includes(editingItem.slug)} className="w-full px-3 py-2 border rounded-lg bg-bg-primary disabled:opacity-50" /></div>
               <div><label className="block text-sm font-medium text-text-secondary mb-2">Icon</label><div className="flex gap-3"><input type="text" value={editingItem.icon} onChange={(e) => setEditingItem({ ...editingItem, icon: e.target.value })} className="flex-1 px-3 py-2 border rounded-lg bg-bg-primary" /><div className="w-10 h-10 border rounded-lg flex items-center justify-center bg-bg-secondary">{renderIcon(editingItem.icon)}</div></div></div>
               <div><label className="block text-sm font-medium text-text-secondary mb-2">Order</label><input type="number" value={editingItem.displayOrder || 0} onChange={(e) => setEditingItem({ ...editingItem, displayOrder: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-lg bg-bg-primary" /></div>
+              <div><label className="block text-sm font-medium text-text-secondary mb-2">Email Rules / Dynamic Text (Optional)</label><textarea value={editingItem.emailRules || ''} onChange={(e) => setEditingItem({ ...editingItem, emailRules: e.target.value })} placeholder="Important notice to append to emails for this category..." className="w-full px-3 py-2 border rounded-lg bg-bg-primary" rows={3} /></div>
               <div className="flex items-center"><input type="checkbox" checked={editingItem.isActive} onChange={(e) => setEditingItem({ ...editingItem, isActive: e.target.checked })} className="mr-2" /><label className="text-sm">Active</label></div>
             </>
           )}

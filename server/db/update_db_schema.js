@@ -59,6 +59,16 @@ async function main() {
     console.log('"cost" column already exists in orders table.');
   }
 
+  // 3b. Check if categories table has 'email_rules' column
+  const [catEmailRulesCols] = await connection.query('SHOW COLUMNS FROM categories LIKE "email_rules"');
+  if (catEmailRulesCols.length === 0) {
+    console.log('Adding "email_rules" column to categories table...');
+    await connection.query('ALTER TABLE categories ADD COLUMN email_rules TEXT NULL AFTER is_active');
+    console.log('"email_rules" column added successfully.');
+  } else {
+    console.log('"email_rules" column already exists in categories table.');
+  }
+
   // 4. Create balance_inventory table
   console.log('Checking "balance_inventory" table...');
   await connection.query(`
