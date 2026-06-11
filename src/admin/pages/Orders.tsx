@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Eye, Download, FileText, Printer, X, Plus } from 'lucide-react';
+import { Search, Eye, Download, FileText, Printer, X, Plus, Mail } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { ordersAPI, api, productsAPI } from '../../utils/api';
 import { emailService } from '../../utils/emailService';
@@ -167,6 +167,36 @@ export function Orders() {
 
   const handleViewProof = async (id: string, url: string) => {
     setViewingProof(url);
+  };
+
+  const handleResendEmail = async (orderToEmail: Order) => {
+    if (!confirm(`Are you sure you want to resend the digital delivery email to ${orderToEmail.customer_email}?`)) return;
+    try {
+      let digitalItems: any[] = [];
+      if (orderToEmail.digital_delivery) {
+        digitalItems = typeof orderToEmail.digital_delivery === 'string'
+          ? JSON.parse(orderToEmail.digital_delivery)
+          : orderToEmail.digital_delivery;
+      } else if (orderToEmail.digital_code || orderToEmail.digital_email || orderToEmail.digital_password) {
+        digitalItems = [{
+          name: orderToEmail.product_name,
+          code: orderToEmail.digital_code,
+          email: orderToEmail.digital_email,
+          password: orderToEmail.digital_password
+        }];
+      }
+      
+      if (digitalItems.length > 0) {
+        const res = await emailService.sendDigitalDelivery(orderToEmail, digitalItems);
+        if (res?.success) alert('Digital delivery email sent successfully!');
+        else alert('Failed to send email: ' + (res?.error || 'Unknown error'));
+      } else {
+        alert('No digital items found for this order. Email cannot be sent.');
+      }
+    } catch (err) {
+      console.error('Error sending email manually:', err);
+      alert('Failed to send email.');
+    }
   };
 
   const handleViewDetails = (order: Order) => {
@@ -546,6 +576,13 @@ export function Orders() {
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleResendEmail(order)}
+                          className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                          title="Resend Digital Delivery Email"
+                        >
+                          <Mail className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
