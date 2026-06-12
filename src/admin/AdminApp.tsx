@@ -5,6 +5,7 @@ import { TopBar } from './components/TopBar';
 import { Login } from './components/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Products } from './pages/Products';
+import ProductEditor from './pages/ProductEditor';
 import { ProductDataOverview } from './pages/ProductDataOverview';
 import { InventorySheet } from './pages/InventorySheet';
 import { OrderDataOverview } from './pages/OrderDataOverview';
@@ -248,6 +249,8 @@ export default function AdminApp() {
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<ProtectedRoute id="dashboard"><Dashboard /></ProtectedRoute>} />
               <Route path="products" element={<ProtectedRoute id="products"><Products /></ProtectedRoute>} />
+              <Route path="products/add" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
+              <Route path="products/edit/:id" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><OrderDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
               <Route path="playstation-plus" element={<ProtectedRoute id="playstation-plus"><Products filterCategory="playstation-plus" /></ProtectedRoute>} />
