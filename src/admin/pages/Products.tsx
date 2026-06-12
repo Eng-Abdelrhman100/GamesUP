@@ -53,7 +53,7 @@ function countAvailableSlots(digitalItems: any[], categorySlug?: string, subCate
   const now = new Date().getTime();
   const limitDays = String(subCategorySlug || '').toLowerCase().includes('1-month') ? 5 : 10;
   for (const item of digitalItems) {
-    if (!item || !item.slots) continue;
+    if (!item || !item.slots || item.fullAccountSold) continue;
     let isExpired = false;
     if (categorySlug === 'playstation-plus' && item.createdAt) {
       const createdDate = new Date(item.createdAt).getTime();
@@ -76,6 +76,7 @@ function countAvailableForSlot(digitalItems: any[], slotName: string, categorySl
   const now = new Date().getTime();
   const limitDays = String(subCategorySlug || '').toLowerCase().includes('1-month') ? 5 : 10;
   for (const item of digitalItems) {
+    if (item.fullAccountSold) continue;
     const slot = item?.slots?.[slotName];
     if (!slot) continue;
     let isExpired = false;
@@ -532,6 +533,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                 <thead className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700">
                   <tr>
                     <th className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account Credentials</th>
+                    <th className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">Full Account</th>
                     <th className="px-3.5 py-2.5 font-bold text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Recovery & Region</th>
                     {slotsInGroup.map((slot: any) => {
                       const parts = slot.name.split(' - ');
@@ -576,6 +578,25 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, set
                             Added: {new Date(item.createdAt).toLocaleDateString()}
                           </p>
                         )}
+                      </td>
+                      
+                      <td className="px-3.5 py-3 align-top min-w-[100px] text-center">
+                        <div className="flex flex-col items-center gap-1.5 mt-1.5">
+                          {item.fullAccountSold && (
+                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+                              ✓ Sold
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!!item.fullAccountSold}
+                              onChange={(e) => onUpdateItem(item.id, { fullAccountSold: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded dark:bg-gray-800"
+                            />
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sold</span>
+                          </div>
+                        </div>
                       </td>
                       
                       <td className="px-3.5 py-3 align-top text-[10px] space-y-1.5 min-w-[150px]">
@@ -1158,6 +1179,14 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
     const currentItems = formData.digitalItems || [];
     const nextItems = currentItems.map((item: any) => {
       if (item.id === id) {
+        // If fullAccountSold is being set to true, also mark all slots as sold for consistency
+        if (updates.fullAccountSold === true) {
+          const slots = { ...(item.slots || {}) };
+          Object.keys(slots).forEach(key => {
+            slots[key] = { ...slots[key], sold: true };
+          });
+          return { ...item, ...updates, slots };
+        }
         return { ...item, ...updates };
       }
       return item;
