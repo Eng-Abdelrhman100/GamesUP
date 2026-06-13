@@ -511,6 +511,7 @@ export default function ProductEditor() {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [subSubCategories, setSubSubCategories] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   
   const [formData, setFormData] = useState<any>({
@@ -519,6 +520,7 @@ export default function ProductEditor() {
     instructions: '',
     category: '',
     subCategory: '',
+    subSubCategory: '',
     price: '',
     cost: '',
     stock: 0,
@@ -556,9 +558,14 @@ export default function ProductEditor() {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [catsRes, subCatsRes] = await Promise.all([categoriesAPI.getAll(), api.get('sub_categories')]);
+      const [catsRes, subCatsRes, subSubCatsRes] = await Promise.all([
+        categoriesAPI.getAll(),
+        api.get('sub_categories'),
+        api.get('sub_sub_categories')
+      ]);
       setCategories(catsRes || []);
       setSubCategories(subCatsRes || []);
+      setSubSubCategories(subSubCatsRes || []);
       if (id) {
         const res = await productsAPI.getById(id);
         const product = res && res.products && res.products[0];
@@ -571,6 +578,7 @@ export default function ProductEditor() {
             ...product,
             category: product.category_slug || '',
             subCategory: product.sub_category_slug || '',
+            subSubCategory: product.sub_sub_category_slug || '',
             price: product.price?.toString() || '',
             cost: product.cost?.toString() || '',
             digitalItems: di,
@@ -604,6 +612,7 @@ export default function ProductEditor() {
         ...formData,
         category_slug: formData.category,
         sub_category_slug: formData.subCategory,
+        sub_sub_category_slug: formData.subSubCategory || null,
         price: parseFloat(formData.price) || 0,
         cost: parseFloat(formData.cost) || 0,
         stock,
@@ -673,9 +682,53 @@ export default function ProductEditor() {
             <div className="flex items-center gap-3 mb-2"><div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-600"><Package className="w-5 h-5" /></div><h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">Product Identity</h3></div>
             <div className="space-y-5">
               <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Title</label><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 transition-all focus:outline-none" placeholder="Product Title" /></div>
-              <div className="grid grid-cols-2 gap-5">
-                <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Category</label><select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none appearance-none cursor-pointer">{categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}</select></div>
-                <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Sub Category</label><select value={formData.subCategory} onChange={e => setFormData({...formData, subCategory: e.target.value})} className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none appearance-none cursor-pointer"><option value="">None</option>{subCategories.filter(s => s.categoryId === categories.find(c => c.slug === formData.category)?.id).map(s => <option key={s.id} value={s.slug}>{s.name}</option>)}</select></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Category</label>
+                  <select 
+                    value={formData.category} 
+                    onChange={e => setFormData({ ...formData, category: e.target.value, subCategory: '', subSubCategory: '' })} 
+                    className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Sub Category</label>
+                  <select 
+                    value={formData.subCategory} 
+                    onChange={e => setFormData({ ...formData, subCategory: e.target.value, subSubCategory: '' })} 
+                    className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">None</option>
+                    {(() => {
+                      const selectedCat = categories.find(c => c.slug === formData.category);
+                      return subCategories
+                        .filter(s => s.category_id === selectedCat?.id)
+                        .map(s => <option key={s.id} value={s.slug}>{s.name}</option>);
+                    })()}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Sub Sub Category</label>
+                  <select 
+                    value={formData.subSubCategory} 
+                    onChange={e => setFormData({ ...formData, subSubCategory: e.target.value })} 
+                    className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">None</option>
+                    {(() => {
+                      const selectedCat = categories.find(c => c.slug === formData.category);
+                      const selectedSubCat = subCategories.find(s => s.slug === formData.subCategory && s.category_id === selectedCat?.id);
+                      return subSubCategories
+                        .filter(ssc => ssc.sub_category_id === selectedSubCat?.id)
+                        .map(ssc => <option key={ssc.id} value={ssc.slug}>{ssc.name}</option>);
+                    })()}
+                  </select>
+                </div>
               </div>
               <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Description</label><textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={4} className="w-full px-5 py-4 text-sm font-medium bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl focus:ring-2 focus:ring-red-500 transition-all focus:outline-none" placeholder="Describe the product..." /></div>
             </div>
