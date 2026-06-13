@@ -214,7 +214,12 @@ productsRoutes.get('/public/products', async (req, res) => {
     const withVariants = await attachVariants(products);
     const processedProducts = withVariants
       .map(processProductExpiration)
-      .filter((p) => p.stock > 0);
+      .filter((p) => {
+        if (p.category_slug === 'playstation-plus' && p.stock <= 0) {
+          return false;
+        }
+        return true;
+      });
     return res.json({ products: processedProducts });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to fetch products' });

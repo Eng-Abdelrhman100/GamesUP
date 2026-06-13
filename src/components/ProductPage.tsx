@@ -346,7 +346,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
             className="mt-8 bg-bg-card border border-border-subtle rounded-[2.5rem] p-8 md:p-12 shadow-2xl animate-fade-in"
           >
             <h3 className="text-lg md:text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3 italic font-display">
-              <span className="text-brand-red">■</span> Delivery & Activation Instructions
+              <span className="text-brand-red">■</span> Full, Primary & Secondary Instructions
             </h3>
             <div className="text-text-secondary text-sm md:text-base leading-relaxed whitespace-pre-line font-medium border-l-2 border-brand-red/30 pl-4 md:pl-6 py-1">
               {game.instructions}
