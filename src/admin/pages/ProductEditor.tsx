@@ -560,13 +560,23 @@ export default function ProductEditor() {
       setCategories(catsRes || []);
       setSubCategories(subCatsRes || []);
       if (id) {
-        const product = await productsAPI.getById(id);
+        const res = await productsAPI.getById(id);
+        const product = res && res.products && res.products[0];
         if (product) {
           const di = typeof product.digitalItems === 'string' ? JSON.parse(product.digitalItems) : (product.digitalItems || []);
           const slots = (product.product_variants || []).filter((v: any) => v.name.toLowerCase() !== 'full account').map((v: any) => ({
             id: crypto.randomUUID(), name: v.name, price: v.price?.toString() || '', cost: v.cost?.toString() || ''
           }));
-          setFormData({ ...product, price: product.price?.toString() || '', cost: product.cost?.toString() || '', digitalItems: di });
+          setFormData({
+            ...product,
+            category: product.category_slug || '',
+            subCategory: product.sub_category_slug || '',
+            price: product.price?.toString() || '',
+            cost: product.cost?.toString() || '',
+            digitalItems: di,
+            isRulesTemplate: product.emailTemplate === 'rules_for_games',
+            emailTemplate: product.emailTemplate === 'rules_for_games' ? '' : (product.emailTemplate || ''),
+          });
           setCustomSlots(slots);
         }
       } else if (catsRes.length > 0) {
@@ -591,7 +601,13 @@ export default function ProductEditor() {
       }
       const stock = isDigital ? (isGiftCard ? di.length : countAvailableSlots(di, formData.category, formData.subCategory)) : (parseInt(formData.stock) || 0);
       const payload = {
-        ...formData, price: parseFloat(formData.price) || 0, cost: parseFloat(formData.cost) || 0, stock, digitalItems: di,
+        ...formData,
+        category_slug: formData.category,
+        sub_category_slug: formData.subCategory,
+        price: parseFloat(formData.price) || 0,
+        cost: parseFloat(formData.cost) || 0,
+        stock,
+        digitalItems: di,
         product_variants: customSlots.map(s => ({ name: s.name, price: parseFloat(s.price) || null, cost: parseFloat(s.cost) || null, stock: isDigital ? countAvailableForSlot(di, s.name, formData.category, formData.subCategory) : 0 })),
         emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : formData.emailTemplate,
       };
