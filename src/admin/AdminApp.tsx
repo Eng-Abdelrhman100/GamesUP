@@ -247,10 +247,10 @@ export default function AdminApp() {
           <main className="flex-1 overflow-y-auto p-6">
             <Routes>
               <Route path="/" element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<ProtectedRoute id="dashboard"><Dashboard /></ProtectedRoute>} />
               <Route path="products" element={<ProtectedRoute id="products"><Products /></ProtectedRoute>} />
-              <Route path="products/add" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
-              <Route path="products/edit/:id" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
+              <Route path="product-editor/add" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
+              <Route path="product-editor/edit/:id" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
+              <Route path="dashboard" element={<ProtectedRoute id="dashboard"><Dashboard /></ProtectedRoute>} />
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><OrderDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
               <Route path="playstation-plus" element={<ProtectedRoute id="playstation-plus"><Products filterCategory="playstation-plus" /></ProtectedRoute>} />
@@ -274,7 +274,13 @@ export default function AdminApp() {
               <Route path="delivery" element={<ProtectedRoute id="delivery"><Delivery /></ProtectedRoute>} />
               <Route path="email-templates" element={<ProtectedRoute id="email-templates"><EmailTemplates /></ProtectedRoute>} />
               <Route path="balance-inventory" element={<ProtectedRoute id="balance-inventory"><BalanceInventory /></ProtectedRoute>} />
-              <Route path="*" element={<Navigate to="dashboard" replace />} />
+              <Route path="*" element={
+                <div className="flex flex-col items-center justify-center h-full">
+                  <h1 className="text-2xl font-bold mb-2">Page Not Found</h1>
+                  <p className="text-gray-500 mb-4">The URL you are trying to reach ({window.location.pathname}) doesn't match any route.</p>
+                  <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
+                </div>
+              } />
             </Routes>
           </main>
         </div>

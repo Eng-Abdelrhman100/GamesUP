@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Search, Plus, Edit2, Trash2, Package, AlertTriangle, ChevronDown } from 'lucide-react';
@@ -179,7 +179,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                     </div>
                   </div>
                   <button
-                    onClick={() => navigate(`/admin/products/edit/${p.id}`)}
+                    onClick={() => navigate(`edit/${p.id}`)}
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-red-200 dark:shadow-none whitespace-nowrap"
                   >
                     Refill
@@ -201,7 +201,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         </div>
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => navigate('/admin/products/add')}
+            onClick={() => navigate('add')}
             className="btn-primary rounded-full px-8 h-12 font-black uppercase tracking-widest text-[10px]"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -272,7 +272,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
               
               {/* Hover Actions */}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-                <button onClick={() => navigate(`/admin/products/edit/${product.id}`)} className="p-3 bg-white text-gray-900 rounded-2xl hover:bg-red-600 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-500 delay-75 shadow-xl"><Edit2 className="w-5 h-5" /></button>
+                <button onClick={() => navigate(`/product-editor/edit/${product.id}`)} className="p-3 bg-white text-gray-900 rounded-2xl hover:bg-red-600 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-500 delay-75 shadow-xl"><Edit2 className="w-5 h-5" /></button>
                 <button onClick={() => handleDeleteProduct(product.id)} className="p-3 bg-white text-gray-900 rounded-2xl hover:bg-red-600 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-500 delay-150 shadow-xl"><Trash2 className="w-5 h-5" /></button>
               </div>
             </div>
