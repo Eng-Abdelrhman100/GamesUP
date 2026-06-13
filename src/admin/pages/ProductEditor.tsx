@@ -238,10 +238,8 @@ export default function ProductEditor() {
         const parsed = JSON.parse(userStr);
         const role = String(parsed?.user_metadata?.role || '').toLowerCase();
         const perms = parsed?.user_metadata?.permissions || {};
-        const canRead = perms.products === 'read' || perms.products === 'write' || perms.products === true;
         const canWrite = perms.products === 'write' || perms.products === true;
         const isLegacyAdmin = role === 'admin' || role === 'manager';
-        if (!(isLegacyAdmin || canRead)) { navigate('/admin/dashboard'); return; }
         setIsAdmin(isLegacyAdmin || canWrite);
       }
     } catch(e) {}
@@ -292,7 +290,7 @@ export default function ProductEditor() {
       };
       if (id) await productsAPI.update(id, payload);
       else await productsAPI.create(payload);
-      navigate('/admin/products');
+      navigate('/products');
     } catch (err) { alert('Failed to save'); } finally { setLoading(false); }
   };
 
@@ -337,11 +335,11 @@ export default function ProductEditor() {
     <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4 md:px-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/admin/products')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><ChevronLeft className="w-5 h-5 text-gray-500" /></button>
+          <button onClick={() => navigate('/products')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><ChevronLeft className="w-5 h-5 text-gray-500" /></button>
           <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{id ? 'Edit Product' : 'Add New Product'}</h1>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => navigate('/admin/products')} className="rounded-full px-6 h-10 font-black uppercase text-[10px]">Discard</Button>
+          <Button variant="secondary" onClick={() => navigate('/products')} className="rounded-full px-6 h-10 font-black uppercase text-[10px]">Discard</Button>
           <Button onClick={handleSave} disabled={loading} className="rounded-full px-8 h-10 font-black uppercase text-[10px] shadow-lg shadow-red-200 dark:shadow-none"><Save className="w-4 h-4 mr-1.5" /> Save Product</Button>
         </div>
       </div>
