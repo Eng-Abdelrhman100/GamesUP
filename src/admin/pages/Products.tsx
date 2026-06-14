@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Search, Plus, Edit2, Trash2, Package, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, AlertTriangle, ChevronDown, Download, Upload } from 'lucide-react';
 import { useStoreSettings } from '@/context/StoreSettingsContext';
 import { productsAPI, categoriesAPI, api, normalizeImageSrc } from '@/utils/api';
 
@@ -94,6 +94,171 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
     } finally {
         setLoading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    try {
+      if (!products || products.length === 0) {
+        alert("No products to export.");
+        return;
+      }
+
+      // Headers of CSV
+      const headers = [
+        "id", "name", "description", "category_slug", "sub_category_slug", "sub_sub_category_slug",
+        "price", "cost", "stock", "image", "attributes", "digitalItems", "productCode",
+        "purchasedEmail", "purchasedPassword", "instructions", "status", "sendEmailEnabled",
+        "emailTemplate", "digital_game_type"
+      ];
+
+      // Helper function to escape field for CSV
+      const escapeField = (val: any) => {
+        if (val === null || val === undefined) return "";
+        let str = "";
+        if (typeof val === "object") {
+          str = JSON.stringify(val);
+        } else {
+          str = String(val);
+        }
+        // Replace " with "" and wrap in double quotes
+        return `"${str.replace(/"/g, '""')}"`;
+      };
+
+      const rows = products.map(p => {
+        return [
+          p.id,
+          p.name,
+          p.description,
+          p.category_slug,
+          p.sub_category_slug,
+          p.sub_sub_category_slug,
+          p.price,
+          p.cost,
+          p.stock,
+          p.image,
+          p.attributes,
+          p.digitalItems,
+          p.productCode,
+          p.purchasedEmail,
+          p.purchasedPassword,
+          p.instructions,
+          p.status,
+          p.sendEmailEnabled ? 1 : 0,
+          p.emailTemplate,
+          p.digital_game_type
+        ].map(escapeField).join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `products_export_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      console.error("Failed to export CSV", err);
+      alert("Failed to export CSV: " + err.message);
+    }
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) throw new Error("Empty file");
+
+        const lines = [];
+        let row = [];
+        let inQuotes = false;
+        let currentValue = "";
+
+        // Parse CSV robustly keeping quotes and commas intact
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const nextChar = text[i + 1];
+
+          if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+              currentValue += '"';
+              i++; // skip next quote
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            row.push(currentValue);
+            currentValue = "";
+          } else if ((char === '\r' || char === '\n') && !inQuotes) {
+            if (char === '\r' && nextChar === '\n') {
+              i++;
+            }
+            row.push(currentValue);
+            if (row.some(val => val !== "")) {
+              lines.push(row);
+            }
+            row = [];
+            currentValue = "";
+          } else {
+            currentValue += char;
+          }
+        }
+        if (currentValue || row.length > 0) {
+          row.push(currentValue);
+          lines.push(row);
+        }
+
+        if (lines.length < 2) {
+          alert("Invalid CSV format: Missing header or data rows.");
+          return;
+        }
+
+        const headers = lines[0].map(h => h.trim().toLowerCase());
+        const dataRows = lines.slice(1);
+
+        const importedProducts = dataRows.map((fields, index) => {
+          const product: any = {};
+          headers.forEach((header, colIdx) => {
+            let val = fields[colIdx] || "";
+            if (header === "id" || header === "price" || header === "cost" || header === "stock") {
+              product[header] = val ? Number(val) : null;
+            } else if (header === "sendemailenabled") {
+              product.sendEmailEnabled = val === "1" || val.toLowerCase() === "true";
+            } else if (header === "attributes" || header === "digitalitems" || header === "digital_items") {
+              try {
+                product[header === "digital_items" ? "digitalItems" : header] = val ? JSON.parse(val) : [];
+              } catch {
+                product[header === "digital_items" ? "digitalItems" : header] = [];
+              }
+            } else {
+              product[header] = val;
+            }
+          });
+          return product;
+        });
+
+        if (confirm(`Are you sure you want to import/overwrite ${importedProducts.length} products to the database?`)) {
+          const res = await productsAPI.import(importedProducts);
+          if (res.success) {
+            alert(`Successfully imported ${res.count} products!`);
+            loadData();
+          } else {
+            alert("Import failed: " + (res.error || "Unknown error"));
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to parse/import CSV", err);
+        alert("Failed to parse/import CSV: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input value
+    e.target.value = "";
   };
 
   const handleDeleteProduct = async (id: string | number) => {
@@ -200,6 +365,27 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
           </h1>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            onClick={handleExportCSV}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 h-12 font-black uppercase tracking-widest text-[10px]"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button
+            onClick={() => document.getElementById('import-csv-file')?.click()}
+            className="bg-green-600 hover:bg-green-700 text-white rounded-full px-6 h-12 font-black uppercase tracking-widest text-[10px]"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Import CSV
+          </Button>
+          <input
+            type="file"
+            id="import-csv-file"
+            accept=".csv"
+            onChange={handleImportCSV}
+            className="hidden"
+          />
           <Button
             onClick={() => navigate('add')}
             className="btn-primary rounded-full px-8 h-12 font-black uppercase tracking-widest text-[10px]"

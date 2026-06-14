@@ -282,6 +282,74 @@ productsRoutes.get('/products/:id', async (req, res) => {
   });
 });
 
+productsRoutes.post('/products/import', async (req, res) => {
+  return requirePermission('products', 'write')(req, res, async () => {
+    const { products } = req.body || {};
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ success: false, error: 'Invalid payload: products must be an array' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      for (const p of products) {
+        let parsedDigitalItems = [];
+        if (p.digitalItems) {
+          parsedDigitalItems = typeof p.digitalItems === 'string' ? JSON.parse(p.digitalItems) : p.digitalItems;
+        } else if (p.digital_items) {
+          parsedDigitalItems = typeof p.digital_items === 'string' ? JSON.parse(p.digital_items) : p.digital_items;
+        }
+
+        const duplicateError = checkDuplicateDigitalItems(parsedDigitalItems);
+        if (duplicateError) {
+          await conn.rollback();
+          return res.status(400).json({ success: false, error: `Product "${p.name}": ${duplicateError}` });
+        }
+
+        await conn.query(
+          `REPLACE INTO products (
+            id, name, description, category_slug, sub_category_slug, sub_sub_category_slug,
+            price, cost, stock, image, attributes, digitalItems, productCode,
+            purchasedEmail, purchasedPassword, instructions, status, sendEmailEnabled,
+            emailTemplate, digital_game_type
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            p.id || null,
+            p.name,
+            p.description || null,
+            p.category_slug,
+            p.sub_category_slug,
+            p.sub_sub_category_slug || null,
+            p.price ?? 0.00,
+            p.cost ?? 0.00,
+            p.stock ?? 0,
+            p.image || null,
+            p.attributes ? (typeof p.attributes === 'string' ? p.attributes : JSON.stringify(p.attributes)) : null,
+            JSON.stringify(parsedDigitalItems),
+            p.productCode || null,
+            p.purchasedEmail || null,
+            p.purchasedPassword || null,
+            p.instructions || null,
+            p.status || 'In Stock',
+            p.sendEmailEnabled ? 1 : 0,
+            p.emailTemplate || null,
+            p.digital_game_type || 'normal'
+          ]
+        );
+      }
+
+      await conn.commit();
+      return res.json({ success: true, count: products.length });
+    } catch (err) {
+      await conn.rollback();
+      return res.status(500).json({ success: false, error: err.message || 'Import failed' });
+    } finally {
+      conn.release();
+    }
+  });
+});
+
 productsRoutes.post('/products', async (req, res) => {
   return requirePermission('products', 'write')(req, res, async () => {
     const body = req.body || {};

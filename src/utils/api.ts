@@ -148,6 +148,9 @@ export const productsAPI = {
   update: async (id: string | number, data: any) => {
     return requestJson<any>(`/products/${id}`, { method: 'PUT', body: data, auth: 'admin' });
   },
+  import: async (products: any[]) => {
+    return requestJson<any>(`/products/import`, { method: 'POST', body: { products }, auth: 'admin' });
+  },
   delete: async (id: string | number) => {
     await requestJson(`/products/${id}`, { method: 'DELETE', auth: 'admin' });
     return true;
