@@ -64,7 +64,11 @@ export function SoldProducts() {
 
                 if (item.slots && selectedSlotName) {
                   const keys = Object.keys(item.slots);
-                  const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+                  const matchedKey = keys.find(k => 
+                    k.toLowerCase() === selectedSlotName.toLowerCase() ||
+                    k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
+                    k.toLowerCase().includes(selectedSlotName.toLowerCase())
+                  ) || '';
                   if (matchedKey) {
                     slotName = matchedKey;
                     if (!displayCode) displayCode = item.slots[matchedKey]?.code || '';

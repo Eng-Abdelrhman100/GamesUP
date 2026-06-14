@@ -200,7 +200,11 @@ export const emailService = {
       let selectedSlotCode = '';
       if (item.slots && selectedSlotName) {
         const keys = Object.keys(item.slots);
-        matchedSlotKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+        matchedSlotKey = keys.find(k => 
+          k.toLowerCase() === selectedSlotName.toLowerCase() ||
+          k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
+          k.toLowerCase().includes(selectedSlotName.toLowerCase())
+        ) || '';
         if (matchedSlotKey) {
           selectedSlotCode = item.slots[matchedSlotKey]?.code || '';
         }

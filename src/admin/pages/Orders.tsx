@@ -69,7 +69,11 @@ export function Orders() {
 
             if (item.slots && selectedSlotName) {
               const keys = Object.keys(item.slots);
-              const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+              const matchedKey = keys.find(k => 
+                k.toLowerCase() === selectedSlotName.toLowerCase() ||
+                k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
+                k.toLowerCase().includes(selectedSlotName.toLowerCase())
+              ) || '';
               if (matchedKey) {
                 slotName = matchedKey;
                 if (!code) code = item.slots[matchedKey]?.code || '';
@@ -224,7 +228,11 @@ export function Orders() {
 
                   if (di.slots) {
                     const keys = Object.keys(di.slots);
-                    const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+                    const matchedKey = keys.find(k => 
+                      k.toLowerCase() === selectedSlotName.toLowerCase() ||
+                      k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
+                      k.toLowerCase().includes(selectedSlotName.toLowerCase())
+                    ) || '';
                     if (matchedKey) {
                       const slot = di.slots[matchedKey];
                       if (slot && !slot.sold && slot.code) {
