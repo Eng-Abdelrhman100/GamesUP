@@ -61,7 +61,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
   const { settings } = useStoreSettings();
   const [localGroupName, setLocalGroupName] = useState(groupName === 'General' ? '' : groupName);
   const [newItem, setNewItem] = useState({ 
-    email: '', password: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
+    email: '', password: '', outlookEmail: '', outlookPassword: '', twoFactorCode: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
   });
   const [slotCodes, setSlotCodes] = useState<Record<string, string>>({});
 
@@ -155,7 +155,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
       return;
     }
     onAddStockItem(groupName, { ...newItem, slotCodes });
-    setNewItem({ email: '', password: '', outlookEmail: '', outlookPassword: '', birthdate: '', region: '', onlineId: '', backupCodes: '' });
+    setNewItem({ email: '', password: '', outlookEmail: '', outlookPassword: '', twoFactorCode: '', birthdate: '', region: '', onlineId: '', backupCodes: '' });
     const cleared: Record<string, string> = {};
     Object.keys(slotCodes).forEach(k => cleared[k] = '');
     setSlotCodes(cleared);
@@ -267,6 +267,10 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                   <label className="block text-[9px] font-bold text-gray-400 mb-1">Birthdate</label>
                   <input type="text" value={newItem.birthdate} onChange={e => setNewItem({...newItem, birthdate: e.target.value})} placeholder="YYYY-MM-DD" className="w-full px-4 py-2 text-xs rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none" />
                 </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-400 mb-1">2FA Code</label>
+                  <input type="text" value={newItem.twoFactorCode} onChange={e => setNewItem({...newItem, twoFactorCode: e.target.value})} placeholder="2FA Secret/Code" className="w-full px-4 py-2 text-xs rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500" />
+                </div>
               </div>
             </div>
           </div>
@@ -343,6 +347,10 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 uppercase w-10">Birth:</span>
                         <input type="text" value={item.birthdate || ''} onChange={e => onUpdateItem(item.id, { birthdate: e.target.value })} className="flex-1 bg-transparent border-b border-gray-200 dark:border-gray-800 text-[10px] py-0 focus:outline-none focus:border-red-500" placeholder="YYYY-MM-DD" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 uppercase w-10">2FA:</span>
+                        <input type="text" value={item.twoFactorCode || ''} onChange={e => onUpdateItem(item.id, { twoFactorCode: e.target.value })} className="flex-1 bg-transparent border-b border-gray-200 dark:border-gray-800 text-[10px] py-0 focus:outline-none focus:border-red-500" placeholder="2FA Code" />
                       </div>
                     </td>
                     {slotsInGroup.map((slot: any) => {
@@ -582,8 +590,14 @@ export default function ProductEditor() {
             price: product.price?.toString() || '',
             cost: product.cost?.toString() || '',
             digitalItems: di,
-            isRulesTemplate: product.emailTemplate === 'rules_for_games',
-            emailTemplate: product.emailTemplate === 'rules_for_games' ? '' : (product.emailTemplate || ''),
+            isRulesTemplate: product.emailTemplate === 'rules_for_games' || (product.emailTemplate || '').startsWith('__rules_template__'),
+            emailTemplate: (product.emailTemplate || '').startsWith('__rules_template__\n')
+              ? product.emailTemplate.substring('__rules_template__\n'.length)
+              : (product.emailTemplate || '').startsWith('__rules_template__')
+              ? product.emailTemplate.substring('__rules_template__'.length)
+              : product.emailTemplate === 'rules_for_games'
+              ? ''
+              : (product.emailTemplate || ''),
           });
           setCustomSlots(slots);
         }
@@ -618,7 +632,9 @@ export default function ProductEditor() {
         stock,
         digitalItems: di,
         product_variants: customSlots.map(s => ({ name: s.name, price: parseFloat(s.price) || null, cost: parseFloat(s.cost) || null, stock: isDigital ? countAvailableForSlot(di, s.name, formData.category, formData.subCategory) : 0 })),
-        emailTemplate: formData.isRulesTemplate ? 'rules_for_games' : formData.emailTemplate,
+        emailTemplate: formData.isRulesTemplate 
+          ? `__rules_template__\n${formData.emailTemplate || ''}`
+          : formData.emailTemplate,
       };
       if (id) await productsAPI.update(id, payload);
       else await productsAPI.create(payload);
@@ -768,7 +784,15 @@ export default function ProductEditor() {
           {isDigital && (
             <Card className="p-6 space-y-5">
               <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600"><Mail className="w-4 h-4" /></div><h3 className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">Delivery</h3></div><label className="relative inline-flex items-center cursor-pointer scale-75"><input type="checkbox" checked={formData.sendEmailEnabled} onChange={e => setFormData({...formData, sendEmailEnabled: e.target.checked})} className="sr-only peer" /><div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:bg-red-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div></label></div>
-              {formData.sendEmailEnabled && (<div className="space-y-4 pt-2"><div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl"><span className="text-[10px] font-bold text-gray-600">Use Rules Template</span><input type="checkbox" checked={formData.isRulesTemplate} onChange={e => setFormData({...formData, isRulesTemplate: e.target.checked})} className="w-4 h-4 rounded text-red-600" /></div>{!formData.isRulesTemplate && (<textarea value={formData.emailTemplate} onChange={e => setFormData({...formData, emailTemplate: e.target.value})} rows={4} className="w-full p-4 text-[10px] font-mono bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none" placeholder="Email: {{email}}\nPassword: {{password}}..." />)}</div>)}
+              {formData.sendEmailEnabled && (
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+                    <span className="text-[10px] font-bold text-gray-600">Use Rules Template</span>
+                    <input type="checkbox" checked={formData.isRulesTemplate} onChange={e => setFormData({...formData, isRulesTemplate: e.target.checked})} className="w-4 h-4 rounded text-red-600" />
+                  </div>
+                  <textarea value={formData.emailTemplate} onChange={e => setFormData({...formData, emailTemplate: e.target.value})} rows={4} className="w-full p-4 text-[10px] font-mono bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none" placeholder="Email: {{email}}\nPassword: {{password}}..." />
+                </div>
+              )}
             </Card>
           )}
         </div>

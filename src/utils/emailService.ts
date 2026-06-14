@@ -90,15 +90,24 @@ export const emailService = {
   sendDigitalDelivery: async (order: any, digitalItems: any[]) => {
     let fullItems = [...digitalItems];
     let categories: any[] = [];
+    let rulesForGamesBody = '';
     
     try {
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, rulesRes] = await Promise.all([
         fetch(`${API_BASE}/api/products`),
-        fetch(`${API_BASE}/api/categories`)
+        fetch(`${API_BASE}/api/categories`),
+        fetch(`${API_BASE}/api/email-templates?type=rules_for_games`).catch(() => null)
       ]);
       
       if (catRes.ok) {
         categories = await catRes.json();
+      }
+
+      if (rulesRes && rulesRes.ok) {
+        try {
+          const rulesTemplate = await rulesRes.json();
+          rulesForGamesBody = rulesTemplate?.body || '';
+        } catch (e) {}
       }
 
       if (prodRes.ok) {
@@ -157,6 +166,27 @@ export const emailService = {
       const categoryData = categories.find(c => c.slug === categorySlug);
       const emailRules = categoryData?.email_rules || categoryData?.emailRules || '';
       
+      const product = item._productData;
+      let customTemplateBody = '';
+      let isRulesTemplate = false;
+
+      if (product && product.sendEmailEnabled) {
+        const rawTemplate = product.emailTemplate || '';
+        if (rawTemplate === 'rules_for_games') {
+          isRulesTemplate = true;
+          customTemplateBody = '';
+        } else if (rawTemplate.startsWith('__rules_template__\n')) {
+          isRulesTemplate = true;
+          customTemplateBody = rawTemplate.substring('__rules_template__\n'.length);
+        } else if (rawTemplate.startsWith('__rules_template__')) {
+          isRulesTemplate = true;
+          customTemplateBody = rawTemplate.substring('__rules_template__'.length);
+        } else {
+          isRulesTemplate = false;
+          customTemplateBody = rawTemplate;
+        }
+      }
+
       // Determine the selected slot/attribute from the order or item name
       const productNameLower = (order.product_name || '').toLowerCase();
       let selectedSlotName = '';
@@ -176,9 +206,6 @@ export const emailService = {
         }
       }
 
-      const isAccountType = !!(item.email || item.password);
-      const isCodeOnlyType = !isAccountType && !!(item.code || selectedSlotCode);
-
       // --- STUNNING GAMESUP THEME HTML ---
       let html = `
         <div style="margin-bottom: 30px; border: 1px solid #27272a; padding: 24px; border-radius: 16px; background: linear-gradient(145deg, #18181b, #09090b); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif; color: #e4e4e7;">
@@ -188,8 +215,58 @@ export const emailService = {
           </div>
       `;
 
-      if (isAccountType) {
-        html += `
+      let contentHtml = '';
+      if (product && product.sendEmailEnabled && customTemplateBody) {
+        let rendered = customTemplateBody;
+        const placeholders: Record<string, string> = {
+          email: item.email || '',
+          password: item.password || '',
+          code: item.code || selectedSlotCode || '',
+          name: order.customer_name || '',
+          orderNumber: order.order_number || order.id || '',
+          productName: item.name || '',
+        };
+        Object.keys(placeholders).forEach(key => {
+          const regex = new RegExp(`{{${key}}}`, 'g');
+          const value = placeholders[key] || '';
+          rendered = rendered.replace(regex, value);
+        });
+
+        const formatted = rendered.includes('<') && rendered.includes('>')
+          ? rendered
+          : rendered.replace(/\n/g, '<br>');
+
+        contentHtml = `
+          <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 13px; color: #e4e4e7; line-height: 1.6;">${formatted}</p>
+          </div>
+        `;
+
+        if ((item.outlookEmail || item.backupCodes || item.birthdate || item.twoFactorCode) &&
+            !customTemplateBody.includes('outlookEmail') && !customTemplateBody.includes('backupCodes') &&
+            !customTemplateBody.includes('birthdate') && !customTemplateBody.includes('twoFactorCode')) {
+          contentHtml += `<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Security & Recovery Details</p>
+            <div style="display: grid; gap: 8px; font-size: 13px;">`;
+            
+          if (item.outlookEmail) contentHtml += `<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">${item.outlookEmail}</strong></div>`;
+          if (item.outlookPassword) contentHtml += `<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">${item.outlookPassword}</strong></div>`;
+          if (item.birthdate) contentHtml += `<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">${item.birthdate}</strong></div>`;
+          if (item.region) contentHtml += `<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">${item.region}</strong></div>`;
+          if (item.twoFactorCode) contentHtml += `<div><span style="color: #71717a;">2FA Secret/Code:</span> <strong style="color: #ef4444;">${item.twoFactorCode}</strong></div>`;
+          
+          if (item.backupCodes) {
+            contentHtml += `
+              <div style="margin-top: 8px;">
+                <span style="color: #71717a; display: block; margin-bottom: 6px;">2FA Backup Codes:</span>
+                <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">${item.backupCodes}</pre>
+              </div>
+            `;
+          }
+          contentHtml += `</div></div>`;
+        }
+      } else {
+        let defaultLayout = `
           <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
             <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Account Credentials</p>
             
@@ -211,7 +288,7 @@ export const emailService = {
 
         if (selectedSlotCode || item.code) {
           const displayCode = selectedSlotCode || item.code;
-          html += `
+          defaultLayout += `
             <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
               <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Activation / Pin Code</p>
               <div style="background-color: #000; padding: 12px 16px; border-radius: 8px; border: 1px solid #dc2626; text-align: center;">
@@ -220,45 +297,58 @@ export const emailService = {
             </div>
           `;
         }
-      } else if (isCodeOnlyType) {
-        // Pure gift card or key
-        html += `
-          <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center;">
-            <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Your Digital Code</p>
-            <div style="background-color: #000; padding: 16px; border-radius: 8px; border: 1px solid #dc2626; display: inline-block; min-width: 250px;">
-              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 20px; font-weight: 700; letter-spacing: 3px; color: #f87171;">${item.code || selectedSlotCode}</span>
-            </div>
-          </div>
-        `;
-      }
 
-      // Additional Security Info
-      if (item.outlookEmail || item.backupCodes || item.birthdate) {
-        html += `<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-          <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Security & Recovery Details</p>
-          <div style="display: grid; gap: 8px; font-size: 13px;">`;
+        if (item.outlookEmail || item.backupCodes || item.birthdate || item.twoFactorCode) {
+          defaultLayout += `<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Security & Recovery Details</p>
+            <div style="display: grid; gap: 8px; font-size: 13px;">`;
+            
+          if (item.outlookEmail) defaultLayout += `<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">${item.outlookEmail}</strong></div>`;
+          if (item.outlookPassword) defaultLayout += `<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">${item.outlookPassword}</strong></div>`;
+          if (item.birthdate) defaultLayout += `<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">${item.birthdate}</strong></div>`;
+          if (item.region) defaultLayout += `<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">${item.region}</strong></div>`;
+          if (item.twoFactorCode) defaultLayout += `<div><span style="color: #71717a;">2FA Secret/Code:</span> <strong style="color: #ef4444;">${item.twoFactorCode}</strong></div>`;
           
-        if (item.outlookEmail) html += `<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">${item.outlookEmail}</strong></div>`;
-        if (item.outlookPassword) html += `<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">${item.outlookPassword}</strong></div>`;
-        if (item.birthdate) html += `<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">${item.birthdate}</strong></div>`;
-        if (item.region) html += `<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">${item.region}</strong></div>`;
-        
-        if (item.backupCodes) {
-          html += `
-            <div style="margin-top: 8px;">
-              <span style="color: #71717a; display: block; margin-bottom: 6px;">2FA Backup Codes:</span>
-              <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">${item.backupCodes}</pre>
-            </div>
-          `;
+          if (item.backupCodes) {
+            defaultLayout += `
+              <div style="margin-top: 8px;">
+                <span style="color: #71717a; display: block; margin-bottom: 6px;">2FA Backup Codes:</span>
+                <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">${item.backupCodes}</pre>
+              </div>
+            `;
+          }
+          defaultLayout += `</div></div>`;
         }
-        html += `</div></div>`;
+
+        contentHtml = defaultLayout;
       }
 
-      // Add dynamic Category Rules
-      if (emailRules) {
+      html += contentHtml;
+
+      const rulesToShow = emailRules || (isRulesTemplate ? rulesForGamesBody : '');
+      if (rulesToShow) {
+        let renderedRules = rulesToShow;
+        const placeholders: Record<string, string> = {
+          email: item.email || '',
+          password: item.password || '',
+          code: item.code || selectedSlotCode || '',
+          name: order.customer_name || '',
+          orderNumber: order.order_number || order.id || '',
+          productName: item.name || '',
+        };
+        Object.keys(placeholders).forEach(key => {
+          const regex = new RegExp(`{{${key}}}`, 'g');
+          const value = placeholders[key] || '';
+          renderedRules = renderedRules.replace(regex, value);
+        });
+
+        const formattedRules = renderedRules.includes('<') && renderedRules.includes('>')
+          ? renderedRules
+          : renderedRules.replace(/\n/g, '<br>');
+
         html += `
           <div style="background-color: #27272a; border-left: 4px solid #dc2626; border-radius: 0 8px 8px 0; padding: 16px; margin-top: 24px;">
-            <p style="margin: 0; font-size: 13px; color: #d4d4d8; line-height: 1.6; white-space: pre-wrap;">${emailRules}</p>
+            <p style="margin: 0; font-size: 13px; color: #d4d4d8; line-height: 1.6; white-space: pre-wrap;">${formattedRules}</p>
           </div>
         `;
       }
