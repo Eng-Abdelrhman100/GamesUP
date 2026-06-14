@@ -221,22 +221,47 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
         const headers = lines[0].map(h => h.trim().toLowerCase());
         const dataRows = lines.slice(1);
 
+        const keyMapping: Record<string, string> = {
+          "id": "id",
+          "name": "name",
+          "description": "description",
+          "category_slug": "category_slug",
+          "sub_category_slug": "sub_category_slug",
+          "sub_sub_category_slug": "sub_sub_category_slug",
+          "price": "price",
+          "cost": "cost",
+          "stock": "stock",
+          "image": "image",
+          "attributes": "attributes",
+          "digitalitems": "digitalItems",
+          "digital_items": "digitalItems",
+          "productcode": "productCode",
+          "purchasedemail": "purchasedEmail",
+          "purchasedpassword": "purchasedPassword",
+          "instructions": "instructions",
+          "status": "status",
+          "sendemailenabled": "sendEmailEnabled",
+          "emailtemplate": "emailTemplate",
+          "digital_game_type": "digital_game_type"
+        };
+
         const importedProducts = dataRows.map((fields, index) => {
           const product: any = {};
           headers.forEach((header, colIdx) => {
+            const key = keyMapping[header] || header;
             let val = fields[colIdx] || "";
-            if (header === "id" || header === "price" || header === "cost" || header === "stock") {
-              product[header] = val ? Number(val) : null;
-            } else if (header === "sendemailenabled") {
+            if (key === "id" || key === "price" || key === "cost" || key === "stock") {
+              product[key] = (val !== undefined && val !== null && val.trim() !== "") ? Number(val) : null;
+            } else if (key === "sendEmailEnabled") {
               product.sendEmailEnabled = val === "1" || val.toLowerCase() === "true";
-            } else if (header === "attributes" || header === "digitalitems" || header === "digital_items") {
+            } else if (key === "attributes" || key === "digitalItems") {
               try {
-                product[header === "digital_items" ? "digitalItems" : header] = val ? JSON.parse(val) : [];
+                product[key] = val ? JSON.parse(val) : [];
               } catch {
-                product[header === "digital_items" ? "digitalItems" : header] = [];
+                product[key] = [];
               }
             } else {
-              product[header] = val;
+              product[key] = val;
             }
           });
           return product;
