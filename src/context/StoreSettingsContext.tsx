@@ -249,6 +249,7 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const formatPrice = (price: number | string): string => {
+    if (price == null) return `${settings.currency_symbol}0.00`;
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
     if (isNaN(numPrice)) return `${settings.currency_symbol}0.00`;
     
