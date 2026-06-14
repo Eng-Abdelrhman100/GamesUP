@@ -290,11 +290,18 @@ export function Orders() {
 
                 updatedOrder = await ordersAPI.update(id, orderUpdates);
                 alert(`Successfully allocated available slot "${allocatedSlotKey}" from product "${product.name}" inventory to this order!`);
+              } else {
+                alert(`Auto-allocation skipped: Matched product "${product.name}" but could not find an available slot for "${selectedSlotName || 'Unknown Slot'}". Please check if this slot has code/stock in data overview.`);
               }
+            } else {
+              alert(`Auto-allocation skipped: Could not find any product matching the order's product name "${currentOrder.product_name}".`);
             }
-          } catch (allocError) {
+          } catch (allocError: any) {
             console.error('Error during auto-allocation:', allocError);
+            alert(`Error during auto-allocation: ${allocError.message || allocError}`);
           }
+        } else {
+          alert("Auto-allocation skipped: This order already has credentials / digital delivery data associated with it.");
         }
       }
 
