@@ -176,8 +176,115 @@ export function Orders() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      // Perform database update and capture the updated order record returned
-      const updatedOrder = await ordersAPI.update(id, { status: newStatus });
+      const currentOrder = orders.find(o => o.id === id);
+      if (!currentOrder) return;
+
+      let updatedOrder = null;
+
+      // Auto-allocation logic if marking as completed and credentials are empty
+      if (newStatus === 'completed') {
+        const hasCredentials = currentOrder.digital_delivery || currentOrder.digital_email || currentOrder.digital_password || currentOrder.digital_code;
+        if (!hasCredentials) {
+          try {
+            // 1. Fetch latest products
+            const prodsRes = await productsAPI.getAll();
+            const products = prodsRes.products || [];
+
+            // 2. Find matching product by name (exact, prefix, or contains match)
+            const product = products.find((p: any) => 
+              (currentOrder.product_name || '').toLowerCase().startsWith((p.name || '').toLowerCase()) ||
+              (p.name || '').toLowerCase().startsWith((currentOrder.product_name || '').toLowerCase()) ||
+              (currentOrder.product_name || '').toLowerCase().includes((p.name || '').toLowerCase())
+            );
+
+            if (product) {
+              const rawDigitalItems = product.digitalItems || product.digital_items;
+              const digitalItems = typeof rawDigitalItems === 'string' 
+                ? JSON.parse(rawDigitalItems) 
+                : (rawDigitalItems || []);
+
+              // 3. Determine requested slot
+              const productNameLower = (currentOrder.product_name || '').toLowerCase();
+              let selectedSlotName = '';
+              if (productNameLower.includes('primary ps5')) selectedSlotName = 'Primary PS5';
+              else if (productNameLower.includes('primary ps4')) selectedSlotName = 'Primary PS4';
+              else if (productNameLower.includes('secondary')) selectedSlotName = 'Secondary';
+              else if (productNameLower.includes('offline ps5')) selectedSlotName = 'Offline PS5';
+              else if (productNameLower.includes('offline ps4')) selectedSlotName = 'Offline PS4';
+
+              // 4. Look for an available digital item/slot
+              let assignedDigitalItem: any = null;
+              let allocatedSlotKey = '';
+              let updated = false;
+
+              if (Array.isArray(digitalItems) && selectedSlotName) {
+                for (let i = 0; i < digitalItems.length; i++) {
+                  const di = digitalItems[i];
+                  if (di.fullAccountSold) continue;
+
+                  if (di.slots) {
+                    const keys = Object.keys(di.slots);
+                    const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+                    if (matchedKey) {
+                      const slot = di.slots[matchedKey];
+                      if (slot && !slot.sold && slot.code) {
+                        // Allocate slot
+                        slot.sold = true;
+                        slot.orderId = currentOrder.order_number || currentOrder.id;
+                        slot.customerName = currentOrder.customer_name;
+                        assignedDigitalItem = di;
+                        allocatedSlotKey = matchedKey;
+                        updated = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (updated && assignedDigitalItem) {
+                // Save updated digitalItems to product
+                await productsAPI.update(product.id, { digitalItems });
+
+                // Construct full digital item delivery structure (including recovery info, outlook details, backup codes)
+                const fullItemDetails = {
+                  name: currentOrder.product_name,
+                  code: assignedDigitalItem.slots?.[allocatedSlotKey]?.code || assignedDigitalItem.code || '',
+                  email: assignedDigitalItem.email || '',
+                  password: assignedDigitalItem.password || '',
+                  outlookEmail: assignedDigitalItem.outlookEmail || '',
+                  outlookPassword: assignedDigitalItem.outlookPassword || '',
+                  twoFactorCode: assignedDigitalItem.twoFactorCode || '',
+                  birthdate: assignedDigitalItem.birthdate || '',
+                  region: assignedDigitalItem.region || '',
+                  onlineId: assignedDigitalItem.onlineId || '',
+                  backupCodes: assignedDigitalItem.backupCodes || '',
+                  categoryId: product.category_slug
+                };
+
+                // Save to order
+                const orderUpdates = {
+                  status: 'completed',
+                  digital_delivery: [fullItemDetails],
+                  digital_email: assignedDigitalItem.email || '',
+                  digital_password: assignedDigitalItem.password || '',
+                  digital_code: assignedDigitalItem.slots?.[allocatedSlotKey]?.code || ''
+                };
+
+                updatedOrder = await ordersAPI.update(id, orderUpdates);
+                alert(`Successfully allocated available slot "${allocatedSlotKey}" from product "${product.name}" inventory to this order!`);
+              }
+            }
+          } catch (allocError) {
+            console.error('Error during auto-allocation:', allocError);
+          }
+        }
+      }
+
+      // Perform regular status update if not already updated by auto-allocation
+      if (!updatedOrder) {
+        updatedOrder = await ordersAPI.update(id, { status: newStatus });
+      }
       
       setOrders(orders.map((o) => (o.id === id ? { ...o, ...updatedOrder, status: newStatus } : o)));
       
