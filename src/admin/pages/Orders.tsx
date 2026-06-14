@@ -165,6 +165,23 @@ export function Orders() {
     }
   };
 
+  const [isLinking, setIsLinking] = useState<Record<string, boolean>>({});
+
+  const handleAutoAllocate = async (orderId: string) => {
+    try {
+      setIsLinking(prev => ({ ...prev, [orderId]: true }));
+      const result = await ordersAPI.autoAllocate(orderId);
+      if (result.success) {
+        await loadOrders();
+      }
+    } catch (err: any) {
+      console.error('Auto-allocate failed:', err);
+      alert(err.message || 'Failed to auto-allocate. Make sure matching inventory is available.');
+    } finally {
+      setIsLinking(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
   const updateOrder = async (id: string, updates: Partial<Order>) => {
     try {
       // Optimistic update
@@ -730,11 +747,27 @@ export function Orders() {
                         />
                       </td>
                       <td className="py-4 px-4 text-sm font-mono text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
-                        <QuickEditCell
-                          value={displayCode}
-                          onSave={(val) => updateOrder(order.id, { digital_code: String(val) })}
-                          className="truncate block"
-                        />
+                        <div className="flex items-center gap-2">
+                          <QuickEditCell
+                            value={displayCode}
+                            onSave={(val) => updateOrder(order.id, { digital_code: String(val) })}
+                            className="truncate block"
+                          />
+                          {!displayCode && (
+                            <button
+                              onClick={() => handleAutoAllocate(order.id)}
+                              disabled={isLinking[order.id]}
+                              className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors disabled:opacity-50"
+                              title="Auto-allocate matching slot"
+                            >
+                              {isLinking[order.id] ? (
+                                <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent animate-spin rounded-full" />
+                              ) : (
+                                <Plus className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-sm font-mono text-gray-500 dark:text-gray-400">{order.inventory_id || '-'}</td>
                       <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">

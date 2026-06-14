@@ -175,6 +175,9 @@ export const ordersAPI = {
   },
   create: async (order: any) => {
      return requestJson<any>(`/orders`, { method: 'POST', body: order, auth: 'none' });
+  },
+  autoAllocate: async (id: string | number) => {
+    return requestJson<any>(`/orders/${id}/auto-allocate`, { method: 'POST', auth: 'admin' });
   }
 };
 

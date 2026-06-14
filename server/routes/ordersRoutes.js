@@ -96,7 +96,101 @@ ordersRoutes.post('/orders', async (req, res) => {
       ]
     );
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
-    const orderObj = normalizeOrderRow(rows[0]);
+    let orderObj = normalizeOrderRow(rows[0]);
+
+    // Auto-allocate immediately for digital products
+    try {
+      const [products] = await pool.query('SELECT id, name, digitalItems FROM products');
+      const itemStrings = (orderObj.product_name || '').split(',').map(s => s.trim()).filter(Boolean);
+      const deliveryDetails = [];
+      const updatedProducts = new Map();
+
+      for (const itemString of itemStrings) {
+        const matchedProducts = products.filter(p => 
+          itemString.toLowerCase().includes((p.name || '').toLowerCase()) ||
+          (p.name || '').toLowerCase().includes(itemString.toLowerCase())
+        );
+        matchedProducts.sort((a, b) => (b.name || '').length - (a.name || '').length);
+        const product = matchedProducts[0];
+
+        if (!product) continue;
+
+        const itemStringLower = itemString.toLowerCase();
+        let selectedSlotName = '';
+        if (itemStringLower.includes('primary ps5')) selectedSlotName = 'Primary PS5';
+        else if (itemStringLower.includes('primary ps4')) selectedSlotName = 'Primary PS4';
+        else if (itemStringLower.includes('primary')) selectedSlotName = 'Primary';
+        else if (itemStringLower.includes('secondary')) selectedSlotName = 'Secondary';
+        else if (itemStringLower.includes('offline ps5')) selectedSlotName = 'Offline PS5';
+        else if (itemStringLower.includes('offline ps4')) selectedSlotName = 'Offline PS4';
+        else if (itemStringLower.includes('offline')) selectedSlotName = 'Offline';
+        else if (itemStringLower.includes('full account')) selectedSlotName = 'Full Account';
+
+        if (!selectedSlotName) continue;
+
+        let digitalItems = updatedProducts.has(product.id) 
+          ? updatedProducts.get(product.id) 
+          : (typeof product.digitalItems === 'string' ? JSON.parse(product.digitalItems) : (product.digitalItems || []));
+
+        let assignedDI = null;
+        let allocatedSlotKey = '';
+
+        for (let di of digitalItems) {
+          if (di.fullAccountSold) continue;
+          if (!di.slots) continue;
+          const keys = Object.keys(di.slots);
+          const matchedKey = keys.find(k => 
+            k.toLowerCase() === selectedSlotName.toLowerCase() ||
+            k.toLowerCase().includes(selectedSlotName.toLowerCase()) ||
+            selectedSlotName.toLowerCase().includes(k.toLowerCase())
+          );
+          if (matchedKey) {
+            const slot = di.slots[matchedKey];
+            if (slot && !slot.sold && slot.code) {
+              assignedDI = di;
+              allocatedSlotKey = matchedKey;
+              break;
+            }
+          }
+        }
+
+        if (assignedDI && allocatedSlotKey) {
+          assignedDI.slots[allocatedSlotKey].sold = true;
+          assignedDI.slots[allocatedSlotKey].orderId = orderObj.order_number || orderObj.id;
+          assignedDI.slots[allocatedSlotKey].customerName = orderObj.customer_name;
+          updatedProducts.set(product.id, digitalItems);
+          deliveryDetails.push({
+            name: itemString,
+            email: assignedDI.email || '',
+            password: assignedDI.password || '',
+            code: assignedDI.slots[allocatedSlotKey].code || '',
+            outlookEmail: assignedDI.outlookEmail || '',
+            outlookPassword: assignedDI.outlookPassword || '',
+            twoFactorCode: assignedDI.twoFactorCode || '',
+            birthdate: assignedDI.birthdate || '',
+            region: assignedDI.region || '',
+            onlineId: assignedDI.onlineId || '',
+            backupCodes: assignedDI.backupCodes || '',
+            slotName: allocatedSlotKey
+          });
+        }
+      }
+
+      if (deliveryDetails.length > 0) {
+        for (const [productId, digitalItems] of updatedProducts.entries()) {
+          await pool.query('UPDATE products SET digitalItems = ? WHERE id = ?', [JSON.stringify(digitalItems), productId]);
+        }
+        await pool.query(
+          `UPDATE orders SET digital_email = ?, digital_password = ?, digital_code = ?, digital_delivery = ? WHERE id = ?`,
+          [deliveryDetails[0].email, deliveryDetails[0].password, deliveryDetails[0].code, JSON.stringify(deliveryDetails), orderObj.id]
+        );
+        // Refresh orderObj for email content
+        const [refreshedRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [orderObj.id]);
+        orderObj = normalizeOrderRow(refreshedRows[0]);
+      }
+    } catch (allocErr) {
+      console.error('Initial auto-allocation failed:', allocErr);
+    }
 
     // Fire and forget email notifications
     (async () => {
@@ -164,7 +258,134 @@ ordersRoutes.post('/orders', async (req, res) => {
   }
 });
 
+
+ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [orders] = await pool.query('SELECT * FROM orders WHERE id = ?', [id]);
+    if (!orders.length) return res.status(404).json({ success: false, error: 'Order not found' });
+    const order = orders[0];
+
+    const [products] = await pool.query('SELECT id, name, digitalItems FROM products');
+    
+    // Split multi-item orders
+    const itemStrings = (order.product_name || '').split(',').map(s => s.trim()).filter(Boolean);
+    const deliveryDetails = [];
+    const updatedProducts = new Map(); // Track product updates to save at the end
+
+    for (const itemString of itemStrings) {
+      // Find matching product for this specific item string
+      const matchedProducts = products.filter(p => 
+        itemString.toLowerCase().includes((p.name || '').toLowerCase()) ||
+        (p.name || '').toLowerCase().includes(itemString.toLowerCase())
+      );
+      matchedProducts.sort((a, b) => (b.name || '').length - (a.name || '').length);
+      const product = matchedProducts[0];
+
+      if (!product) continue;
+
+      const itemStringLower = itemString.toLowerCase();
+      let selectedSlotName = '';
+      
+      if (itemStringLower.includes('primary ps5')) selectedSlotName = 'Primary PS5';
+      else if (itemStringLower.includes('primary ps4')) selectedSlotName = 'Primary PS4';
+      else if (itemStringLower.includes('primary')) selectedSlotName = 'Primary';
+      else if (itemStringLower.includes('secondary')) selectedSlotName = 'Secondary';
+      else if (itemStringLower.includes('offline ps5')) selectedSlotName = 'Offline PS5';
+      else if (itemStringLower.includes('offline ps4')) selectedSlotName = 'Offline PS4';
+      else if (itemStringLower.includes('offline')) selectedSlotName = 'Offline';
+      else if (itemStringLower.includes('full account')) selectedSlotName = 'Full Account';
+
+      if (!selectedSlotName) continue;
+
+      // Get digitalItems (possibly already modified in this loop)
+      let digitalItems = updatedProducts.has(product.id) 
+        ? updatedProducts.get(product.id) 
+        : (typeof product.digitalItems === 'string' ? JSON.parse(product.digitalItems) : (product.digitalItems || []));
+
+      let assignedDI = null;
+      let allocatedSlotKey = '';
+
+      for (let di of digitalItems) {
+        if (di.fullAccountSold) continue;
+        if (!di.slots) continue;
+
+        const keys = Object.keys(di.slots);
+        const matchedKey = keys.find(k => 
+          k.toLowerCase() === selectedSlotName.toLowerCase() ||
+          k.toLowerCase().includes(selectedSlotName.toLowerCase()) ||
+          selectedSlotName.toLowerCase().includes(k.toLowerCase())
+        );
+
+        if (matchedKey) {
+          const slot = di.slots[matchedKey];
+          if (slot && !slot.sold && slot.code) {
+            assignedDI = di;
+            allocatedSlotKey = matchedKey;
+            break;
+          }
+        }
+      }
+
+      if (assignedDI && allocatedSlotKey) {
+        // Mark as sold
+        assignedDI.slots[allocatedSlotKey].sold = true;
+        assignedDI.slots[allocatedSlotKey].orderId = order.order_number || order.id;
+        assignedDI.slots[allocatedSlotKey].customerName = order.customer_name;
+
+        updatedProducts.set(product.id, digitalItems);
+
+        deliveryDetails.push({
+          name: itemString,
+          email: assignedDI.email || '',
+          password: assignedDI.password || '',
+          code: assignedDI.slots[allocatedSlotKey].code || '',
+          outlookEmail: assignedDI.outlookEmail || '',
+          outlookPassword: assignedDI.outlookPassword || '',
+          twoFactorCode: assignedDI.twoFactorCode || '',
+          birthdate: assignedDI.birthdate || '',
+          region: assignedDI.region || '',
+          onlineId: assignedDI.onlineId || '',
+          backupCodes: assignedDI.backupCodes || '',
+          slotName: allocatedSlotKey
+        });
+      }
+    }
+
+    if (deliveryDetails.length === 0) {
+      return res.status(400).json({ success: false, error: 'No matching available inventory found for any items in this order' });
+    }
+
+    // Save all updated products
+    for (const [productId, digitalItems] of updatedProducts.entries()) {
+      await pool.query('UPDATE products SET digitalItems = ? WHERE id = ?', [JSON.stringify(digitalItems), productId]);
+    }
+
+    // Update order with ALL delivery details
+    await pool.query(
+      `UPDATE orders SET 
+        digital_email = ?, 
+        digital_password = ?, 
+        digital_code = ?, 
+        digital_delivery = ? 
+       WHERE id = ?`,
+      [
+        deliveryDetails[0].email || '',
+        deliveryDetails[0].password || '',
+        deliveryDetails[0].code || '',
+        JSON.stringify(deliveryDetails),
+        id
+      ]
+    );
+
+    return res.json({ success: true, message: `Successfully allocated ${deliveryDetails.length} items`, delivery: deliveryDetails });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req, res) => {
+
   try {
     const id = req.params.id;
     const o = req.body || {};

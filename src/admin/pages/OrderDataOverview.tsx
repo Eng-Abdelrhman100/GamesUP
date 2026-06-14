@@ -248,6 +248,24 @@ export function OrderDataOverview() {
   const [selectedGiftCardProduct, setSelectedGiftCardProduct] = useState<string>('all');
   const [uniqueGiftCardProducts, setUniqueGiftCardProducts] = useState<string[]>([]);
 
+  const [isLinking, setIsLinking] = useState<Record<string, boolean>>({});
+
+  const handleAutoLink = async (orderId: string) => {
+    try {
+      setIsLinking(prev => ({ ...prev, [orderId]: true }));
+      const result = await ordersAPI.autoAllocate(orderId);
+      if (result.success) {
+        // Success notification or just reload
+        await loadData();
+      }
+    } catch (err: any) {
+      console.error('Auto-link failed:', err);
+      alert(err.message || 'Failed to auto-link. Make sure matching inventory is available.');
+    } finally {
+      setIsLinking(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
   const [visibleDetails, setVisibleDetails] = useState<Record<string, boolean>>({});
   
   const toggleDetails = (slotId: string) => {
@@ -922,12 +940,28 @@ export function OrderDataOverview() {
                           />
                         </td>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <EditableCell 
-                            initialValue={displayCode} 
-                            onSave={(val) => updateOrder(order.id, { digital_code: val })}
-                            placeholder="Enter slot/code"
-                            isMono
-                          />
+                          <div className="flex items-center gap-2">
+                            <EditableCell 
+                              initialValue={displayCode} 
+                              onSave={(val) => updateOrder(order.id, { digital_code: val })}
+                              placeholder="Enter slot/code"
+                              isMono
+                            />
+                            {!displayCode && (
+                              <button
+                                onClick={() => handleAutoLink(order.id)}
+                                disabled={isLinking[order.id]}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                                title="Auto-allocate matching slot"
+                              >
+                                {isLinking[order.id] ? (
+                                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent animate-spin rounded-full" />
+                                ) : (
+                                  <Plus className="w-3 h-3" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <select
