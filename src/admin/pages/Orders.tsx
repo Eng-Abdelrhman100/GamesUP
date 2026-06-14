@@ -40,6 +40,52 @@ export function Orders() {
   const { settings, formatPrice } = useStoreSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const getDigitalDetails = (order: Order) => {
+    let email = order.digital_email || '';
+    let password = order.digital_password || '';
+    let code = order.digital_code || '';
+    let slotName = '';
+
+    try {
+      if (order.digital_delivery) {
+        const parsed = typeof order.digital_delivery === 'string'
+          ? JSON.parse(order.digital_delivery)
+          : order.digital_delivery;
+        const items = Array.isArray(parsed) ? parsed : [];
+        if (items.length > 0) {
+          const item = items[0];
+          if (item) {
+            if (!email) email = item.email || '';
+            if (!password) password = item.password || '';
+            
+            const productNameLower = (order.product_name || '').toLowerCase();
+            let selectedSlotName = '';
+            if (productNameLower.includes('primary ps5')) selectedSlotName = 'Primary PS5';
+            else if (productNameLower.includes('primary ps4')) selectedSlotName = 'Primary PS4';
+            else if (productNameLower.includes('secondary')) selectedSlotName = 'Secondary';
+            else if (productNameLower.includes('offline ps5')) selectedSlotName = 'Offline PS5';
+            else if (productNameLower.includes('offline ps4')) selectedSlotName = 'Offline PS4';
+
+            if (item.slots && selectedSlotName) {
+              const keys = Object.keys(item.slots);
+              const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+              if (matchedKey) {
+                slotName = matchedKey;
+                if (!code) code = item.slots[matchedKey]?.code || '';
+              }
+            }
+            if (!code && item.code) {
+              code = item.code;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing digital delivery details', e);
+    }
+    return { email, password, code, slotName };
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [productFilter, setProductFilter] = useState('All');
@@ -510,117 +556,128 @@ export function Orders() {
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                  >
-                    <td className="py-4 px-4 font-medium text-gray-900 dark:text-white">{order.order_number || order.id}</td>
-                    <td className="py-4 px-4">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{order.customer_name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{order.customer_email}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
-                      <div>
-                        <p>{order.product_name}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">1 item(s)</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
-                      <QuickEditCell
-                        value={order.digital_email || ''}
-                        onSave={(val) => updateOrder(order.id, { digital_email: String(val) })}
-                        className="truncate block"
-                      />
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
-                      <QuickEditCell
-                        value={order.digital_password || ''}
-                        onSave={(val) => updateOrder(order.id, { digital_password: String(val) })}
-                        className="truncate block"
-                      />
-                    </td>
-                    <td className="py-4 px-4 text-sm font-mono text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
-                      <QuickEditCell
-                        value={order.digital_code || ''}
-                        onSave={(val) => updateOrder(order.id, { digital_code: String(val) })}
-                        className="truncate block"
-                      />
-                    </td>
-                    <td className="py-4 px-4 text-sm font-mono text-gray-500 dark:text-gray-400">{order.inventory_id || '-'}</td>
-                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
-                      {order.payment_method ? (
-                        <span className="capitalize">{order.payment_method.replace('_', ' ')}</span>
-                      ) : '-'}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
-                      {order.payment_proof ? (
-                        <button 
-                          onClick={() => setViewingProof(order.payment_proof!)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg transition-colors text-xs font-medium"
+                orders.map((order) => {
+                  const { email: displayEmail, password: displayPassword, code: displayCode, slotName } = getDigitalDetails(order);
+
+                  return (
+                    <tr
+                      key={order.id}
+                      className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="py-4 px-4 font-medium text-gray-900 dark:text-white">{order.order_number || order.id}</td>
+                      <td className="py-4 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">{order.customer_name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{order.customer_email}</p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
+                        <div>
+                          <p>{order.product_name}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <span className="text-xs text-gray-400 dark:text-gray-500">1 item(s)</span>
+                            {slotName && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                                {slotName}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
+                        <QuickEditCell
+                          value={displayEmail}
+                          onSave={(val) => updateOrder(order.id, { digital_email: String(val) })}
+                          className="truncate block"
+                        />
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
+                        <QuickEditCell
+                          value={displayPassword}
+                          onSave={(val) => updateOrder(order.id, { digital_password: String(val) })}
+                          className="truncate block"
+                        />
+                      </td>
+                      <td className="py-4 px-4 text-sm font-mono text-gray-600 dark:text-gray-300 truncate max-w-[100px]">
+                        <QuickEditCell
+                          value={displayCode}
+                          onSave={(val) => updateOrder(order.id, { digital_code: String(val) })}
+                          className="truncate block"
+                        />
+                      </td>
+                      <td className="py-4 px-4 text-sm font-mono text-gray-500 dark:text-gray-400">{order.inventory_id || '-'}</td>
+                      <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
+                        {order.payment_method ? (
+                          <span className="capitalize">{order.payment_method.replace('_', ' ')}</span>
+                        ) : '-'}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
+                        {order.payment_proof ? (
+                          <button 
+                            onClick={() => setViewingProof(order.payment_proof!)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg transition-colors text-xs font-medium"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            View
+                          </button>
+                        ) : '-'}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
+                        {new Date(order.date || order.created_at || '').toLocaleDateString()}
+                      </td>
+                      <td className="py-4 px-4">
+                        <select
+                          value={order.status}
+                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                          className={`px-2 py-1 rounded-full text-xs font-medium border-none focus:ring-2 focus:ring-offset-1 cursor-pointer ${getStatusColor(order.status)}`}
                         >
-                          <Eye className="w-3.5 h-3.5" />
-                          View
-                        </button>
-                      ) : '-'}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
-                      {new Date(order.date || order.created_at || '').toLocaleDateString()}
-                    </td>
-                    <td className="py-4 px-4">
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        className={`px-2 py-1 rounded-full text-xs font-medium border-none focus:ring-2 focus:ring-offset-1 cursor-pointer ${getStatusColor(order.status)}`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="pending_approval">Pending Approval</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 italic">
-                      {order.cost != null ? formatPrice(order.cost) : '-'}
-                    </td>
-                    <td className="py-4 px-4 font-medium text-gray-900 dark:text-white">{formatPrice(order.amount)}</td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleViewInvoice(order)}
-                          className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                          title="View Invoice"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleViewInvoice(order)}
-                          className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                          title="Download Invoice"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleViewDetails(order)}
-                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleResendEmail(order)}
-                          className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                          title="Resend Digital Delivery Email"
-                        >
-                          <Mail className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          <option value="pending">Pending</option>
+                          <option value="pending_approval">Pending Approval</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 italic">
+                        {order.cost != null ? formatPrice(order.cost) : '-'}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-gray-900 dark:text-white">{formatPrice(order.amount)}</td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleViewInvoice(order)}
+                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            title="View Invoice"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleViewInvoice(order)}
+                            className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                            title="Download Invoice"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleViewDetails(order)}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleResendEmail(order)}
+                            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                            title="Resend Digital Delivery Email"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1110,65 +1167,70 @@ export function Orders() {
                   </div>
 
                   {/* Digital Delivery Info - The requested feature */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                      <span className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400">
-                        <FileText className="w-4 h-4" />
-                      </span>
-                      Digital Delivery
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl p-6 border border-blue-100 dark:border-blue-800">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                          Digital Email
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="text" 
-                            value={selectedOrder.digital_email || ''} 
-                            readOnly 
-                            className="flex-1 bg-white dark:bg-gray-800 border-none rounded-lg py-2 px-3 text-gray-900 dark:text-white shadow-sm"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                            Password
-                          </label>
-                          <input 
-                            type="text" 
-                            value={selectedOrder.digital_password || ''} 
-                            readOnly 
-                            className="w-full bg-white dark:bg-gray-800 border-none rounded-lg py-2 px-3 text-gray-900 dark:text-white shadow-sm font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                            License Code
-                          </label>
-                          <input 
-                            type="text" 
-                            value={selectedOrder.digital_code || ''} 
-                            readOnly 
-                            className="w-full bg-white dark:bg-gray-800 border-none rounded-lg py-2 px-3 text-gray-900 dark:text-white shadow-sm font-mono tracking-widest"
-                          />
-                        </div>
-                      </div>
+                  {(() => {
+                    const modalDetails = getDigitalDetails(selectedOrder);
+                    return (
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <span className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400">
+                            <FileText className="w-4 h-4" />
+                          </span>
+                          Digital Delivery {modalDetails.slotName ? `(${modalDetails.slotName})` : ''}
+                        </h3>
+                        <div className="grid grid-cols-1 gap-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl p-6 border border-blue-100 dark:border-blue-800">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                              Digital Email
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="text" 
+                                value={modalDetails.email || ''} 
+                                readOnly 
+                                className="flex-1 bg-white dark:bg-gray-800 border-none rounded-lg py-2 px-3 text-gray-900 dark:text-white shadow-sm"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                                Password
+                              </label>
+                              <input 
+                                type="text" 
+                                value={modalDetails.password || ''} 
+                                readOnly 
+                                className="w-full bg-white dark:bg-gray-800 border-none rounded-lg py-2 px-3 text-gray-900 dark:text-white shadow-sm font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                                License Code
+                              </label>
+                              <input 
+                                type="text" 
+                                value={modalDetails.code || ''} 
+                                readOnly 
+                                className="w-full bg-white dark:bg-gray-800 border-none rounded-lg py-2 px-3 text-gray-900 dark:text-white shadow-sm font-mono tracking-widest"
+                              />
+                            </div>
+                          </div>
 
-                      {selectedOrder.inventory_id && (
-                        <div className="pt-2 border-t border-blue-200 dark:border-blue-800/50 mt-2">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Linked Inventory ID: <span className="font-mono text-gray-700 dark:text-gray-300">{selectedOrder.inventory_id}</span>
-                          </p>
+                          {selectedOrder.inventory_id && (
+                            <div className="pt-2 border-t border-blue-200 dark:border-blue-800/50 mt-2">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Linked Inventory ID: <span className="font-mono text-gray-700 dark:text-gray-300">{selectedOrder.inventory_id}</span>
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
-                      * These credentials are provided to the customer upon order completion.
-                    </p>
-                  </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
+                          * These credentials are provided to the customer upon order completion.
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">

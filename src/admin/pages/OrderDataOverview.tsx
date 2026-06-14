@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { Card } from '../../components/ui/card';
 import { Package, ShoppingCart, TrendingUp, Users, DollarSign, Clock, CheckCircle, Edit2, X, Plus } from 'lucide-react';
 import { ordersAPI, productsAPI } from '../../utils/api';
@@ -163,6 +163,67 @@ function EditableCell({ initialValue, onSave, placeholder, className = '', isMon
 
 export function OrderDataOverview() {
   const { formatPrice } = useStoreSettings();
+  
+  const getDigitalDetails = (order: any) => {
+    let email = order.digital_email || '';
+    let password = order.digital_password || '';
+    let code = order.digital_code || '';
+    let slotName = '';
+    let outlookEmail = '';
+    let outlookPassword = '';
+    let birthdate = '';
+    let region = '';
+    let onlineId = '';
+    let backupCodes = '';
+    let twoFactorCode = '';
+
+    try {
+      if (order.digital_delivery) {
+        const parsed = typeof order.digital_delivery === 'string'
+          ? JSON.parse(order.digital_delivery)
+          : order.digital_delivery;
+        const items = Array.isArray(parsed) ? parsed : [];
+        if (items.length > 0) {
+          const item = items[0];
+          if (item) {
+            if (!email) email = item.email || '';
+            if (!password) password = item.password || '';
+            outlookEmail = item.outlookEmail || '';
+            outlookPassword = item.outlookPassword || '';
+            birthdate = item.birthdate || '';
+            region = item.region || '';
+            onlineId = item.onlineId || '';
+            backupCodes = item.backupCodes || '';
+            twoFactorCode = item.twoFactorCode || '';
+            
+            const productNameLower = (order.product_name || '').toLowerCase();
+            let selectedSlotName = '';
+            if (productNameLower.includes('primary ps5')) selectedSlotName = 'Primary PS5';
+            else if (productNameLower.includes('primary ps4')) selectedSlotName = 'Primary PS4';
+            else if (productNameLower.includes('secondary')) selectedSlotName = 'Secondary';
+            else if (productNameLower.includes('offline ps5')) selectedSlotName = 'Offline PS5';
+            else if (productNameLower.includes('offline ps4')) selectedSlotName = 'Offline PS4';
+
+            if (item.slots && selectedSlotName) {
+              const keys = Object.keys(item.slots);
+              const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+              if (matchedKey) {
+                slotName = matchedKey;
+                if (!code) code = item.slots[matchedKey]?.code || '';
+              }
+            }
+            if (!code && item.code) {
+              code = item.code;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing digital delivery details', e);
+    }
+    return { email, password, code, slotName, outlookEmail, outlookPassword, birthdate, region, onlineId, backupCodes, twoFactorCode };
+  };
+
   const [stats, setStats] = useState<OrderStats>({
     totalOrders: 0,
     pendingOrders: 0,
@@ -220,6 +281,7 @@ export function OrderDataOverview() {
       else if (field === 'sonyPass') item.password = newValue;
       else if (field === 'birthdate') item.birthdate = newValue;
       else if (field === 'emailPass') item.outlookPassword = newValue;
+      else if (field === 'twoFactorCode') item.twoFactorCode = newValue;
       else if (field === 'region') item.region = newValue;
       else if (field === 'onlineId') item.onlineId = newValue;
       
@@ -571,6 +633,7 @@ export function OrderDataOverview() {
                 sonyPass: item.password || '',
                 birthdate: item.birthdate || '',
                 emailPass: item.outlookPassword || '',
+                twoFactorCode: item.twoFactorCode || '',
                 inventory: inventory,
                 region: item.region || '',
                 onlineId: item.onlineId || '',
@@ -809,57 +872,129 @@ export function OrderDataOverview() {
                   </td>
                 </tr>
               ) : (
-                originalOrders.map((order: Order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <td className="px-4 py-3 font-black text-red-600 dark:text-red-400">#{order.order_number}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 dark:text-white">{order.customer_name}</div>
-                      <div className="text-[10px] text-gray-500">{order.customer_email}</div>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
-                      {order.product_name}
-                    </td>
-                    <td className="px-4 py-3">
-                      <EditableCell 
-                        initialValue={order.digital_email || ''} 
-                        onSave={(val) => updateOrder(order.id, { digital_email: val })}
-                        placeholder="Enter email"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <EditableCell 
-                        initialValue={order.digital_password || ''} 
-                        onSave={(val) => updateOrder(order.id, { digital_password: val })}
-                        placeholder="Enter password"
-                        isMono
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <EditableCell 
-                        initialValue={order.digital_code || ''} 
-                        onSave={(val) => updateOrder(order.id, { digital_code: val })}
-                        placeholder="Enter slot/code"
-                        isMono
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={order.status}
-                        onChange={(e) => updateOrder(order.id, { status: e.target.value })}
-                        className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider outline-none ${getStatusColor(order.status)}`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="paid">Paid</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-[10px] text-gray-500 font-mono">
-                      {formatDate(order.created_at)}
-                    </td>
-                  </tr>
-                ))
+                originalOrders.map((order: Order) => {
+                  const { email: displayEmail, password: displayPassword, code: displayCode, slotName, outlookEmail, outlookPassword, birthdate, region, onlineId, backupCodes, twoFactorCode } = getDigitalDetails(order);
+                  const isExpanded = !!visibleDetails[order.id];
+                  const hasDetails = !!(outlookEmail || twoFactorCode || backupCodes || birthdate || region || onlineId);
+
+                  return (
+                    <Fragment key={order.id}>
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer" onClick={() => hasDetails && toggleDetails(order.id)}>
+                        <td className="px-4 py-3 font-black text-red-600 dark:text-red-400">
+                          <div className="flex items-center gap-1 select-none">
+                            {hasDetails && (
+                              <span className="text-[10px] text-gray-400 mr-1">{isExpanded ? '▼' : '▶'}</span>
+                            )}
+                            #{order.order_number}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900 dark:text-white">{order.customer_name}</div>
+                          <div className="text-[10px] text-gray-500">{order.customer_email}</div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
+                          <div>
+                            <p>{order.product_name}</p>
+                            {slotName && (
+                              <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                                {slotName}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <EditableCell 
+                            initialValue={displayEmail} 
+                            onSave={(val) => updateOrder(order.id, { digital_email: val })}
+                            placeholder="Enter email"
+                          />
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <EditableCell 
+                            initialValue={displayPassword} 
+                            onSave={(val) => updateOrder(order.id, { digital_password: val })}
+                            placeholder="Enter password"
+                            isMono
+                          />
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <EditableCell 
+                            initialValue={displayCode} 
+                            onSave={(val) => updateOrder(order.id, { digital_code: val })}
+                            placeholder="Enter slot/code"
+                            isMono
+                          />
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <select
+                            value={order.status}
+                            onChange={(e) => updateOrder(order.id, { status: e.target.value })}
+                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider outline-none ${getStatusColor(order.status)}`}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="paid">Paid</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-3 text-[10px] text-gray-500 font-mono">
+                          {formatDate(order.created_at)}
+                        </td>
+                      </tr>
+                      {isExpanded && hasDetails && (
+                        <tr className="bg-blue-50/30 dark:bg-blue-900/10">
+                          <td colSpan={8} className="px-8 py-4 border-b dark:border-gray-700">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                              {outlookEmail && (
+                                <div>
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">Recovery Email</span>
+                                  <span className="text-gray-700 dark:text-gray-300 font-mono">{outlookEmail}</span>
+                                </div>
+                              )}
+                              {outlookPassword && (
+                                <div>
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">Recovery Password</span>
+                                  <span className="text-gray-700 dark:text-gray-300 font-mono">{outlookPassword}</span>
+                                </div>
+                              )}
+                              {twoFactorCode && (
+                                <div>
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">2FA Secret/Code</span>
+                                  <span className="text-red-600 dark:text-red-400 font-bold font-mono">{twoFactorCode}</span>
+                                </div>
+                              )}
+                              {birthdate && (
+                                <div>
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">Birthdate</span>
+                                  <span className="text-gray-700 dark:text-gray-300">{birthdate}</span>
+                                </div>
+                              )}
+                              {region && (
+                                <div>
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">Region</span>
+                                  <span className="text-gray-700 dark:text-gray-300 uppercase">{region}</span>
+                                </div>
+                              )}
+                              {onlineId && (
+                                <div>
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">Online ID</span>
+                                  <span className="text-gray-700 dark:text-gray-300">{onlineId}</span>
+                                </div>
+                              )}
+                              {backupCodes && (
+                                <div className="col-span-2">
+                                  <span className="text-gray-400 block font-bold uppercase text-[9px] tracking-wider">Backup Codes</span>
+                                  <pre className="text-[10px] font-mono bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap">{backupCodes}</pre>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -893,6 +1028,7 @@ export function OrderDataOverview() {
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Sony Pass</th>
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Birthdate</th>
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Email - Pass</th>
+                <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 font-bold text-red-500">2FA Code</th>
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Slots & Codes</th>
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Region</th>
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Online Id</th>
@@ -902,7 +1038,7 @@ export function OrderDataOverview() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {gameAccounts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={10} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     No game accounts found
                   </td>
                 </tr>
@@ -916,6 +1052,7 @@ export function OrderDataOverview() {
                     <td className="px-4 py-3">{renderEditableCell(account, 'sonyPass', account.sonyPass)}</td>
                     <td className="px-4 py-3">{renderEditableCell(account, 'birthdate', account.birthdate)}</td>
                     <td className="px-4 py-3">{renderEditableCell(account, 'emailPass', account.emailPass)}</td>
+                    <td className="px-4 py-3">{renderEditableCell(account, 'twoFactorCode', account.twoFactorCode)}</td>
                     <td className="px-4 py-3">
                       {account.inventory.length > 0 ? (
                         <div className="flex flex-wrap gap-1 max-w-[200px]">

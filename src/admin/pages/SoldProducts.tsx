@@ -36,20 +36,65 @@ export function SoldProducts() {
       const data = await adminAPI.getSoldProducts();
       
       // Map API response (snake_case) to component interface (camelCase)
-      const mappedProducts: SoldProduct[] = (data || []).map((order: any) => ({
-        id: order.id,
-        orderNumber: order.order_number,
-        customerName: order.customer_name,
-        customerEmail: order.customer_email,
-        productName: order.product_name,
-        price: order.amount,
-        date: order.created_at,
-        digitalItem: {
-          email: order.digital_email,
-          password: order.digital_password,
-          code: order.digital_code
+      const mappedProducts: SoldProduct[] = (data || []).map((order: any) => {
+        let displayEmail = order.digital_email || '';
+        let displayPassword = order.digital_password || '';
+        let displayCode = order.digital_code || '';
+        let slotName = '';
+
+        try {
+          if (order.digital_delivery) {
+            const parsed = typeof order.digital_delivery === 'string'
+              ? JSON.parse(order.digital_delivery)
+              : order.digital_delivery;
+            const items = Array.isArray(parsed) ? parsed : [];
+            if (items.length > 0) {
+              const item = items[0];
+              if (item) {
+                if (!displayEmail) displayEmail = item.email || '';
+                if (!displayPassword) displayPassword = item.password || '';
+                
+                const productNameLower = (order.product_name || '').toLowerCase();
+                let selectedSlotName = '';
+                if (productNameLower.includes('primary ps5')) selectedSlotName = 'Primary PS5';
+                else if (productNameLower.includes('primary ps4')) selectedSlotName = 'Primary PS4';
+                else if (productNameLower.includes('secondary')) selectedSlotName = 'Secondary';
+                else if (productNameLower.includes('offline ps5')) selectedSlotName = 'Offline PS5';
+                else if (productNameLower.includes('offline ps4')) selectedSlotName = 'Offline PS4';
+
+                if (item.slots && selectedSlotName) {
+                  const keys = Object.keys(item.slots);
+                  const matchedKey = keys.find(k => k.toLowerCase() === selectedSlotName.toLowerCase()) || '';
+                  if (matchedKey) {
+                    slotName = matchedKey;
+                    if (!displayCode) displayCode = item.slots[matchedKey]?.code || '';
+                  }
+                }
+                if (!displayCode && item.code) {
+                  displayCode = item.code;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error(e);
         }
-      }));
+
+        return {
+          id: order.id,
+          orderNumber: order.order_number,
+          customerName: order.customer_name,
+          customerEmail: order.customer_email,
+          productName: slotName ? `${order.product_name} (${slotName})` : order.product_name,
+          price: order.amount,
+          date: order.created_at,
+          digitalItem: {
+            email: displayEmail,
+            password: displayPassword,
+            code: displayCode
+          }
+        };
+      });
 
       setProducts(mappedProducts);
     } catch (err) {
