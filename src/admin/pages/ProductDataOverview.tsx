@@ -88,6 +88,7 @@ export function ProductDataOverview() {
     password: '',
     outlookEmail: '',
     outlookPassword: '',
+    twoFactorCode: '',
     region: '',
     onlineId: '',
     backupCodes: '',
@@ -287,8 +288,9 @@ export function ProductDataOverview() {
                     productName: product.name,
                     email: digitalItem.email || '',
                     sonyPass: digitalItem.password || '',
-                    emailPass: digitalItem.password || '',
+                    emailPass: digitalItem.outlookPassword || digitalItem.outlookPassword || '',
                     codes: digitalItem.slots || {},
+                    twoFactorCode: digitalItem.twoFactorCode || '',
                     region: digitalItem.region || '',
                     onlineId: digitalItem.onlineId || ''
                   });
@@ -414,6 +416,7 @@ export function ProductDataOverview() {
         password: newStock.password || '',
         outlookEmail: newStock.outlookEmail || '',
         outlookPassword: newStock.outlookPassword || '',
+        twoFactorCode: newStock.twoFactorCode || '',
         region: newStock.region || '',
         onlineId: newStock.onlineId || '',
         backupCodes: newStock.backupCodes || '',
@@ -438,6 +441,7 @@ export function ProductDataOverview() {
         password: '',
         outlookEmail: '',
         outlookPassword: '',
+        twoFactorCode: '',
         region: '',
         onlineId: '',
         backupCodes: '',
@@ -792,6 +796,7 @@ export function ProductDataOverview() {
                           password: '',
                           outlookEmail: '',
                           outlookPassword: '',
+                          twoFactorCode: '',
                           region: '',
                           onlineId: '',
                           backupCodes: '',
@@ -816,6 +821,7 @@ export function ProductDataOverview() {
                         <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Email</th>
                         <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Sony Pass</th>
                         <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Email-Pass</th>
+                        <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400 font-bold text-red-500">2FA Code</th>
                         <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Codes</th>
                         <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400 text-center">Show Slots</th>
                         <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400">Region</th>
@@ -836,6 +842,9 @@ export function ProductDataOverview() {
                           </td>
                           <td className="px-6 py-4 text-gray-900 dark:text-white">
                             <div className="text-sm font-mono">{item.emailPass}</div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-900 dark:text-white font-mono text-xs">
+                            <div className="text-sm">{item.twoFactorCode || '-'}</div>
                           </td>
                           <td className="px-6 py-4">
                             <select className="text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-500">
@@ -877,7 +886,7 @@ export function ProductDataOverview() {
                       ))}
                       {filteredInventory.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                          <td colSpan={9} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                             {selectedProductId === 'all' ? 'No inventory items found' : 'No inventory items found for this product'}
                           </td>
                         </tr>
@@ -1948,6 +1957,17 @@ export function ProductDataOverview() {
                 placeholder="e.g. Sniper_Master_24"
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">2FA Code</label>
+            <input
+              type="text"
+              value={newStock.twoFactorCode}
+              onChange={e => setNewStock({ ...newStock, twoFactorCode: e.target.value })}
+              className="w-full px-3.5 py-2.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-white"
+              placeholder="2FA Secret/Code"
+            />
           </div>
 
           <div className="space-y-1">

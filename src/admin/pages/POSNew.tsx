@@ -13,6 +13,7 @@ interface DigitalItem {
   code: string;
   outlookEmail: string;
   outlookPassword: string;
+  twoFactorCode?: string;
   birthdate: string;
   region: string;
   onlineId: string;
@@ -375,6 +376,7 @@ export function POSNew() {
                     password: digitalItem.password,
                     outlookEmail: digitalItem.outlookEmail,
                     outlookPassword: digitalItem.outlookPassword,
+                    twoFactorCode: digitalItem.twoFactorCode,
                     birthdate: digitalItem.birthdate,
                     region: digitalItem.region,
                     onlineId: digitalItem.onlineId,

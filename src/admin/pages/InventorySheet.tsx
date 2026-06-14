@@ -447,6 +447,7 @@ export function InventorySheet() {
           password: '',
           outlookEmail: '',
           outlookPassword: '',
+          twoFactorCode: '',
           region: '',
           onlineId: '',
           backupCodes: '',
@@ -739,7 +740,7 @@ export function InventorySheet() {
 
     const headers = [
       'ProductName', 'Category', 'SubCategory', 'Price', 'Cost', 'Stock', 'Status', 'ProductCode', 'PurchasedEmail', 'PurchasedPassword', 'SendEmailEnabled', 'EmailTemplate',
-      'Email', 'Password', 'OutlookEmail', 'OutlookPassword', 'Region', 'OnlineID', 'BackupCodes', 
+      'Email', 'Password', 'OutlookEmail', 'OutlookPassword', 'TwoFactorCode', 'Region', 'OnlineID', 'BackupCodes', 
       'PrimaryPS4Code', 'PrimaryPS4Sold',
       'PrimaryPS5Code', 'PrimaryPS5Sold',
       'SecondaryCode', 'SecondarySold',
@@ -772,6 +773,7 @@ export function InventorySheet() {
             `"${String(item.password || '').replace(/"/g, '""')}"`,
             `"${String(item.outlookEmail || '').replace(/"/g, '""')}"`,
             `"${String(item.outlookPassword || '').replace(/"/g, '""')}"`,
+            `"${String(item.twoFactorCode || '').replace(/"/g, '""')}"`,
             `"${String(item.region || '').replace(/"/g, '""')}"`,
             `"${String(item.onlineId || '').replace(/"/g, '""')}"`,
             `"${String(item.backupCodes || '').replace(/"/g, '""')}"`,
@@ -789,7 +791,7 @@ export function InventorySheet() {
           csvLines.push([...prodInfo, ...itemInfo].join(','));
         });
       } else {
-        const emptyItems = Array(17).fill('""');
+        const emptyItems = Array(18).fill('""');
         csvLines.push([...prodInfo, ...emptyItems].join(','));
       }
     });
@@ -851,6 +853,7 @@ export function InventorySheet() {
               password: obj['Password'] || '',
               outlookEmail: obj['OutlookEmail'] || '',
               outlookPassword: obj['OutlookPassword'] || '',
+              twoFactorCode: obj['TwoFactorCode'] || '',
               region: obj['Region'] || '',
               onlineId: obj['OnlineID'] || '',
               backupCodes: obj['BackupCodes'] || '',
@@ -1009,6 +1012,7 @@ export function InventorySheet() {
         password,
         outlookEmail,
         outlookPassword,
+        twoFactorCode: '',
         region: '',
         onlineId: '',
         backupCodes: '',
@@ -1615,6 +1619,7 @@ export function InventorySheet() {
                                         <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Password</th>
                                         <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Email</th>
                                         <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Pass</th>
+                                        <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">2FA Code</th>
                                         <th className="w-24 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Region</th>
                                         <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Online ID</th>
                                         <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Backup Codes</th>
@@ -1629,7 +1634,7 @@ export function InventorySheet() {
                                         <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
                                         <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS5 Code</th>
                                         <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-
+ 
                                         <th className="w-16 px-3 py-2.5 text-center">Actions</th>
                                       </tr>
                                     </thead>
@@ -1643,6 +1648,7 @@ export function InventorySheet() {
                                             { field: 'password', placeholder: 'Sony Password' },
                                             { field: 'outlookEmail', placeholder: 'Recovery Email' },
                                             { field: 'outlookPassword', placeholder: 'Recovery Password' },
+                                            { field: 'twoFactorCode', placeholder: '2FA Secret/Code' },
                                             { field: 'region', placeholder: 'US, EU, etc.' },
                                             { field: 'onlineId', placeholder: 'Online ID' },
                                             { field: 'backupCodes', placeholder: '2FA Backup Codes' }
