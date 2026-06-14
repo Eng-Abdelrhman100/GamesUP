@@ -212,10 +212,10 @@ export const emailService = {
 
       // --- STUNNING GAMESUP THEME HTML ---
       let html = `
-        <div style="margin-bottom: 30px; border: 1px solid #27272a; padding: 24px; border-radius: 16px; background: linear-gradient(145deg, #18181b, #09090b); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif; color: #e4e4e7;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid #3f3f46; padding-bottom: 12px;">
-            <h3 style="margin: 0; color: #fafafa; font-size: 18px; font-weight: 700; letter-spacing: -0.02em;">${item.name || 'Digital Product'}</h3>
-            ${matchedSlotKey ? `<span style="background-color: #7f1d1d; color: #fecaca; font-size: 11px; padding: 4px 10px; border-radius: 9999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${matchedSlotKey}</span>` : ''}
+        <div style="margin-bottom: 40px; border: 1px solid #3f3f46; padding: 32px; border-radius: 24px; background: linear-gradient(160deg, #111114 0%, #050505 100%); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f4f5;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; border-bottom: 2px solid #ef4444; padding-bottom: 16px;">
+            <h3 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">${item.name || 'Digital Product'}</h3>
+            ${matchedSlotKey ? `<span style="background: linear-gradient(to right, #991b1b, #dc2626); color: #ffffff; font-size: 11px; padding: 6px 14px; border-radius: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">${matchedSlotKey}</span>` : ''}
           </div>
       `;
 
@@ -241,50 +241,42 @@ export const emailService = {
           : rendered.replace(/\n/g, '<br>');
 
         contentHtml = `
-          <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-            <p style="margin: 0; font-size: 13px; color: #e4e4e7; line-height: 1.6;">${formatted}</p>
+          <div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 20px; margin-bottom: 24px; line-height: 1.8; color: #d4d4d8;">
+            ${formatted}
           </div>
         `;
 
-        if ((item.outlookEmail || item.backupCodes || item.birthdate || item.twoFactorCode) &&
-            !customTemplateBody.includes('outlookEmail') && !customTemplateBody.includes('backupCodes') &&
+        if ((item.outlookEmail || item.birthdate || item.twoFactorCode) &&
+            !customTemplateBody.includes('outlookEmail') &&
             !customTemplateBody.includes('birthdate') && !customTemplateBody.includes('twoFactorCode')) {
-          contentHtml += `<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-            <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Security & Recovery Details</p>
-            <div style="display: grid; gap: 8px; font-size: 13px;">`;
+          contentHtml += `<div style="background-color: #09090b; border: 1px solid #18181b; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #ef4444; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Security & Recovery Details</p>
+            <div style="display: grid; gap: 12px; font-size: 14px;">`;
             
-          if (item.outlookEmail) contentHtml += `<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">${item.outlookEmail}</strong></div>`;
-          if (item.outlookPassword) contentHtml += `<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">${item.outlookPassword}</strong></div>`;
-          if (item.birthdate) contentHtml += `<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">${item.birthdate}</strong></div>`;
-          if (item.region) contentHtml += `<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">${item.region}</strong></div>`;
-          if (item.twoFactorCode) contentHtml += `<div><span style="color: #71717a;">2FA Secret/Code:</span> <strong style="color: #ef4444;">${item.twoFactorCode}</strong></div>`;
+          if (item.outlookEmail) contentHtml += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.outlookEmail}</strong></div>`;
+          if (item.outlookPassword) contentHtml += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.outlookPassword}</strong></div>`;
+          if (item.birthdate) contentHtml += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Birthdate:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.birthdate}</strong></div>`;
+          if (item.region) contentHtml += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Region:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.region}</strong></div>`;
+          if (item.twoFactorCode) contentHtml += `<div style="margin-top: 8px; background: #450a0a; border: 1px solid #991b1b; padding: 12px; border-radius: 8px;"><span style="color: #fecaca; display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700;">2FA Secret Key:</span> <strong style="color: #ffffff; font-family: monospace; font-size: 16px;">${item.twoFactorCode}</strong></div>`;
           
-          if (item.backupCodes) {
-            contentHtml += `
-              <div style="margin-top: 8px;">
-                <span style="color: #71717a; display: block; margin-bottom: 6px;">2FA Backup Codes:</span>
-                <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">${item.backupCodes}</pre>
-              </div>
-            `;
-          }
           contentHtml += `</div></div>`;
         }
       } else {
         let defaultLayout = `
-          <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-            <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Account Credentials</p>
+          <div style="background-color: #09090b; border: 1px solid #18181b; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+            <p style="margin: 0 0 20px 0; font-size: 13px; color: #ef4444; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Account Credentials</p>
             
-            <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 16px;">
               ${item.email ? `
               <div>
-                <span style="font-size: 12px; color: #71717a; display: block; margin-bottom: 4px;">Sign-in ID (Email)</span>
-                <div style="background-color: #000; padding: 10px 14px; border-radius: 8px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #ef4444; font-weight: 600;">${item.email}</div>
+                <span style="font-size: 12px; color: #71717a; display: block; margin-bottom: 6px; font-weight: 600;">Sign-in ID (Email)</span>
+                <div style="background-color: #000; padding: 14px; border-radius: 12px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 15px; color: #ffffff; font-weight: 700; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">${item.email}</div>
               </div>` : ''}
               
               ${item.password ? `
               <div>
-                <span style="font-size: 12px; color: #71717a; display: block; margin-bottom: 4px;">Password</span>
-                <div style="background-color: #000; padding: 10px 14px; border-radius: 8px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #ef4444; font-weight: 600;">${item.password}</div>
+                <span style="font-size: 12px; color: #71717a; display: block; margin-bottom: 6px; font-weight: 600;">Password</span>
+                <div style="background-color: #000; padding: 14px; border-radius: 12px; border: 1px solid #27272a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 15px; color: #ffffff; font-weight: 700; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">${item.password}</div>
               </div>` : ''}
             </div>
           </div>
@@ -293,34 +285,26 @@ export const emailService = {
         if (selectedSlotCode || item.code) {
           const displayCode = selectedSlotCode || item.code;
           defaultLayout += `
-            <div style="background-color: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-              <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Activation / Pin Code</p>
-              <div style="background-color: #000; padding: 12px 16px; border-radius: 8px; border: 1px solid #dc2626; text-align: center;">
-                <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 18px; font-weight: 700; letter-spacing: 2px; color: #f87171;">${displayCode}</span>
+            <div style="background: linear-gradient(135deg, #18181b 0%, #09090b 100%); border: 2px solid #dc2626; border-radius: 20px; padding: 28px; margin-bottom: 24px; text-align: center; box-shadow: 0 10px 30px rgba(220, 38, 38, 0.2);">
+              <p style="margin: 0 0 12px 0; font-size: 14px; color: #ffffff; text-transform: uppercase; font-weight: 800; letter-spacing: 2px;">Your Activation Code</p>
+              <div style="display: inline-block; background-color: #000; padding: 16px 32px; border-radius: 12px; border: 1px solid #450a0a;">
+                <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: #ef4444;">${displayCode}</span>
               </div>
             </div>
           `;
         }
 
-        if (item.outlookEmail || item.backupCodes || item.birthdate || item.twoFactorCode) {
-          defaultLayout += `<div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-            <p style="margin: 0 0 12px 0; font-size: 13px; color: #a1a1aa; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Security & Recovery Details</p>
-            <div style="display: grid; gap: 8px; font-size: 13px;">`;
+        if (item.outlookEmail || item.birthdate || item.twoFactorCode) {
+          defaultLayout += `<div style="background-color: #09090b; border: 1px solid #18181b; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #ef4444; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Security & Recovery Details</p>
+            <div style="display: grid; gap: 12px; font-size: 14px;">`;
             
-          if (item.outlookEmail) defaultLayout += `<div><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #d4d4d8;">${item.outlookEmail}</strong></div>`;
-          if (item.outlookPassword) defaultLayout += `<div><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #d4d4d8;">${item.outlookPassword}</strong></div>`;
-          if (item.birthdate) defaultLayout += `<div><span style="color: #71717a;">Birthdate:</span> <strong style="color: #d4d4d8;">${item.birthdate}</strong></div>`;
-          if (item.region) defaultLayout += `<div><span style="color: #71717a;">Region:</span> <strong style="color: #d4d4d8;">${item.region}</strong></div>`;
-          if (item.twoFactorCode) defaultLayout += `<div><span style="color: #71717a;">2FA Secret/Code:</span> <strong style="color: #ef4444;">${item.twoFactorCode}</strong></div>`;
+          if (item.outlookEmail) defaultLayout += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Recovery Email:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.outlookEmail}</strong></div>`;
+          if (item.outlookPassword) defaultLayout += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Recovery Password:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.outlookPassword}</strong></div>`;
+          if (item.birthdate) defaultLayout += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Birthdate:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.birthdate}</strong></div>`;
+          if (item.region) defaultLayout += `<div style="padding: 8px 0; border-bottom: 1px solid #18181b;"><span style="color: #71717a;">Region:</span> <strong style="color: #ffffff; margin-left: 8px;">${item.region}</strong></div>`;
+          if (item.twoFactorCode) defaultLayout += `<div style="margin-top: 8px; background: #450a0a; border: 1px solid #991b1b; padding: 12px; border-radius: 8px;"><span style="color: #fecaca; display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700;">2FA Secret Key:</span> <strong style="color: #ffffff; font-family: monospace; font-size: 16px;">${item.twoFactorCode}</strong></div>`;
           
-          if (item.backupCodes) {
-            defaultLayout += `
-              <div style="margin-top: 8px;">
-                <span style="color: #71717a; display: block; margin-bottom: 6px;">2FA Backup Codes:</span>
-                <pre style="background: #000; padding: 10px; border: 1px solid #3f3f46; border-radius: 6px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #93c5fd; margin: 0;">${item.backupCodes}</pre>
-              </div>
-            `;
-          }
           defaultLayout += `</div></div>`;
         }
 
