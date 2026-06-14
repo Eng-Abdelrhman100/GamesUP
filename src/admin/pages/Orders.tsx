@@ -187,19 +187,28 @@ export function Orders() {
 
       // Auto-allocation logic if marking as completed and credentials are empty
       if (newStatus === 'completed') {
-        const hasCredentials = currentOrder.digital_delivery || currentOrder.digital_email || currentOrder.digital_password || currentOrder.digital_code;
+        const hasCredentials = (currentOrder.digital_delivery && (
+          typeof currentOrder.digital_delivery === 'string'
+            ? currentOrder.digital_delivery !== '[]' && currentOrder.digital_delivery !== 'null' && currentOrder.digital_delivery.trim() !== ''
+            : Array.isArray(currentOrder.digital_delivery) ? currentOrder.digital_delivery.length > 0 : Object.keys(currentOrder.digital_delivery).length > 0
+        )) || currentOrder.digital_email || currentOrder.digital_password || currentOrder.digital_code;
+
         if (!hasCredentials) {
           try {
             // 1. Fetch latest products
             const prodsRes = await productsAPI.getAll();
-            const products = prodsRes.products || [];
+            const productsList = prodsRes.products || [];
 
-            // 2. Find matching product by name (exact, prefix, or contains match)
-            const product = products.find((p: any) => 
+            // 2. Find matching products by name (exact, prefix, or contains match)
+            const matchedProducts = productsList.filter((p: any) => 
               (currentOrder.product_name || '').toLowerCase().startsWith((p.name || '').toLowerCase()) ||
               (p.name || '').toLowerCase().startsWith((currentOrder.product_name || '').toLowerCase()) ||
               (currentOrder.product_name || '').toLowerCase().includes((p.name || '').toLowerCase())
             );
+
+            // Sort by name length descending to ensure the most specific/longest matching name is matched first
+            matchedProducts.sort((a: any, b: any) => (b.name || '').length - (a.name || '').length);
+            const product = matchedProducts[0];
 
             if (product) {
               const rawDigitalItems = product.digitalItems || product.digital_items;
