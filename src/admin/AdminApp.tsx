@@ -250,8 +250,8 @@ export default function AdminApp() {
             <Routes>
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route path="products" element={<ProtectedRoute id="products"><Products /></ProtectedRoute>} />
-              <Route path="product-editor/add" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
-              <Route path="product-editor/edit/:id" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
+              <Route path="products/add" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
+              <Route path="products/edit/:id" element={<ProtectedRoute id="products"><ProductEditor /></ProtectedRoute>} />
               <Route path="dashboard" element={<ProtectedRoute id="dashboard"><Dashboard /></ProtectedRoute>} />
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><OrderDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
