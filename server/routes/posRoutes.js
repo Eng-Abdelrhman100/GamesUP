@@ -9,18 +9,23 @@ posRoutes.post('/pos/invoice', async (req, res) => {
     try {
       const invoice = req.body || {};
       const orderNumber = invoice.order_number || `ORD-${Date.now()}`;
+      const productNames = (invoice.items || []).map(item => `${item.name} (x${item.quantity})`).join(', ');
+      
       const [result] = await pool.query(
         `INSERT INTO orders
-         (order_number, customer_name, customer_email, amount, status, payment_method, inventory_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         (order_number, customer_name, customer_email, phone, product_name, amount, status, payment_method, inventory_id, digital_delivery)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           orderNumber,
           invoice.customerName,
           invoice.customerEmail || null,
+          invoice.phone || null,
+          productNames || null,
           invoice.total ?? null,
           'completed',
           'POS',
           'POS',
+          invoice.items ? JSON.stringify(invoice.items) : null,
         ]
       );
       const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);

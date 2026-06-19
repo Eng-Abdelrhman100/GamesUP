@@ -93,6 +93,31 @@ export function POSNew() {
   });
   const [isWalkerMode, setIsWalkerMode] = useState(false);
 
+  // Live Inventory/Trader States
+  const [selectedDigitalItem, setSelectedDigitalItem] = useState<DigitalItem | undefined>(undefined);
+  const [isFetchingInventory, setIsFetchingInventory] = useState(false);
+  const [liveDigitalItems, setLiveDigitalItems] = useState<DigitalItem[]>([]);
+  const [isTraderMode, setIsTraderMode] = useState(false);
+  const [traderDiscountType, setTraderDiscountType] = useState<'percent' | 'flat'>('percent');
+  const [traderDiscountValue, setTraderDiscountValue] = useState<number>(0);
+  const [specialOfferPreset, setSpecialOfferPreset] = useState<string>('');
+
+  const fetchLiveInventory = async (productId: string) => {
+    setIsFetchingInventory(true);
+    try {
+      const response = await productsAPI.getPublicById(productId);
+      if (response && response.product) {
+        setLiveDigitalItems(response.product.digitalItems || []);
+        // Sync products list in background
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...response.product } : p));
+      }
+    } catch (error) {
+      console.error('Error fetching live inventory:', error);
+    } finally {
+      setIsFetchingInventory(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedProduct) {
       // Debug: Log the product data to see what variants we have
@@ -122,8 +147,14 @@ export function POSNew() {
       }
       setAvailableSlots(counts);
       setSelectedSlot('');
+
+      // Load live inventory automatically when modal opens
+      setLiveDigitalItems(selectedProduct.digitalItems || []);
+      fetchLiveInventory(selectedProduct.id);
+    } else {
+      setLiveDigitalItems([]);
     }
-  }, [selectedProduct]);
+  }, [selectedProduct?.id]);
   
   const handleAddToCart = () => {
     if (!selectedProduct) return;
@@ -146,11 +177,12 @@ export function POSNew() {
       phone: productCustomerInfo.phone
     };
 
-    addToCart(selectedProduct, 1, undefined, selectedSlot, itemCustomerInfo, isWalkerMode);
+    addToCart(selectedProduct, 1, selectedDigitalItem, selectedSlot, itemCustomerInfo, isWalkerMode);
     
     // Reset product modal state
     setSelectedProduct(null);
     setSelectedSlot('');
+    setSelectedDigitalItem(undefined);
     setProductCustomerInfo({ name: '', email: '', phone: '' });
     setIsWalkerMode(false);
   };
@@ -200,11 +232,17 @@ export function POSNew() {
   );
 
   const addToCart = (product: Product, quantity: number = 1, selectedDigitalItem?: DigitalItem, selectedSlot?: string, itemCustomerInfo?: {name: string, email: string, phone: string}, itemIsWalkerMode?: boolean) => {
-    const existingItem = cart.find(item => item.id === product.id && item.selectedSlot === selectedSlot);
+    const existingItem = cart.find(item => 
+      item.id === product.id && 
+      item.selectedSlot === selectedSlot && 
+      item.selectedDigitalItem?.email === selectedDigitalItem?.email
+    );
     
     if (existingItem) {
       setCart(cart.map(item =>
-        item.id === product.id && item.selectedSlot === selectedSlot
+        item.id === product.id && 
+        item.selectedSlot === selectedSlot && 
+        item.selectedDigitalItem?.email === selectedDigitalItem?.email
           ? { ...item, quantity: item.quantity + quantity, selectedDigitalItem, selectedSlot, customerInfo: itemCustomerInfo, isWalkerMode: itemIsWalkerMode }
           : item
       ));
@@ -278,14 +316,21 @@ export function POSNew() {
     
     setLoading(true);
     try {
+      // Pull customer details from cart if they exist
+      const firstCustomerItem = cart.find(item => item.customerInfo && !item.isWalkerMode);
+      const name = firstCustomerItem?.customerInfo?.name || customerInfo.name || 'Walk-in Customer';
+      const email = firstCustomerItem?.customerInfo?.email || customerInfo.email || 'pos@store.com';
+      const phone = firstCustomerItem?.customerInfo?.phone || customerInfo.phone || '';
+
       const invoiceData = {
-        customerName: customerInfo.name || 'Walk-in Customer',
-        customerEmail: customerInfo.email || 'pos@store.com',
-        total: cart.reduce((acc, item) => acc + item.price * item.quantity, 0),
+        customerName: name,
+        customerEmail: email,
+        phone: phone,
+        total: cartTotal,
         items: cart.map(item => ({
           id: item.id,
-          name: item.name,
-          price: item.price,
+          name: item.name + (item.selectedSlot ? ` - ${item.selectedSlot}` : ''),
+          price: item.customPrice !== undefined ? item.customPrice : item.price,
           quantity: item.quantity,
           selectedDigitalItem: item.selectedDigitalItem
         })),
@@ -394,14 +439,15 @@ export function POSNew() {
         setLastInvoice({
           ...invoiceData,
           orderNumber: result.order.order_number,
-          // Ensure structure matches UI expectations for invoice display
           customer: { 
             name: invoiceData.customerName,
             email: invoiceData.customerEmail,
-            phone: customerInfo.phone
+            phone: invoiceData.phone
           },
-          subtotal: invoiceData.total, // Simplified as POS total
-          tax: 0 // Simplified
+          subtotal: cartSubtotal,
+          discount: traderDiscountAmount,
+          tax: cartTax,
+          total: cartTotal
         });
         setShowInvoice(true);
         setCart([]);
@@ -424,9 +470,20 @@ export function POSNew() {
     }
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const cartTax = cartSubtotal * (settings.tax_rate / 100);
-  const cartTotal = cartSubtotal + cartTax;
+  const cartSubtotal = cart.reduce((sum, item) => sum + ((item.customPrice !== undefined ? item.customPrice : item.price) * item.quantity), 0);
+  
+  let traderDiscountAmount = 0;
+  if (isTraderMode) {
+    if (traderDiscountType === 'percent') {
+      traderDiscountAmount = cartSubtotal * (traderDiscountValue / 100);
+    } else {
+      traderDiscountAmount = traderDiscountValue;
+    }
+  }
+
+  const cartSubtotalAfterDiscount = Math.max(0, cartSubtotal - traderDiscountAmount);
+  const cartTax = cartSubtotalAfterDiscount * (settings.tax_rate / 100);
+  const cartTotal = cartSubtotalAfterDiscount + cartTax;
 
   return (
     <div className="h-screen flex bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -598,30 +655,52 @@ export function POSNew() {
             </div>
           ) : (
             cart.map((item) => (
-              <div key={`${item.id}-${item.selectedSlot || 'default'}`} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
+              <div key={`${item.id}-${item.selectedSlot || 'default'}-${item.selectedDigitalItem?.email || 'default'}`} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
                 <div className="flex gap-3 mb-2">
                   <img
                     src={item.image}
                     alt={item.name}
-                    className="w-12 h-12 rounded object-cover"
+                    className="w-12 h-12 rounded object-cover animate-pulse"
                   />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
                       {item.name}
                     </h4>
-                    <p className="text-sm font-bold text-red-600">{formatPrice(item.price)}</p>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-500">Price:</span>
+                        <input
+                          type="number"
+                          value={item.customPrice !== undefined ? item.customPrice : item.price}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setCart(cart.map(c => 
+                              c.id === item.id && c.selectedSlot === item.selectedSlot && c.selectedDigitalItem?.email === item.selectedDigitalItem?.email
+                                ? { ...c, customPrice: isNaN(val) ? undefined : val } 
+                                : c
+                            ));
+                          }}
+                          className="w-20 px-1.5 py-0.5 text-xs text-red-600 font-bold bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-red-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
                     {item.selectedSlot && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Slot: {item.selectedSlot}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Slot: {item.selectedSlot}</p>
+                    )}
+                    {item.selectedDigitalItem && (
+                      <p className="text-[10px] text-gray-450 dark:text-gray-500 font-mono truncate" title={item.selectedDigitalItem.email}>
+                        Acc: {item.selectedDigitalItem.email}
+                      </p>
                     )}
                     {item.customerInfo && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="text-xs text-gray-550 dark:text-gray-450 truncate mt-0.5">
                         {item.isWalkerMode ? 'Walker' : item.customerInfo.email}
                       </p>
                     )}
                   </div>
                   <button
                     onClick={() => removeFromCart(item.id)}
-                    className="text-white hover:bg-red-600 dark:hover:bg-red-600 p-1 rounded bg-red-600"
+                    className="text-white hover:bg-red-650 dark:hover:bg-red-650 p-1.5 rounded bg-red-600 self-start"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -629,19 +708,25 @@ export function POSNew() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="w-8 h-8 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center"
+                    className="w-8 h-8 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center flex-shrink-0"
                   >
                     <Minus className="w-4 h-4 text-red-600" />
                   </button>
-                  <span className="w-12 text-center font-semibold text-gray-900 dark:text-white">{item.quantity}</span>
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                    className="w-16 px-1 py-0.5 text-center font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded"
+                    min="1"
+                  />
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="w-8 h-8 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center"
+                    className="w-8 h-8 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center flex-shrink-0"
                   >
                     <Plus className="w-4 h-4 text-red-600" />
                   </button>
-                  <span className="ml-auto font-bold text-gray-900 dark:text-white">
-                    {formatPrice(item.price * item.quantity)}
+                  <span className="ml-auto font-bold text-gray-900 dark:text-white truncate">
+                    {formatPrice((item.customPrice !== undefined ? item.customPrice : item.price) * item.quantity)}
                   </span>
                 </div>
               </div>
@@ -652,12 +737,134 @@ export function POSNew() {
         {/* Cart Summary */}
         {cart.length > 0 && (
           <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
+            {/* Trader Offers & Custom Discounts */}
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 border border-gray-150 dark:border-gray-700 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-sm text-gray-800 dark:text-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={isTraderMode}
+                    onChange={(e) => {
+                      setIsTraderMode(e.target.checked);
+                      if (!e.target.checked) {
+                        setTraderDiscountValue(0);
+                        setSpecialOfferPreset('');
+                      }
+                    }}
+                    className="w-4 h-4 text-red-605 rounded border-gray-300 dark:border-gray-600 focus:ring-red-500"
+                  />
+                  <span>Trader Special Offer Mode</span>
+                </label>
+                {isTraderMode && (
+                  <span className="text-[10px] bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse">
+                    Trader
+                  </span>
+                )}
+              </div>
+
+              {isTraderMode && (
+                <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Trader Offer Preset
+                    </label>
+                    <select
+                      value={specialOfferPreset}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSpecialOfferPreset(val);
+                        if (val === 'tier1') {
+                          setTraderDiscountType('percent');
+                          setTraderDiscountValue(5);
+                        } else if (val === 'tier2') {
+                          setTraderDiscountType('percent');
+                          setTraderDiscountValue(10);
+                        } else if (val === 'tier3') {
+                          setTraderDiscountType('percent');
+                          setTraderDiscountValue(15);
+                        } else if (val === 'bulk') {
+                          setTraderDiscountType('percent');
+                          setTraderDiscountValue(20);
+                        } else if (val === 'custom') {
+                          // Keep values, let user type
+                        } else {
+                          setTraderDiscountValue(0);
+                        }
+                      }}
+                      className="w-full text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-650 rounded-lg p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-red-500 focus:outline-none font-semibold"
+                    >
+                      <option value="">-- Choose Trader Offer Preset --</option>
+                      <option value="tier1">Trader Tier 1 (5% Off)</option>
+                      <option value="tier2">Trader Tier 2 (10% Off)</option>
+                      <option value="tier3">Trader Tier 3 (15% Off)</option>
+                      <option value="bulk">Bulk Trader Special (20% Off)</option>
+                      <option value="custom">Custom Trader Offer</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Discount Type
+                      </label>
+                      <div className="flex bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setTraderDiscountType('percent')}
+                          className={`flex-1 text-[9px] py-1 rounded font-semibold transition-all ${
+                            traderDiscountType === 'percent'
+                              ? 'bg-red-600 text-white shadow-sm'
+                              : 'text-gray-650 dark:text-gray-400 hover:bg-gray-100'
+                          }`}
+                        >
+                          %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTraderDiscountType('flat')}
+                          className={`flex-1 text-[9px] py-1 rounded font-semibold transition-all ${
+                            traderDiscountType === 'flat'
+                              ? 'bg-red-600 text-white shadow-sm'
+                              : 'text-gray-650 dark:text-gray-400 hover:bg-gray-100'
+                          }`}
+                        >
+                          Flat
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="w-20">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Value
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={traderDiscountValue}
+                        onChange={(e) => {
+                          setTraderDiscountValue(parseFloat(e.target.value) || 0);
+                          setSpecialOfferPreset('custom');
+                        }}
+                        className="w-full text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-600 rounded-lg p-1.5 text-gray-900 dark:text-white focus:ring-1 focus:ring-red-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                 <span>Subtotal</span>
                 <span className="font-semibold">{formatPrice(cartSubtotal)}</span>
               </div>
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              {isTraderMode && traderDiscountAmount > 0 && (
+                <div className="flex justify-between text-green-650 dark:text-green-400 font-semibold text-sm">
+                  <span>Trader Discount</span>
+                  <span>-{formatPrice(traderDiscountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                 <span>Tax ({settings.tax_rate}%)</span>
                 <span className="font-semibold">{formatPrice(cartTax)}</span>
               </div>
@@ -791,6 +998,94 @@ export function POSNew() {
                           </div>
                         </div>
                       )}
+                      
+                      {/* Fetch Live Inventory & Account Slots Section */}
+                      <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <Package className="w-4 h-4 text-red-600" />
+                            Inventory & Slots Inspector
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => fetchLiveInventory(selectedProduct.id)}
+                            disabled={isFetchingInventory}
+                            className="text-[10px] px-2 py-1 bg-red-100 hover:bg-red-200 dark:bg-red-950 dark:hover:bg-red-900 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-1 transition-all disabled:opacity-50 font-semibold"
+                          >
+                            {isFetchingInventory ? (
+                              <>
+                                <div className="w-2.5 h-2.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                Syncing...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3m0 0l3 3m-3-3v12" />
+                                </svg>
+                                Sync Live Slots
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {liveDigitalItems.length === 0 ? (
+                          <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl text-center text-xs text-gray-500">
+                            No active digital items loaded for this product.
+                          </div>
+                        ) : (
+                          <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                            {liveDigitalItems.map((item, idx) => (
+                              <div key={idx} className="p-2.5 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-150 dark:border-gray-800">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-bold text-gray-900 dark:text-white font-mono break-all leading-tight">{item.email}</p>
+                                    <p className="text-[9px] text-gray-500 mt-0.5">Password: <span className="font-mono">{item.password}</span> | Region: {item.region || 'N/A'}</p>
+                                  </div>
+                                  <span className="text-[8px] bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ml-2">
+                                    Acc #{idx + 1}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-1.5 mt-2">
+                                  {item.slots && Object.entries(item.slots).map(([slotName, slotVal]) => {
+                                    const isSold = slotVal.sold;
+                                    const isSelected = selectedSlot === slotName && selectedDigitalItem?.email === item.email;
+                                    return (
+                                      <button
+                                        key={slotName}
+                                        type="button"
+                                        disabled={isSold}
+                                        onClick={() => {
+                                          setSelectedSlot(slotName);
+                                          setSelectedDigitalItem(item);
+                                        }}
+                                        className={`px-2 py-1 text-[10px] text-left rounded-lg border transition-all flex items-center justify-between ${
+                                          isSelected
+                                            ? 'bg-red-650 text-white border-red-655 font-semibold shadow-sm animate-pulse'
+                                            : isSold
+                                              ? 'bg-gray-105 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 line-through cursor-not-allowed'
+                                              : 'bg-white dark:bg-gray-800 hover:border-red-400 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                                        }`}
+                                      >
+                                        <span className="truncate mr-1">{slotName}</span>
+                                        <span className={`text-[8px] px-1 rounded font-bold ${
+                                          isSelected
+                                            ? 'bg-red-700 text-white'
+                                            : isSold
+                                              ? 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                                              : 'bg-green-100 dark:bg-green-950 text-green-600 dark:text-green-400'
+                                        }`}>
+                                          {isSold ? 'Sold' : 'Free'}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Customer Info Section */}
@@ -970,6 +1265,12 @@ export function POSNew() {
                       <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
                       <span className="font-medium text-gray-900 dark:text-white">{formatPrice(lastInvoice.subtotal)}</span>
                     </div>
+                    {lastInvoice.discount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 dark:text-green-400 font-semibold">
+                        <span>Trader Discount:</span>
+                        <span>-{formatPrice(lastInvoice.discount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">Tax ({settings.tax_rate}%):</span>
                       <span className="font-medium text-gray-900 dark:text-white">{formatPrice(lastInvoice.tax)}</span>
@@ -1053,6 +1354,12 @@ export function POSNew() {
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="font-medium text-gray-900">{formatPrice(lastInvoice.subtotal)}</span>
                 </div>
+                {lastInvoice.discount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600 font-semibold">
+                    <span>Trader Discount:</span>
+                    <span>-{formatPrice(lastInvoice.discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax ({settings.tax_rate}%):</span>
                   <span className="font-medium text-gray-900">{formatPrice(lastInvoice.tax)}</span>
@@ -1124,6 +1431,12 @@ export function POSNew() {
                       <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                       <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(cartSubtotal)}</span>
                     </div>
+                    {isTraderMode && traderDiscountAmount > 0 && (
+                      <div className="flex justify-between text-green-600 dark:text-green-400 font-semibold animate-pulse">
+                        <span>Trader Discount</span>
+                        <span>-{formatPrice(traderDiscountAmount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Tax</span>
                       <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(cartTax)}</span>

