@@ -4,6 +4,13 @@ import { ChevronRight } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useStoreSettings } from '../context/StoreSettingsContext';
 import { normalizeImageSrc } from '../utils/api';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from './ui/carousel';
 
 interface CategoriesProps {
   onCategoryClick: (category: string) => void;
@@ -29,6 +36,9 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
     return 'ALL';
   };
 
+  const staticCategories = categoriesList.slice(0, 4);
+  const extraCategories = categoriesList.slice(4);
+
   return (
     <section className="py-24 bg-bg-dark overflow-hidden transition-colors duration-300">
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
@@ -40,7 +50,7 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categoriesList.map((cat, idx) => {
+          {staticCategories.map((cat, idx) => {
             const Icon = getIcon(cat.icon);
             const selectedCategory = String((cat as any).system_category_slug || '').trim();
             const categoryFilter = (selectedCategory || getCleanCategoryId(cat.title)).toUpperCase();
@@ -93,6 +103,73 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
             );
           })}
         </div>
+
+        {extraCategories.length > 0 && (
+          <div className="mt-8 relative">
+            <Carousel opts={{ align: 'start' }} className="w-full">
+              <CarouselContent className="-ml-6">
+                {extraCategories.map((cat, idx) => {
+                  const Icon = getIcon(cat.icon);
+                  const selectedCategory = String((cat as any).system_category_slug || '').trim();
+                  const categoryFilter = (selectedCategory || getCleanCategoryId(cat.title)).toUpperCase();
+                  const originalIndex = idx + 4;
+                  return (
+                    <CarouselItem key={cat.id || originalIndex} className="pl-6 basis-full sm:basis-1/2 md:basis-1/2 lg:basis-1/4">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        viewport={{ once: true }}
+                        onClick={() => onCategoryClick(categoryFilter)}
+                        className="group relative h-[320px] md:h-[420px] rounded-[2.5rem] overflow-hidden cursor-pointer border border-border-subtle"
+                      >
+                        {/* Background Image */}
+                        <img 
+                          src={normalizeImageSrc(cat.image)} 
+                          alt={cat.title} 
+                          className="absolute inset-0 w-full h-full object-cover grayscale opacity-50 group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700"
+                        />
+                        
+                        {/* Overlay Gradients */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                        <div className="absolute inset-0 bg-brand-red/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        {/* Content */}
+                        <div className="absolute inset-0 p-5 md:p-8 flex flex-col justify-between">
+                          <div className="pt-1 flex flex-col items-center md:items-start">
+                            <div className="p-3 bg-brand-red/20 backdrop-blur-md border border-brand-red/30 rounded-2xl w-fit mb-4 md:mb-6 text-brand-red group-hover:bg-brand-red group-hover:text-white transition-all duration-500">
+                              <Icon className="h-6 w-6" />
+                            </div>
+                            <h3 className="text-lg md:text-3xl font-black text-white tracking-tighter uppercase italic leading-[0.95] mb-2 md:mb-3 group-hover:text-brand-red transition-colors text-center md:text-left">
+                              {cat.title}
+                            </h3>
+                            <p className="hidden md:block text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                              {cat.desc}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-5 border-t border-white/10">
+                            <span className="text-[10px] font-black text-white/50 tracking-widest uppercase italic">{cat.count}</span>
+                            <div className="p-2 rounded-full bg-white/5 group-hover:bg-brand-red transition-colors">
+                              <ChevronRight className="h-4 w-4 text-white" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Scanline Effect */}
+                        <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%]"></div>
+                      </motion.div>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+              <div className="flex justify-end gap-3 mt-6">
+                <CarouselPrevious className="static translate-y-0 h-10 w-10 border border-border-subtle bg-bg-secondary hover:bg-brand-red text-text-primary hover:text-white transition-all duration-300 cursor-pointer flex items-center justify-center rounded-full" />
+                <CarouselNext className="static translate-y-0 h-10 w-10 border border-border-subtle bg-bg-secondary hover:bg-brand-red text-text-primary hover:text-white transition-all duration-300 cursor-pointer flex items-center justify-center rounded-full" />
+              </div>
+            </Carousel>
+          </div>
+        )}
       </div>
     </section>
   );

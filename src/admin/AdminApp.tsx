@@ -160,6 +160,12 @@ export default function AdminApp() {
     }
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated && (window.location.pathname === '/login' || window.location.pathname === '/employee-login')) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
   const handleLogin = (user: any, session: any) => {
     setUser(user);
     setSession(session);
@@ -175,6 +181,7 @@ export default function AdminApp() {
     // Save to localStorage
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('session', JSON.stringify(session));
+    navigate('/dashboard');
   };
 
   const handleLogout = () => {
@@ -184,6 +191,7 @@ export default function AdminApp() {
     // setAccessToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('session');
+    navigate('/login');
   };
 
   const currentRoleName = normalizeRole(user?.user_metadata?.role);
@@ -222,8 +230,9 @@ export default function AdminApp() {
   if (!isAuthenticated) {
     return (
       <Routes>
+        <Route path="/login" element={<Login onLogin={handleLogin} mode="admin" />} />
         <Route path="/employee-login" element={<Login onLogin={handleLogin} mode="employee" />} />
-        <Route path="*" element={<Login onLogin={handleLogin} mode="admin" />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
   }
