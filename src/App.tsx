@@ -119,6 +119,7 @@ export default function App() {
             })(),
             categorySlug: p.category_slug ? String(p.category_slug) : undefined,
             subCategorySlug: p.sub_category_slug ? String(p.sub_category_slug) : undefined,
+            subSubCategorySlug: p.sub_sub_category_slug ? String(p.sub_sub_category_slug) : undefined,
             category: p.category_slug
               ? (categoryNameBySlug.get(String(p.category_slug).trim().toLowerCase()) ||
                   String(p.category_slug).replace(/[-_]/g, ' '))

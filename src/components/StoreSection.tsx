@@ -3,6 +3,7 @@ import { Game } from '../types';
 import { ShoppingBag, ChevronRight, Filter, Heart, RotateCcw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { GAMES_DATA } from '../constants';
+import { useStoreSettings } from '../context/StoreSettingsContext';
 
 interface StoreSectionProps {
   games: Game[];
@@ -11,9 +12,21 @@ interface StoreSectionProps {
   onToggleFavorite?: (id: string) => void;
 }
 
+const formatSlug = (slug: string) => {
+  if (!slug) return '';
+  return slug
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFavorite }: StoreSectionProps) => {
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('ALL');
+  const { settings } = useStoreSettings();
+  const whatsappUrl = settings?.whatsapp_url ? String(settings.whatsapp_url) : 'https://wa.me/201008480536';
+
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>('ALL');
+  const [selectedSubSubCategory, setSelectedSubSubCategory] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<string>('default');
 
   // Dynamically extract categories
@@ -27,57 +40,43 @@ export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFa
     return Array.from(set).sort();
   }, [games]);
 
-  // Dynamically extract platforms with fallback to hardcoded list
-  const dynamicPlatforms = useMemo(() => {
+  // Dynamically extract subcategories (filtered by selected category if not 'ALL')
+  const dynamicSubCategories = useMemo(() => {
     const set = new Set<string>();
     games.forEach(g => {
-      if (g.attributes?.platform) {
-        set.add(g.attributes.platform);
+      const matchesCat = selectedCategory === 'ALL' || g.category?.toLowerCase() === selectedCategory.toLowerCase();
+      if (matchesCat && g.subCategorySlug) {
+        set.add(g.subCategorySlug);
       }
     });
-    if (set.size === 0) {
-      return ['PS5 Console', 'PS4 Console', 'Xbox Series', 'PC Digital'];
-    }
     return Array.from(set).sort();
-  }, [games]);
+  }, [games, selectedCategory]);
+
+  // Dynamically extract sub-subcategories (filtered by selected category and subcategory if not 'ALL')
+  const dynamicSubSubCategories = useMemo(() => {
+    const set = new Set<string>();
+    games.forEach(g => {
+      const matchesCat = selectedCategory === 'ALL' || g.category?.toLowerCase() === selectedCategory.toLowerCase();
+      const matchesSub = selectedSubCategory === 'ALL' || g.subCategorySlug?.toLowerCase() === selectedSubCategory.toLowerCase();
+      if (matchesCat && matchesSub && g.subSubCategorySlug) {
+        set.add(g.subSubCategorySlug);
+      }
+    });
+    return Array.from(set).sort();
+  }, [games, selectedCategory, selectedSubCategory]);
 
   // Count helper for categories
   const getCategoryCount = (category: string) => {
     return games.filter(g => g.category?.toLowerCase() === category.toLowerCase()).length;
   };
 
-  // Robust platform matcher
-  const matchesPlatform = (game: Game, platform: string) => {
-    if (platform === 'ALL') return true;
-    const gamePlatform = game.attributes?.platform;
-    if (gamePlatform) {
-      return gamePlatform.toLowerCase().trim() === platform.toLowerCase().trim();
-    }
-    
-    // Fuzzy matching fallback for hardcoded items
-    const title = game.title.toLowerCase();
-    const pLower = platform.toLowerCase();
-    if (pLower.includes('ps5') || pLower.includes('playstation 5')) {
-      return title.includes('ps5') || title.includes('playstation 5');
-    }
-    if (pLower.includes('ps4') || pLower.includes('playstation 4')) {
-      return title.includes('ps4') || title.includes('playstation 4');
-    }
-    if (pLower.includes('xbox')) {
-      return title.includes('xbox');
-    }
-    if (pLower.includes('pc') || pLower.includes('computer') || pLower.includes('digital')) {
-      return title.includes('pc') || title.includes('computer') || title.includes('steam');
-    }
-    return false;
-  };
-
   // Filtered and sorted games
   const filteredAndSortedGames = useMemo(() => {
     let result = games.filter(g => {
       const matchesCat = selectedCategory === 'ALL' || g.category?.toLowerCase() === selectedCategory.toLowerCase();
-      const matchesPlat = matchesPlatform(g, selectedPlatform);
-      return matchesCat && matchesPlat;
+      const matchesSub = selectedSubCategory === 'ALL' || g.subCategorySlug?.toLowerCase() === selectedSubCategory.toLowerCase();
+      const matchesSubSub = selectedSubSubCategory === 'ALL' || g.subSubCategorySlug?.toLowerCase() === selectedSubSubCategory.toLowerCase();
+      return matchesCat && matchesSub && matchesSubSub;
     });
 
     if (sortBy === 'price_asc') {
@@ -88,7 +87,7 @@ export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFa
       result = [...result].sort((a, b) => String(b.id).localeCompare(String(a.id)));
     }
     return result;
-  }, [games, selectedCategory, selectedPlatform, sortBy]);
+  }, [games, selectedCategory, selectedSubCategory, selectedSubSubCategory, sortBy]);
 
   return (
     <section className="py-24 bg-bg-dark transition-colors duration-300">
@@ -99,9 +98,9 @@ export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFa
             <h2 className="text-5xl md:text-7xl font-black text-[var(--text-primary)] tracking-tighter font-display uppercase italic leading-none transition-colors">The Store<span className="text-brand-red">.</span></h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {(selectedPlatform !== 'ALL' || selectedCategory !== 'ALL' || sortBy !== 'default') && (
+            {(selectedCategory !== 'ALL' || selectedSubCategory !== 'ALL' || selectedSubSubCategory !== 'ALL' || sortBy !== 'default') && (
               <button 
-                onClick={() => { setSelectedPlatform('ALL'); setSelectedCategory('ALL'); setSortBy('default'); }}
+                onClick={() => { setSelectedCategory('ALL'); setSelectedSubCategory('ALL'); setSelectedSubSubCategory('ALL'); setSortBy('default'); }}
                 className="bg-brand-red/10 border border-brand-red/30 px-5 py-3 rounded text-[11px] font-black text-brand-red hover:bg-brand-red/20 transition-all flex items-center gap-2 uppercase tracking-widest italic"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -126,84 +125,164 @@ export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFa
           {/* Sidebar Controls */}
           <div className="hidden lg:block space-y-10">
             <div>
-              <h4 className="text-[10px] font-black text-brand-red tracking-[0.3em] mb-6 uppercase italic">Hardware</h4>
+              <h4 className="text-[10px] font-black text-brand-red tracking-[0.3em] mb-6 uppercase italic">Categories</h4>
               <div className="flex flex-col gap-2">
                 <div 
-                  onClick={() => setSelectedPlatform('ALL')}
+                  onClick={() => {
+                    setSelectedCategory('ALL');
+                    setSelectedSubCategory('ALL');
+                    setSelectedSubSubCategory('ALL');
+                  }}
                   className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
-                    selectedPlatform === 'ALL' 
+                    selectedCategory === 'ALL' 
                       ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
                       : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
                   }`}
                 >
-                  <span className="font-bold uppercase tracking-wider">All Hardwares</span>
-                  {selectedPlatform === 'ALL' && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
-                </div>
-                {dynamicPlatforms.map(p => {
-                  const isActive = selectedPlatform === p;
-                  return (
-                    <div 
-                      key={p} 
-                      onClick={() => setSelectedPlatform(isActive ? 'ALL' : p)}
-                      className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
-                        isActive 
-                          ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
-                          : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
-                      }`}
-                    >
-                      <span className="font-bold uppercase tracking-wider">{p}</span>
-                      {isActive && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.3em] mb-6 uppercase italic transition-colors">Categories</h4>
-              <div className="space-y-2">
-                <div 
-                  onClick={() => setSelectedCategory('ALL')}
-                  className={`flex justify-between items-center group cursor-pointer p-2 rounded hover:bg-black/5 dark:hover:bg-white/[0.02] transition-colors ${
-                    selectedCategory === 'ALL' ? 'bg-black/5 dark:bg-white/5 border border-border-subtle/30' : ''
-                  }`}
-                >
-                  <span className={`text-xs font-bold transition-colors uppercase tracking-widest ${
-                    selectedCategory === 'ALL' ? 'text-brand-red' : 'text-text-secondary group-hover:text-[var(--text-primary)]'
-                  }`}>
-                    All Categories
-                  </span>
-                  <span className="text-[9px] font-black text-text-secondary bg-border-subtle px-2 py-0.5 rounded group-hover:text-brand-red transition-all">
-                    {games.length}
-                  </span>
+                  <span className="font-bold uppercase tracking-wider">All Categories</span>
+                  {selectedCategory === 'ALL' && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
                 </div>
                 {dynamicCategories.map(c => {
                   const isActive = selectedCategory.toLowerCase() === c.toLowerCase();
                   return (
                     <div 
                       key={c} 
-                      onClick={() => setSelectedCategory(isActive ? 'ALL' : c)}
-                      className={`flex justify-between items-center group cursor-pointer p-2 rounded hover:bg-black/5 dark:hover:bg-white/[0.02] transition-colors ${
-                        isActive ? 'bg-black/5 dark:bg-white/5 border border-border-subtle/30' : ''
+                      onClick={() => {
+                        setSelectedCategory(isActive ? 'ALL' : c);
+                        setSelectedSubCategory('ALL');
+                        setSelectedSubSubCategory('ALL');
+                      }}
+                      className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
+                        isActive 
+                          ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
+                          : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
                       }`}
                     >
-                      <span className={`text-xs font-bold transition-colors uppercase tracking-widest ${
-                        isActive ? 'text-brand-red' : 'text-text-secondary group-hover:text-[var(--text-primary)]'
-                      }`}>
-                        {c}
-                      </span>
-                      <span className="text-[9px] font-black text-text-secondary bg-border-subtle px-2 py-0.5 rounded group-hover:text-brand-red transition-all">
-                        {getCategoryCount(c)}
-                      </span>
+                      <span className="font-bold uppercase tracking-wider">{c}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-text-secondary bg-border-subtle px-2 py-0.5 rounded group-hover:text-brand-red transition-all">
+                          {getCategoryCount(c)}
+                        </span>
+                        {isActive && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <button className="w-full bg-brand-red/5 border border-brand-red/20 text-brand-red p-5 rounded font-black text-xs uppercase tracking-widest hover:bg-brand-red/10 transition-all italic">
-              WHATSAPP SUPPORT
-            </button>
+            {dynamicSubCategories.length > 0 && (
+              <div>
+                <h4 className="text-[10px] font-black text-brand-red tracking-[0.3em] mb-6 uppercase italic">Sub Categories</h4>
+                <div className="flex flex-col gap-2">
+                  <div 
+                    onClick={() => {
+                      setSelectedSubCategory('ALL');
+                      setSelectedSubSubCategory('ALL');
+                    }}
+                    className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
+                      selectedSubCategory === 'ALL' 
+                        ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
+                        : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
+                    }`}
+                  >
+                    <span className="font-bold uppercase tracking-wider">All Sub Categories</span>
+                    {selectedSubCategory === 'ALL' && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+                  </div>
+                  {dynamicSubCategories.map(sub => {
+                    const isActive = selectedSubCategory.toLowerCase() === sub.toLowerCase();
+                    return (
+                      <div 
+                        key={sub} 
+                        onClick={() => {
+                          setSelectedSubCategory(isActive ? 'ALL' : sub);
+                          setSelectedSubSubCategory('ALL');
+                        }}
+                        className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
+                          isActive 
+                            ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
+                            : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
+                        }`}
+                      >
+                        <span className="font-bold uppercase tracking-wider">{formatSlug(sub)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-text-secondary bg-border-subtle px-2 py-0.5 rounded group-hover:text-brand-red transition-all">
+                            {games.filter(g => 
+                              (selectedCategory === 'ALL' || g.category?.toLowerCase() === selectedCategory.toLowerCase()) && 
+                              g.subCategorySlug?.toLowerCase() === sub.toLowerCase()
+                            ).length}
+                          </span>
+                          {isActive && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {dynamicSubSubCategories.length > 0 && (
+              <div>
+                <h4 className="text-[10px] font-black text-brand-red tracking-[0.3em] mb-6 uppercase italic">Sub Sub Categories</h4>
+                <div className="flex flex-col gap-2">
+                  <div 
+                    onClick={() => setSelectedSubSubCategory('ALL')}
+                    className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
+                      selectedSubSubCategory === 'ALL' 
+                        ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
+                        : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
+                    }`}
+                  >
+                    <span className="font-bold uppercase tracking-wider">All Sub Sub Categories</span>
+                    {selectedSubSubCategory === 'ALL' && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+                  </div>
+                  {dynamicSubSubCategories.map(ssub => {
+                    const isActive = selectedSubSubCategory.toLowerCase() === ssub.toLowerCase();
+                    return (
+                      <div 
+                        key={ssub} 
+                        onClick={() => setSelectedSubSubCategory(isActive ? 'ALL' : ssub)}
+                        className={`flex items-center justify-between text-xs p-3 rounded border transition-all cursor-pointer group ${
+                          isActive 
+                            ? 'bg-black/5 dark:bg-white/5 border-border-subtle text-[var(--text-primary)]' 
+                            : 'border-border-subtle text-text-secondary opacity-50 hover:opacity-100 hover:border-brand-red/30'
+                        }`}
+                      >
+                        <span className="font-bold uppercase tracking-wider">{formatSlug(ssub)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-text-secondary bg-border-subtle px-2 py-0.5 rounded group-hover:text-brand-red transition-all">
+                            {games.filter(g => 
+                              (selectedCategory === 'ALL' || g.category?.toLowerCase() === selectedCategory.toLowerCase()) && 
+                              (selectedSubCategory === 'ALL' || g.subCategorySlug?.toLowerCase() === selectedSubCategory.toLowerCase()) && 
+                              g.subSubCategorySlug?.toLowerCase() === ssub.toLowerCase()
+                            ).length}
+                          </span>
+                          {isActive && <div className="w-2 h-2 rounded-full bg-brand-red shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-4">
+              <button 
+                onClick={() => {
+                  window.history.pushState({}, '', '/request');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
+                className="w-full bg-brand-red text-white p-5 rounded font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all italic text-center cursor-pointer flex items-center justify-center gap-2 animate-pulse hover:animate-none"
+              >
+                Request Game
+              </button>
+              <button 
+                onClick={() => window.open(whatsappUrl, '_blank', 'noreferrer')}
+                className="w-full bg-brand-red/5 border border-brand-red/20 text-brand-red p-5 rounded font-black text-xs uppercase tracking-widest hover:bg-brand-red/10 transition-all italic cursor-pointer"
+              >
+                WHATSAPP SUPPORT
+              </button>
+            </div>
           </div>
 
           {/* Product Grid */}
@@ -286,7 +365,7 @@ export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFa
               <div className="py-20 text-center border border-dashed border-border-subtle rounded-3xl bg-bg-card/30">
                 <p className="text-text-secondary font-bold uppercase tracking-widest italic">No products found matching these filters.</p>
                 <button 
-                  onClick={() => { setSelectedPlatform('ALL'); setSelectedCategory('ALL'); }}
+                  onClick={() => { setSelectedCategory('ALL'); setSelectedSubCategory('ALL'); setSelectedSubSubCategory('ALL'); }}
                   className="mt-4 text-brand-red font-black uppercase tracking-[0.2em] hover:underline italic text-xs"
                 >
                   Clear Filters

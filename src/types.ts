@@ -32,6 +32,7 @@ export interface Game {
   category?: string;
   categorySlug?: string;
   subCategorySlug?: string;
+  subSubCategorySlug?: string;
   accountTypes: AccountType[];
   attributes?: Record<string, any>;
 }
