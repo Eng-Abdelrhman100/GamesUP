@@ -83,6 +83,7 @@ export function POSNew() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<Record<string, number>>({});
+  const [selectedItemDetails, setSelectedItemDetails] = useState<{ slotName: string; digitalItem?: DigitalItem }[]>([]);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   
   // Product modal customer info
@@ -147,6 +148,7 @@ export function POSNew() {
       }
       setAvailableSlots(counts);
       setSelectedSlot('');
+      setSelectedItemDetails([]);
 
       // Load live inventory automatically when modal opens
       setLiveDigitalItems(selectedProduct.digitalItems || []);
@@ -160,9 +162,15 @@ export function POSNew() {
     if (!selectedProduct) return;
     
     // For digital products, require slot selection if slots exist
-    const hasSlots = Object.keys(availableSlots).length > 0;
-    if (hasSlots && !selectedSlot) {
-      alert('Please select a slot type (e.g. Primary PS4, Offline PS5)');
+    const hasSlots = Object.keys(availableSlots).length > 0 || (selectedProduct.product_variants && selectedProduct.product_variants.length > 0);
+    
+    let itemsToProcess = [...selectedItemDetails];
+    if (itemsToProcess.length === 0 && selectedSlot) {
+      itemsToProcess.push({ slotName: selectedSlot, digitalItem: selectedDigitalItem });
+    }
+
+    if (hasSlots && itemsToProcess.length === 0) {
+      alert('Please select at least one slot type (e.g. Primary PS4, Offline PS5)');
       return;
     }
 
@@ -177,12 +185,20 @@ export function POSNew() {
       phone: productCustomerInfo.phone
     };
 
-    addToCart(selectedProduct, 1, selectedDigitalItem, selectedSlot, itemCustomerInfo, isWalkerMode);
+    if (hasSlots) {
+      // Add each selected slot/digitalItem in bulk
+      itemsToProcess.forEach(detail => {
+        addToCart(selectedProduct, 1, detail.digitalItem, detail.slotName, itemCustomerInfo, isWalkerMode);
+      });
+    } else {
+      addToCart(selectedProduct, 1, undefined, undefined, itemCustomerInfo, isWalkerMode);
+    }
     
     // Reset product modal state
     setSelectedProduct(null);
     setSelectedSlot('');
     setSelectedDigitalItem(undefined);
+    setSelectedItemDetails([]);
     setProductCustomerInfo({ name: '', email: '', phone: '' });
     setIsWalkerMode(false);
   };
@@ -978,13 +994,23 @@ export function POSNew() {
                                 }
                               }
                               
+                              const isSelected = selectedItemDetails.some(x => x.slotName === variant.name) || selectedSlot === variant.name;
+                              
                               return (
                                 <button
                                   key={variant.id}
-                                  onClick={() => setSelectedSlot(variant.name)}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedItemDetails(prev => prev.filter(x => x.slotName !== variant.name));
+                                      if (selectedSlot === variant.name) setSelectedSlot('');
+                                    } else {
+                                      setSelectedItemDetails(prev => [...prev, { slotName: variant.name }]);
+                                      setSelectedSlot(variant.name);
+                                    }
+                                  }}
                                   disabled={availableCount <= 0}
                                   className={`px-3 py-2 text-xs rounded-lg border transition-all ${
-                                    selectedSlot === variant.name
+                                    isSelected
                                       ? 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-600 dark:text-red-400'
                                       : availableCount > 0
                                         ? 'border-gray-200 dark:border-gray-600 hover:border-red-300'
@@ -1049,15 +1075,27 @@ export function POSNew() {
                                 <div className="grid grid-cols-2 gap-1.5 mt-2">
                                   {item.slots && Object.entries(item.slots).map(([slotName, slotVal]) => {
                                     const isSold = slotVal.sold;
-                                    const isSelected = selectedSlot === slotName && selectedDigitalItem?.email === item.email;
+                                    const isSelected = selectedItemDetails.some(x => x.slotName === slotName && x.digitalItem?.email === item.email) || (selectedSlot === slotName && selectedDigitalItem?.email === item.email);
                                     return (
                                       <button
                                         key={slotName}
                                         type="button"
                                         disabled={isSold}
                                         onClick={() => {
-                                          setSelectedSlot(slotName);
-                                          setSelectedDigitalItem(item);
+                                          if (isSelected) {
+                                            setSelectedItemDetails(prev => prev.filter(x => !(x.slotName === slotName && x.digitalItem?.email === item.email)));
+                                            if (selectedSlot === slotName && selectedDigitalItem?.email === item.email) {
+                                              setSelectedSlot('');
+                                              setSelectedDigitalItem(undefined);
+                                            }
+                                          } else {
+                                            setSelectedItemDetails(prev => {
+                                              const clean = prev.filter(x => !(x.slotName === slotName && !x.digitalItem));
+                                              return [...clean, { slotName, digitalItem: item }];
+                                            });
+                                            setSelectedSlot(slotName);
+                                            setSelectedDigitalItem(item);
+                                          }
                                         }}
                                         className={`px-2 py-1 text-[10px] text-left rounded-lg border transition-all flex items-center justify-between ${
                                           isSelected
