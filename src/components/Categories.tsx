@@ -36,6 +36,20 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
     return 'ALL';
   };
 
+  const handleCategoryClick = (cat: any, categoryFilter: string) => {
+    if (cat.redirect_url) {
+      const url = String(cat.redirect_url).trim();
+      if (url.startsWith('/') && !url.startsWith('//')) {
+        window.history.pushState({}, '', url);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      } else {
+        window.location.href = url;
+      }
+    } else {
+      onCategoryClick(categoryFilter);
+    }
+  };
+
   const staticCategories = categoriesList.slice(0, 4);
   const extraCategories = categoriesList.slice(4);
 
@@ -61,7 +75,7 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
                 viewport={{ once: true }}
-                onClick={() => onCategoryClick(categoryFilter)}
+                onClick={() => handleCategoryClick(cat, categoryFilter)}
                 className="group relative h-[320px] md:h-[420px] rounded-[2.5rem] overflow-hidden cursor-pointer border border-border-subtle"
               >
                 {/* Background Image */}
@@ -120,7 +134,7 @@ export const Categories = ({ onCategoryClick }: CategoriesProps) => {
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.1 }}
                         viewport={{ once: true }}
-                        onClick={() => onCategoryClick(categoryFilter)}
+                        onClick={() => handleCategoryClick(cat, categoryFilter)}
                         className="group relative h-[320px] md:h-[420px] rounded-[2.5rem] overflow-hidden cursor-pointer border border-border-subtle"
                       >
                         {/* Background Image */}

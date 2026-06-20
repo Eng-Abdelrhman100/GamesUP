@@ -29,6 +29,7 @@ interface StoreSettings {
     icon: string;
     count: string;
     system_category_slug?: string;
+    redirect_url?: string;
   }[];
   homepage_sections?: {
     id: string;

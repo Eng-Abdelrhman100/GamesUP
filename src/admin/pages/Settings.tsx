@@ -32,6 +32,7 @@ export function Settings() {
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
   const [bestSellingSearch, setBestSellingSearch] = useState('');
+  const [selectedCategoryToAdd, setSelectedCategoryToAdd] = useState('custom');
   
   // Local state for password change
   const [passwordForm, setPasswordForm] = useState({
@@ -91,7 +92,7 @@ export function Settings() {
     business_hours: [] as { day: string; open: string; close: string }[],
     payment_methods: [] as { name: string; enabled: boolean }[],
     coming_soon: false,
-    homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string; system_category_slug?: string }[],
+    homepage_categories: [] as { id: string; title: string; desc: string; image: string; icon: string; count: string; system_category_slug?: string; redirect_url?: string }[],
     homepage_sections: [] as { id: string; title: string; productIds: string[] }[],
     best_selling_product_ids: [] as string[],
     instapay_details: '',
@@ -170,6 +171,7 @@ export function Settings() {
         homepage_categories: (settings.homepage_categories || []).map((c: any) => ({
           ...c,
           system_category_slug: c?.system_category_slug ?? '',
+          redirect_url: c?.redirect_url ?? '',
         })),
         homepage_sections: (Array.isArray((settings as any).homepage_sections) ? (settings as any).homepage_sections : []).map((s: any) => ({
           id: String(s?.id ?? `sec_${Date.now()}`),
@@ -619,28 +621,65 @@ export function Settings() {
                     Load Defaults
                   </button>
                 )}
-                <button
-                  onClick={() => {
-                    setFormData(prev => ({
-                      ...prev,
-                      homepage_categories: [
-                        ...prev.homepage_categories,
-                        {
-                          id: `custom_${Date.now()}`,
-                          title: 'NEW CATEGORY',
-                          desc: 'Add descriptive details for this homepage category sector.',
-                          image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
-                          icon: 'Gamepad',
-                          count: '0 ASSETS',
-                          system_category_slug: ''
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                  <select
+                    value={selectedCategoryToAdd}
+                    onChange={(e) => setSelectedCategoryToAdd(e.target.value)}
+                    className="px-4 py-2.5 bg-black border border-white/20 text-white rounded-xl text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
+                  >
+                    <option value="custom">-- Custom / Blank Category --</option>
+                    {systemCategories.map((c: any) => (
+                      <option key={c.slug} value={c.slug}>
+                        Category: {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (selectedCategoryToAdd === 'custom') {
+                        setFormData(prev => ({
+                          ...prev,
+                          homepage_categories: [
+                            ...prev.homepage_categories,
+                            {
+                              id: `custom_${Date.now()}`,
+                              title: 'NEW CATEGORY',
+                              desc: 'Add descriptive details for this homepage category sector.',
+                              image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
+                              icon: 'Gamepad',
+                              count: '0 ASSETS',
+                              system_category_slug: '',
+                              redirect_url: ''
+                            }
+                          ]
+                        }));
+                      } else {
+                        const found = systemCategories.find(c => c.slug === selectedCategoryToAdd);
+                        if (found) {
+                          setFormData(prev => ({
+                            ...prev,
+                            homepage_categories: [
+                              ...prev.homepage_categories,
+                              {
+                                id: `sys_${found.slug}_${Date.now()}`,
+                                title: found.name.toUpperCase(),
+                                desc: `Browse our elite selection of ${found.name}.`,
+                                image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1000&auto=format&fit=crop',
+                                icon: 'Gamepad',
+                                count: '0 ASSETS',
+                                system_category_slug: found.slug,
+                                redirect_url: ''
+                              }
+                            ]
+                          }));
                         }
-                      ]
-                    }));
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-black uppercase italic tracking-wider transition-all"
-                >
-                  <Plus className="w-4 h-4" /> Add Category
-                </button>
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-black uppercase italic tracking-wider transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Add Category
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -870,6 +909,25 @@ export function Settings() {
                           }));
                         }}
                         placeholder="https://..."
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Redirect URL (Optional)</label>
+                      <input
+                        type="text"
+                        value={cat.redirect_url ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setFormData(prev => ({
+                            ...prev,
+                            homepage_categories: prev.homepage_categories.map((c, i) =>
+                              i === idx ? { ...c, redirect_url: v } : c
+                            )
+                          }));
+                        }}
+                        placeholder="e.g., /shop, /category/consoles, or a full https:// URL"
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
                       />
                     </div>
