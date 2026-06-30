@@ -134,6 +134,18 @@ async function ensureDigitalGameTypeColumnExists() {
   }
 }
 
+async function ensureBalanceInventoryActivationCodesColumnExists() {
+  try {
+    await pool.query(
+      `ALTER TABLE balance_inventory ADD COLUMN activation_codes TEXT NULL AFTER outlook_password`
+    );
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') {
+      throw err;
+    }
+  }
+}
+
 async function ensureProductAttributesSeeded() {
   const [rows] = await pool.query('SELECT name FROM product_attributes');
   const existingNames = new Set((rows || []).map((r) => String(r.name || '').trim().toLowerCase()).filter(Boolean));
@@ -253,6 +265,7 @@ async function bootstrap() {
     { name: 'sub_sub_categories table', fn: ensureSubSubCategoriesTableExists },
     { name: 'products sub_sub_category_slug column', fn: ensureProductSubSubCategorySlugColumnExists },
     { name: 'products digital_game_type column', fn: ensureDigitalGameTypeColumnExists },
+    { name: 'balance_inventory activation_codes column', fn: ensureBalanceInventoryActivationCodesColumnExists },
     { name: 'product attributes', fn: ensureProductAttributesSeeded },
     { name: 'homepage categories', fn: ensureHomepageCategoriesSeeded },
     { name: 'system categories', fn: ensureSystemCategoriesSeeded },

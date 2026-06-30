@@ -16,7 +16,7 @@ balanceInventoryRoutes.get('/balance-inventory', requireAuth, requireRoles(['adm
 
 // Create a new balance inventory item
 balanceInventoryRoutes.post('/balance-inventory', requireAuth, requireRoles(['admin', 'manager']), async (req, res) => {
-  const { email, password, birthdate, outlook_email, outlook_password, dollar_balance, dollar_to_egp_rate } = req.body;
+  const { email, password, birthdate, outlook_email, outlook_password, dollar_balance, dollar_to_egp_rate, activation_codes } = req.body;
   
   if (!email) {
     return res.status(400).json({ success: false, error: 'Email is required' });
@@ -25,9 +25,9 @@ balanceInventoryRoutes.post('/balance-inventory', requireAuth, requireRoles(['ad
   try {
     const [result] = await pool.query(
       `INSERT INTO balance_inventory 
-       (email, password, birthdate, outlook_email, outlook_password, dollar_balance, dollar_to_egp_rate) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [email, password || null, birthdate || null, outlook_email || null, outlook_password || null, dollar_balance || 0, dollar_to_egp_rate || 0]
+       (email, password, birthdate, outlook_email, outlook_password, dollar_balance, dollar_to_egp_rate, activation_codes) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [email, password || null, birthdate || null, outlook_email || null, outlook_password || null, dollar_balance || 0, dollar_to_egp_rate || 0, activation_codes || null]
     );
     
     const [rows] = await pool.query('SELECT * FROM balance_inventory WHERE id = ?', [result.insertId]);
@@ -40,7 +40,7 @@ balanceInventoryRoutes.post('/balance-inventory', requireAuth, requireRoles(['ad
 // Update a balance inventory item
 balanceInventoryRoutes.put('/balance-inventory/:id', requireAuth, requireRoles(['admin', 'manager']), async (req, res) => {
   const { id } = req.params;
-  const { email, password, birthdate, outlook_email, outlook_password, dollar_balance, dollar_to_egp_rate } = req.body;
+  const { email, password, birthdate, outlook_email, outlook_password, dollar_balance, dollar_to_egp_rate, activation_codes } = req.body;
 
   try {
     const updates = [];
@@ -53,6 +53,7 @@ balanceInventoryRoutes.put('/balance-inventory/:id', requireAuth, requireRoles([
     if (outlook_password !== undefined) { updates.push('outlook_password = ?'); values.push(outlook_password); }
     if (dollar_balance !== undefined) { updates.push('dollar_balance = ?'); values.push(dollar_balance); }
     if (dollar_to_egp_rate !== undefined) { updates.push('dollar_to_egp_rate = ?'); values.push(dollar_to_egp_rate); }
+    if (activation_codes !== undefined) { updates.push('activation_codes = ?'); values.push(activation_codes); }
 
     if (updates.length === 0) {
       return res.status(400).json({ success: false, error: 'No fields to update' });

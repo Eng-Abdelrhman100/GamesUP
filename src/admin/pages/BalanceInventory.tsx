@@ -14,6 +14,7 @@ interface BalanceItem {
   birthdate?: string;
   outlook_email?: string;
   outlook_password?: string;
+  activation_codes?: string;
   dollar_balance: number;
   dollar_to_egp_rate: number;
   created_at?: string;
@@ -32,6 +33,7 @@ export function BalanceInventory() {
     birthdate: '',
     outlook_email: '',
     outlook_password: '',
+    activation_codes: '',
     dollar_balance: '',
     dollar_to_egp_rate: ''
   });
@@ -98,6 +100,7 @@ export function BalanceInventory() {
       birthdate: '',
       outlook_email: '',
       outlook_password: '',
+      activation_codes: '',
       dollar_balance: '',
       dollar_to_egp_rate: ''
     });
@@ -140,6 +143,7 @@ export function BalanceInventory() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Password</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Birthdate</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Outlook</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Activation Codes</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Dollar Balance</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Rate (EGP)</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Total EGP</th>
@@ -148,9 +152,9 @@ export function BalanceInventory() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-500">Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-500">No accounts found</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No accounts found</td></tr>
               ) : (
                 filteredItems.map((item) => (
                   <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -160,6 +164,20 @@ export function BalanceInventory() {
                     <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-400">
                       <div>{item.outlook_email || '-'}</div>
                       <div className="text-xs opacity-60">{item.outlook_password}</div>
+                    </td>
+                    <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-400">
+                      {editingId === item.id ? (
+                        <Input
+                          value={item.activation_codes || ''}
+                          onChange={(e) => setItems(items.map(i => i.id === item.id ? { ...i, activation_codes: e.target.value } : i))}
+                          className="w-32 h-8"
+                          placeholder="Codes"
+                        />
+                      ) : (
+                        <span className="font-mono text-xs max-w-[150px] truncate block" title={item.activation_codes}>
+                          {item.activation_codes || '-'}
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-sm">
                       {editingId === item.id ? (
@@ -244,6 +262,10 @@ export function BalanceInventory() {
                   <div className="col-span-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Outlook Password</label>
                     <Input value={formData.outlook_password} onChange={(e) => setFormData({...formData, outlook_password: e.target.value})} placeholder="******" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Activation Codes</label>
+                    <Input value={formData.activation_codes} onChange={(e) => setFormData({...formData, activation_codes: e.target.value})} placeholder="e.g. ABCD-EFGH-IJKL" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dollar Balance</label>

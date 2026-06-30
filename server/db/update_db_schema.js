@@ -79,6 +79,7 @@ async function main() {
       birthdate DATE NULL,
       outlook_email VARCHAR(191) NULL,
       outlook_password TEXT NULL,
+      activation_codes TEXT NULL,
       dollar_balance DECIMAL(10, 2) NOT NULL DEFAULT 0,
       dollar_to_egp_rate DECIMAL(10, 2) NOT NULL DEFAULT 0,
       created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -88,6 +89,16 @@ async function main() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
   console.log('"balance_inventory" table checked/created successfully.');
+
+  // 4b. Check if balance_inventory table has 'activation_codes' column
+  const [balanceInvColumns] = await connection.query('SHOW COLUMNS FROM balance_inventory LIKE "activation_codes"');
+  if (balanceInvColumns.length === 0) {
+    console.log('Adding "activation_codes" column to balance_inventory table...');
+    await connection.query('ALTER TABLE balance_inventory ADD COLUMN activation_codes TEXT NULL AFTER outlook_password');
+    console.log('"activation_codes" column added successfully.');
+  } else {
+    console.log('"activation_codes" column already exists in balance_inventory table.');
+  }
 
   // 5. Create sub_sub_categories table
   console.log('Checking "sub_sub_categories" table...');

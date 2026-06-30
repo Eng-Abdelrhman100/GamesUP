@@ -357,6 +357,7 @@ CREATE TABLE IF NOT EXISTS balance_inventory (
   birthdate DATE NULL,
   outlook_email VARCHAR(191) NULL,
   outlook_password TEXT NULL,
+  activation_codes TEXT NULL,
   dollar_balance DECIMAL(10, 2) NOT NULL DEFAULT 0,
   dollar_to_egp_rate DECIMAL(10, 2) NOT NULL DEFAULT 0,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
