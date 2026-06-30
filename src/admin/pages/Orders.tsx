@@ -14,6 +14,7 @@ interface Order {
   order_number?: string;
   customer_name: string;
   customer_email: string;
+  phone?: string;
   product_name: string;
   date: string;
   status: string;
@@ -40,6 +41,11 @@ export function Orders() {
   const { settings, formatPrice } = useStoreSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const userStr = localStorage.getItem('user');
+  const parsedUser = userStr ? JSON.parse(userStr) : null;
+  const userRole = String(parsedUser?.user_metadata?.role || '').toLowerCase();
+  const isAdmin = userRole === 'admin';
 
   const getDigitalDetails = (order: Order) => {
     let email = order.digital_email || '';
@@ -717,6 +723,11 @@ export function Orders() {
                         <div>
                           <p className="font-medium text-gray-900 dark:text-white">{order.customer_name}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{order.customer_email}</p>
+                          {order.phone && (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                              {order.phone}
+                            </p>
+                          )}
                         </div>
                       </td>
                       <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">
@@ -1190,6 +1201,9 @@ export function Orders() {
                       <h4 className="text-sm font-semibold text-gray-900 mb-2">Bill To:</h4>
                       <p className="text-gray-600">{selectedOrder.customer_name}</p>
                       <p className="text-gray-600">{selectedOrder.customer_email}</p>
+                      {selectedOrder.phone && (
+                        <p className="text-gray-600">{selectedOrder.phone}</p>
+                      )}
                     </div>
                   </div>
 
@@ -1290,6 +1304,12 @@ export function Orders() {
                         <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
                         <p className="text-gray-900 dark:text-white">{selectedOrder.customer_email}</p>
                       </div>
+                      {selectedOrder.phone && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Phone</p>
+                          <p className="text-gray-900 dark:text-white">{selectedOrder.phone}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -454,6 +454,15 @@ export function POSNew() {
 
         setLastInvoice({
           ...invoiceData,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name + (item.selectedSlot ? ` - ${item.selectedSlot}` : ''),
+            price: item.customPrice !== undefined ? item.customPrice : item.price,
+            quantity: item.quantity,
+            selectedDigitalItem: item.selectedDigitalItem,
+            digitalItem: item.selectedDigitalItem || (item as any).fulfilledDigitalItem,
+            selectedSlot: item.selectedSlot
+          })),
           orderNumber: result.order.order_number,
           customer: { 
             name: invoiceData.customerName,
@@ -1275,15 +1284,55 @@ export function POSNew() {
                               </div>
                             )}
                             {item.digitalItem && (
-                              <div className="mt-2 text-xs bg-gray-50 dark:bg-gray-700/50 p-2 rounded border border-gray-100 dark:border-gray-600">
+                              <div className="mt-3 text-xs bg-blue-50 dark:bg-blue-950/40 p-4 rounded-xl border border-blue-100 dark:border-blue-900/50 space-y-2 select-text text-left">
+                                <div className="font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider text-[10px] mb-1">
+                                  Account Credentials {item.selectedSlot ? `(${item.selectedSlot})` : ''}
+                                </div>
                                 {item.digitalItem.email && (
-                                  <div className="flex gap-2"><span className="font-semibold text-gray-700 dark:text-gray-300">Email:</span> <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.email}</span></div>
+                                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Email:</span>
+                                    <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.email}</span>
+                                  </div>
                                 )}
                                 {item.digitalItem.password && (
-                                  <div className="flex gap-2"><span className="font-semibold text-gray-700 dark:text-gray-300">Password:</span> <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.password}</span></div>
+                                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Password:</span>
+                                    <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.password}</span>
+                                  </div>
                                 )}
-                                {item.digitalItem.code && (
-                                  <div className="flex gap-2"><span className="font-semibold text-gray-700 dark:text-gray-300">Code:</span> <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.code}</span></div>
+                                {(() => {
+                                  const isFullAccount = String(item.selectedSlot || '').toLowerCase().endsWith('full account');
+                                  const activeCode = isFullAccount ? item.digitalItem.code : (item.digitalItem.slots?.[item.selectedSlot]?.code || item.digitalItem.code);
+                                  return activeCode ? (
+                                    <div className="flex flex-col sm:flex-row sm:gap-2">
+                                      <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Activation Code:</span>
+                                      <span className="font-mono text-gray-900 dark:text-white font-bold select-all bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">{activeCode}</span>
+                                    </div>
+                                  ) : null;
+                                })()}
+                                {item.digitalItem.outlookEmail && (
+                                  <div className="flex flex-col sm:flex-row sm:gap-2 pt-1 border-t border-blue-100 dark:border-blue-900/30">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Outlook Email:</span>
+                                    <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.outlookEmail}</span>
+                                  </div>
+                                )}
+                                {item.digitalItem.outlookPassword && (
+                                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Outlook Pass:</span>
+                                    <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.outlookPassword}</span>
+                                  </div>
+                                )}
+                                {item.digitalItem.birthdate && (
+                                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Birthdate:</span>
+                                    <span className="text-gray-600 dark:text-gray-400">{item.digitalItem.birthdate}</span>
+                                  </div>
+                                )}
+                                {item.digitalItem.backupCodes && (
+                                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[100px]">Backup Codes:</span>
+                                    <span className="font-mono text-gray-600 dark:text-gray-400 select-all">{item.digitalItem.backupCodes}</span>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -1370,10 +1419,21 @@ export function POSNew() {
                       <td className="py-3 text-sm text-gray-600">
                         <div className="font-medium">{item.name}</div>
                         {item.digitalItem && (
-                          <div className="mt-1 text-xs border border-gray-200 p-1 rounded">
+                          <div className="mt-2 text-xs border border-gray-200 p-2 rounded space-y-1 text-left">
+                            <div className="font-bold text-gray-800 uppercase tracking-wider text-[9px] mb-1">
+                              Account Credentials {item.selectedSlot ? `(${item.selectedSlot})` : ''}
+                            </div>
                             {item.digitalItem.email && <div><span className="font-semibold">Email:</span> {item.digitalItem.email}</div>}
                             {item.digitalItem.password && <div><span className="font-semibold">Password:</span> {item.digitalItem.password}</div>}
-                            {item.digitalItem.code && <div><span className="font-semibold">Code:</span> {item.digitalItem.code}</div>}
+                            {(() => {
+                              const isFullAccount = String(item.selectedSlot || '').toLowerCase().endsWith('full account');
+                              const activeCode = isFullAccount ? item.digitalItem.code : (item.digitalItem.slots?.[item.selectedSlot]?.code || item.digitalItem.code);
+                              return activeCode ? <div><span className="font-semibold">Activation Code:</span> {activeCode}</div> : null;
+                            })()}
+                            {item.digitalItem.outlookEmail && <div><span className="font-semibold">Outlook Email:</span> {item.digitalItem.outlookEmail}</div>}
+                            {item.digitalItem.outlookPassword && <div><span className="font-semibold">Outlook Pass:</span> {item.digitalItem.outlookPassword}</div>}
+                            {item.digitalItem.birthdate && <div><span className="font-semibold">Birthdate:</span> {item.digitalItem.birthdate}</div>}
+                            {item.digitalItem.backupCodes && <div><span className="font-semibold">Backup Codes:</span> {item.digitalItem.backupCodes}</div>}
                           </div>
                         )}
                       </td>

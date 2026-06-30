@@ -58,9 +58,17 @@ ordersRoutes.get('/orders', requirePermission('orders', 'read'), async (req, res
       values.push(inventoryId);
     }
 
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const [rows] = await pool.query(`SELECT * FROM orders ${whereSql} ORDER BY created_at DESC`, values);
-    return res.json({ orders: rows.map(normalizeOrderRow) });
+    const userRole = req.user?.role;
+    const isSuperAdmin = userRole === 'admin';
+    const normalized = rows.map(row => {
+      const norm = normalizeOrderRow(row);
+      if (!isSuperAdmin && norm) {
+        norm.phone = norm.phone ? '********' : null;
+      }
+      return norm;
+    });
+    return res.json({ orders: normalized });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to fetch orders' });
   }
@@ -423,7 +431,11 @@ ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req
     }
 
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
-    return res.json(normalizeOrderRow(rows[0]));
+    const norm = normalizeOrderRow(rows[0]);
+    if (req.user?.role !== 'admin' && norm) {
+      norm.phone = norm.phone ? '********' : null;
+    }
+    return res.json(norm);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to update order' });
   }

@@ -101,7 +101,11 @@ async function updateRow(req, res) {
 
     await pool.query(`UPDATE \`${table}\` SET ${setClause} WHERE id = ?`, values);
     const [rows] = await pool.query(`SELECT * FROM \`${table}\` WHERE id = ? LIMIT 1`, [id]);
-    return res.json(rows[0]);
+    const row = rows[0];
+    if (table === 'orders' && row && req.user?.role !== 'admin') {
+      if (row.phone) row.phone = '********';
+    }
+    return res.json(row);
   });
 }
 
@@ -112,6 +116,11 @@ tableRoutes.get('/table/:table', async (req, res) => {
     await requireRoles(config.roles)(req, res, async () => {
       try {
         const [rows] = await pool.query(`SELECT * FROM \`${table}\` ORDER BY ${config.orderBy}`);
+        if (table === 'orders' && req.user?.role !== 'admin') {
+          rows.forEach((row) => {
+            if (row.phone) row.phone = '********';
+          });
+        }
         return res.json(rows);
       } catch (err) {
         return res.status(500).json({ success: false, error: err.message });
@@ -140,7 +149,11 @@ tableRoutes.post('/table/:table', async (req, res) => {
         values
       );
       const [rows] = await pool.query(`SELECT * FROM \`${table}\` WHERE id = ? LIMIT 1`, [result.insertId]);
-      return res.json(rows[0]);
+      const row = rows[0];
+      if (table === 'orders' && row && req.user?.role !== 'admin') {
+        if (row.phone) row.phone = '********';
+      }
+      return res.json(row);
     });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Failed to create' });
