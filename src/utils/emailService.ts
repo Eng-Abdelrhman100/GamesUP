@@ -25,12 +25,12 @@ export const emailService = {
         } else if (templateType === 'digital_delivery') {
           template = {
             subject: 'Your Digital Items for Order #{{orderId}}',
-            body: 'Hello {{name}},\n\nYour order #{{orderId}} is complete! Here are your digital items:\n\n{{digitalCodes}}\n\nThank you for shopping with us!'
+            body: 'Hello {{name}},\n\nYour order #{{orderId}} is complete! Here are your digital items:\n\n{{digitalCodes}}\n\n{{customInstructions}}\n\nThank you for shopping with us!'
           };
         } else if (templateType === 'status_update') {
           template = {
             subject: 'Order Status Update #{{orderId}}',
-            body: 'Hello {{name}},\n\nYour order #{{orderId}} is now marked as {{status}}!\n\nTotal: {{total}}\nDate: {{date}}\n\nThank you for shopping with us!'
+            body: 'Hello {{name}},\n\nYour order #{{orderId}} is now marked as {{status}}!\n\nTotal: {{total}}\nDate: {{date}}\n\n{{customInstructions}}\n\nThank you for shopping with us!'
           };
         } else {
           template = {
@@ -42,6 +42,14 @@ export const emailService = {
 
       let subject = template.subject;
       let body = template.body;
+
+      if (data.customInstructions !== undefined && !body.includes('{{customInstructions}}')) {
+        if (body.includes('Thank you for shopping with us!')) {
+          body = body.replace('Thank you for shopping with us!', '{{customInstructions}}\n\nThank you for shopping with us!');
+        } else {
+          body += '\n\n{{customInstructions}}';
+        }
+      }
 
       Object.keys(data).forEach(key => {
         const regex = new RegExp(`{{${key}}}`, 'g');
@@ -87,7 +95,7 @@ export const emailService = {
   /**
    * Send Digital Delivery Email (Completed Order) - Legacy format
    */
-  sendDigitalDelivery: async (order: any, digitalItems: any[]) => {
+  sendDigitalDelivery: async (order: any, digitalItems: any[], customInstructions?: string) => {
     let fullItems = [...digitalItems];
     let categories: any[] = [];
     let rulesForGamesBody = '';
@@ -348,7 +356,13 @@ export const emailService = {
     return emailService.sendEmail(order.customer_email, 'digital_delivery', {
       name: order.customer_name,
       orderId: order.order_number || order.id,
-      digitalCodes: codesHtml
+      digitalCodes: codesHtml,
+      customInstructions: customInstructions ? `
+        <div style="background-color: #1e1b4b; border-left: 4px solid #6366f1; border-radius: 0 8px 8px 0; padding: 20px; margin-top: 24px; font-family: sans-serif;">
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #a5b4fc; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Additional Instructions</p>
+          <p style="margin: 0; font-size: 14px; color: #e0e7ff; line-height: 1.6; white-space: pre-wrap;">${customInstructions}</p>
+        </div>
+      ` : ''
     });
   },
 

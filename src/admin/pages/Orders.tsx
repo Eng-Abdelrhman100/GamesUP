@@ -106,6 +106,11 @@ export function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showManualOrder, setShowManualOrder] = useState(false);
   const [creatingManualOrder, setCreatingManualOrder] = useState(false);
+  
+  // Custom instructions states
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completionOrderId, setCompletionOrderId] = useState<string | null>(null);
+  const [completionInstructions, setCompletionInstructions] = useState('');
   const [manualOrder, setManualOrder] = useState(() => ({
     productMode: 'existing' as 'existing' | 'custom',
     productId: '',
@@ -201,7 +206,17 @@ export function Orders() {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const onStatusDropdownChange = (orderId: string, value: string) => {
+    if (value === 'completed') {
+      setCompletionOrderId(orderId);
+      setCompletionInstructions('');
+      setShowCompleteModal(true);
+    } else {
+      handleStatusChange(orderId, value);
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string, customInstructions?: string) => {
     try {
       const currentOrder = orders.find(o => o.id === id);
       if (!currentOrder) return;
@@ -354,7 +369,7 @@ export function Orders() {
           }
           
           if (digitalItems.length > 0) {
-            const res = await emailService.sendDigitalDelivery(updatedOrder, digitalItems);
+            const res = await emailService.sendDigitalDelivery(updatedOrder, digitalItems, customInstructions);
             if (res?.success) {
               alert('Digital delivery email sent successfully with order details and slot data!');
             } else {
@@ -367,7 +382,8 @@ export function Orders() {
               orderId: updatedOrder.order_number || updatedOrder.id,
               status: newStatus.toUpperCase(),
               total: updatedOrder.amount,
-              date: new Date().toLocaleDateString()
+              date: new Date().toLocaleDateString(),
+              customInstructions: customInstructions ? `Additional Instructions:\n${customInstructions}` : ''
             });
             if (res?.success) {
                alert('Order marked as completed, but no digital credentials were found on this order. A generic order completion email was sent instead.');
@@ -803,7 +819,7 @@ export function Orders() {
                       <td className="py-4 px-4">
                         <select
                           value={order.status}
-                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                          onChange={(e) => onStatusDropdownChange(order.id, e.target.value)}
                           className={`px-2 py-1 rounded-full text-xs font-medium border-none focus:ring-2 focus:ring-offset-1 cursor-pointer ${getStatusColor(order.status)}`}
                         >
                           <option value="pending">Pending</option>
@@ -1477,6 +1493,59 @@ export function Orders() {
                   >
                     Close
                   </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {showCompleteModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Approve & Complete Order</h3>
+                <button onClick={() => setShowCompleteModal(false)}>
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  You are changing the status of order <strong className="text-gray-900 dark:text-white">#{orders.find(o => o.id === completionOrderId)?.order_number || ''}</strong> to <span className="font-bold text-green-600">Completed</span>.
+                </p>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                    Custom Instructions / Notes for Customer (Optional)
+                  </label>
+                  <textarea
+                    value={completionInstructions}
+                    onChange={(e) => setCompletionInstructions(e.target.value)}
+                    className="w-full px-4 py-3 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium"
+                    rows={4}
+                    placeholder="Enter any additional instructions (e.g. download links, rules, setup steps) that should be appended to the completion email..."
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setShowCompleteModal(false)}
+                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (completionOrderId) {
+                        setShowCompleteModal(false);
+                        await handleStatusChange(completionOrderId, 'completed', completionInstructions);
+                      }
+                    }}
+                    className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-bold shadow-lg shadow-red-200 dark:shadow-none"
+                  >
+                    Complete Order & Email
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
