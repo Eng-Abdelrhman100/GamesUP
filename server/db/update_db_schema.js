@@ -49,6 +49,16 @@ async function main() {
     console.log('"digital_game_type" column already exists in products table.');
   }
 
+  // 2c. Check if products table has 'showOutOfStockBadge' column
+  const [showBadgeCols] = await connection.query('SHOW COLUMNS FROM products LIKE "showOutOfStockBadge"');
+  if (showBadgeCols.length === 0) {
+    console.log('Adding "showOutOfStockBadge" column to products table...');
+    await connection.query('ALTER TABLE products ADD COLUMN showOutOfStockBadge BOOLEAN NOT NULL DEFAULT TRUE AFTER digital_game_type');
+    console.log('"showOutOfStockBadge" column added successfully.');
+  } else {
+    console.log('"showOutOfStockBadge" column already exists in products table.');
+  }
+
   // 3. Check if orders table has 'cost' column
   const [costColumns] = await connection.query('SHOW COLUMNS FROM orders LIKE "cost"');
   if (costColumns.length === 0) {

@@ -4,6 +4,21 @@ import { requireRoles, requirePermission } from '../middleware/authMiddleware.js
 
 export const bannersRoutes = Router();
 
+bannersRoutes.get('/public/banners', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM banners 
+       WHERE is_active = TRUE 
+         AND (start_date IS NULL OR start_date <= CURRENT_DATE())
+         AND (end_date IS NULL OR end_date >= CURRENT_DATE())
+       ORDER BY position ASC`
+    );
+    return res.json({ banners: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'Failed to fetch public banners' });
+  }
+});
+
 bannersRoutes.get('/banners', requirePermission('banners', 'read'), async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM banners ORDER BY position ASC');

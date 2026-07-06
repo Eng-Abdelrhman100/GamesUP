@@ -301,7 +301,10 @@ export const settingsAPI = {
 // Banners API
 export const bannersAPI = {
   getAll: async () => {
-    return requestJson<{ banners: any[] }>(`/banners`, { auth: 'none' });
+    return requestJson<{ banners: any[] }>(`/banners`, { auth: 'admin' });
+  },
+  getPublic: async () => {
+    return requestJson<{ banners: any[] }>(`/public/banners`, { auth: 'none' });
   },
   create: async (banner: any) => {
     const payload = {

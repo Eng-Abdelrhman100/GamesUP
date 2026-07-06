@@ -125,7 +125,7 @@ export default function App() {
                   String(p.category_slug).replace(/[-_]/g, ' '))
               : 'Uncategorized',
             tags: [],
-            status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
+            status: p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'),
             description: p.description || '',
             instructions: p.instructions || '',
             attributes: p.attributes || {},
@@ -145,13 +145,13 @@ export default function App() {
                     originalName: v.name,
                     price: Number(v.price) || 0,
                     save: '0%',
-                    status: v.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK',
+                    status: v.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'),
                     icon: v.name.toUpperCase().includes('PLATINUM') ? '💎' : v.name.toUpperCase().includes('GOLD') ? '🥇' : '🥈',
-                    isAvailable: v.stock > 0
+                    isAvailable: v.stock > 0 || p.showOutOfStockBadge === false
                   };
                 })
               : [
-                  { group: 'General', tier: 'Standard', originalName: 'Standard', price: Number(p.price) || 0, save: '0%', status: p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK', icon: '🥈', isAvailable: p.stock > 0 }
+                  { group: 'General', tier: 'Standard', originalName: 'Standard', price: Number(p.price) || 0, save: '0%', status: p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'), icon: '🥈', isAvailable: p.stock > 0 || p.showOutOfStockBadge === false }
                 ]
           }));
           setGames(mappedGames);
@@ -620,7 +620,11 @@ export default function App() {
       case 'home':
         return (
           <>
-            <Hero onShopNow={handleShopNow} />
+            <Hero 
+              games={games} 
+              onProductClick={handleProductClick} 
+              onShopNow={handleShopNow} 
+            />
             <Stats />
             {bestSellingGames.length > 0 && (
               <CategoryRow

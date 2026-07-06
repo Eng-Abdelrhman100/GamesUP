@@ -537,6 +537,7 @@ export default function ProductEditor() {
     sendEmailEnabled: false,
     emailTemplate: '',
     isRulesTemplate: false,
+    showOutOfStockBadge: true,
   });
 
   const [customSlots, setCustomSlots] = useState<any[]>([]);
@@ -590,6 +591,7 @@ export default function ProductEditor() {
             price: product.price?.toString() || '',
             cost: product.cost?.toString() || '',
             digitalItems: di,
+            showOutOfStockBadge: product.showOutOfStockBadge === undefined ? true : !!product.showOutOfStockBadge,
             isRulesTemplate: product.emailTemplate === 'rules_for_games' || (product.emailTemplate || '').startsWith('__rules_template__'),
             emailTemplate: (product.emailTemplate || '').startsWith('__rules_template__\n')
               ? product.emailTemplate.substring('__rules_template__\n'.length)
@@ -778,6 +780,19 @@ export default function ProductEditor() {
               <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Base Price ({settings.currency_symbol})</label><input type="number" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500" /></div>
               {!isDigital && (<div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Physical Stock</label><input type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500" /></div>)}
               {isAdmin && (<div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Cost Price</label><input type="number" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none" /></div>)}
+              
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800/50 mt-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Show Out of Stock Badge</span>
+                <label className="relative inline-flex items-center cursor-pointer scale-75">
+                  <input 
+                    type="checkbox" 
+                    checked={formData.showOutOfStockBadge !== false} 
+                    onChange={e => setFormData({...formData, showOutOfStockBadge: e.target.checked})} 
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:bg-red-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+              </div>
             </div>
           </Card>
 

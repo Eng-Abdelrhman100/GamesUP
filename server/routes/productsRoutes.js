@@ -79,6 +79,7 @@ function normalizeProductRow(row) {
     attributes: parseJsonColumn(row.attributes),
     digitalItems: parseJsonColumn(row.digitalItems),
     sub_sub_category_slug: row.sub_sub_category_slug || null,
+    showOutOfStockBadge: row.showOutOfStockBadge === undefined ? true : !!row.showOutOfStockBadge,
   };
 }
 
@@ -312,8 +313,8 @@ productsRoutes.post('/products/import', async (req, res) => {
             id, name, description, category_slug, sub_category_slug, sub_sub_category_slug,
             price, cost, stock, image, attributes, digitalItems, productCode,
             purchasedEmail, purchasedPassword, instructions, status, sendEmailEnabled,
-            emailTemplate, digital_game_type
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            emailTemplate, digital_game_type, showOutOfStockBadge
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             p.id || null,
             p.name,
@@ -334,7 +335,8 @@ productsRoutes.post('/products/import', async (req, res) => {
             p.status || 'In Stock',
             p.sendEmailEnabled ? 1 : 0,
             p.emailTemplate || null,
-            p.digital_game_type || 'normal'
+            p.digital_game_type || 'normal',
+            p.showOutOfStockBadge !== undefined ? (p.showOutOfStockBadge ? 1 : 0) : 1
           ]
         );
       }
@@ -373,8 +375,8 @@ productsRoutes.post('/products', async (req, res) => {
       const [result] = await conn.query(
         `INSERT INTO products
          (name, category_slug, sub_category_slug, sub_sub_category_slug, price, cost, stock, image, description, attributes, \`digitalItems\`,
-          \`productCode\`, \`purchasedEmail\`, \`purchasedPassword\`, instructions, status, sendEmailEnabled, emailTemplate, digital_game_type)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          \`productCode\`, \`purchasedEmail\`, \`purchasedPassword\`, instructions, status, sendEmailEnabled, emailTemplate, digital_game_type, showOutOfStockBadge)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           productData.name,
           productData.category_slug || null,
@@ -395,6 +397,7 @@ productsRoutes.post('/products', async (req, res) => {
           !!productData.sendEmailEnabled,
           productData.emailTemplate || null,
           productData.digital_game_type || 'normal',
+          productData.showOutOfStockBadge !== undefined ? !!productData.showOutOfStockBadge : true,
         ]
       );
 
@@ -488,6 +491,7 @@ productsRoutes.put('/products/:id', async (req, res) => {
       setIfDefined('digital_game_type', productData.digital_game_type);
       if (productData.sendEmailEnabled !== undefined) setIfDefined('sendEmailEnabled', !!productData.sendEmailEnabled);
       setIfDefined('emailTemplate', productData.emailTemplate);
+      if (productData.showOutOfStockBadge !== undefined) setIfDefined('showOutOfStockBadge', !!productData.showOutOfStockBadge);
 
       if (updates.length) {
         values.push(id);
