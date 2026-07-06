@@ -167,16 +167,31 @@ export function BalanceInventory() {
                     </td>
                     <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-400">
                       {editingId === item.id ? (
-                        <Input
+                        <textarea
                           value={item.activation_codes || ''}
                           onChange={(e) => setItems(items.map(i => i.id === item.id ? { ...i, activation_codes: e.target.value } : i))}
-                          className="w-32 h-8"
-                          placeholder="Codes"
+                          className="w-44 px-2 py-1 text-xs rounded-lg border border-gray-250 dark:border-gray-700 bg-white dark:bg-gray-950 font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+                          rows={2}
+                          placeholder="Codes (comma or newline separated)"
                         />
                       ) : (
-                        <span className="font-mono text-xs max-w-[150px] truncate block" title={item.activation_codes}>
-                          {item.activation_codes || '-'}
-                        </span>
+                        <div className="flex flex-wrap gap-1 max-w-[200px]" title={item.activation_codes}>
+                          {(() => {
+                            const codes = (item.activation_codes || '')
+                              .split(/[,\n]+/)
+                              .map(c => c.trim())
+                              .filter(Boolean);
+                            return codes.length > 0 ? (
+                              codes.map((c, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-[10px] font-mono rounded-md border border-gray-200 dark:border-gray-600">
+                                  {c}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            );
+                          })()}
+                        </div>
                       )}
                     </td>
                     <td className="py-4 px-4 text-sm">
@@ -264,8 +279,14 @@ export function BalanceInventory() {
                     <Input value={formData.outlook_password} onChange={(e) => setFormData({...formData, outlook_password: e.target.value})} placeholder="******" />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Activation Codes</label>
-                    <Input value={formData.activation_codes} onChange={(e) => setFormData({...formData, activation_codes: e.target.value})} placeholder="e.g. ABCD-EFGH-IJKL" />
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Activation Codes (one per line or comma-separated)</label>
+                    <textarea 
+                      value={formData.activation_codes} 
+                      onChange={(e) => setFormData({...formData, activation_codes: e.target.value})} 
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 font-mono" 
+                      rows={3}
+                      placeholder="e.g.&#10;CODE-1111-2222&#10;CODE-3333-4444"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dollar Balance</label>
