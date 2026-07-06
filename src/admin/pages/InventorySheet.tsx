@@ -247,6 +247,22 @@ export function InventorySheet() {
     instructions: ''
   });
 
+  // Popup form stock modal states
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [stockModalProductId, setStockModalProductId] = useState<string | number | null>(null);
+  const [stockModalItemId, setStockModalItemId] = useState<string | null>(null);
+  const [stockModalData, setStockModalData] = useState<any>({
+    email: '',
+    password: '',
+    outlookEmail: '',
+    outlookPassword: '',
+    twoFactorCode: '',
+    region: '',
+    onlineId: '',
+    backupCodes: '',
+    slots: {}
+  });
+
   const calculateProductStock = (row: ProductRow) => {
     if (!Array.isArray(row.digitalItems) || row.digitalItems.length === 0) {
       return row.stock; // If physical/giftcard without items, return manual stock value
@@ -527,6 +543,115 @@ export function InventorySheet() {
       }
       return row;
     }));
+  };
+
+  const handleOpenAddStockModal = (productId: string | number) => {
+    const targetProd = rows.find(r => r.id === productId);
+    if (!targetProd) return;
+    
+    const slotNames = getProductSlotNames(targetProd);
+    const slotsObj: Record<string, any> = {};
+    slotNames.forEach(name => {
+      slotsObj[name] = { sold: false, orderId: null, code: '' };
+    });
+
+    setStockModalProductId(productId);
+    setStockModalItemId(null);
+    setStockModalData({
+      email: '',
+      password: '',
+      outlookEmail: '',
+      outlookPassword: '',
+      twoFactorCode: '',
+      region: '',
+      onlineId: '',
+      backupCodes: '',
+      slots: slotsObj
+    });
+    setIsStockModalOpen(true);
+  };
+
+  const handleOpenEditStockModal = (productId: string | number, item: any) => {
+    setStockModalProductId(productId);
+    setStockModalItemId(item.id);
+    setStockModalData(JSON.parse(JSON.stringify(item)));
+    setIsStockModalOpen(true);
+  };
+
+  const handleSaveStockModalSubmit = () => {
+    const targetProd = rows.find(r => r.id === stockModalProductId);
+    if (!targetProd) return;
+
+    const currentItems = targetProd.digitalItems || [];
+    
+    if (stockModalData.email) {
+      const isDupEmail = currentItems.some(item => 
+        item.id !== stockModalItemId && 
+        item.email && 
+        item.email.trim().toLowerCase() === stockModalData.email.trim().toLowerCase()
+      );
+      if (isDupEmail) {
+        alert(`Duplicate email "${stockModalData.email}" already exists for this product.`);
+        return;
+      }
+    }
+
+    for (const [slotName, slotValObj] of Object.entries(stockModalData.slots || {})) {
+      const codeStr = String((slotValObj as any).code || '').trim().toLowerCase();
+      if (codeStr) {
+        const isDupCode = currentItems.some(item => {
+          if (item.id === stockModalItemId) return false;
+          return Object.entries(item.slots || {}).some(([sName, sValObj]) => 
+            String((sValObj as any).code || '').trim().toLowerCase() === codeStr
+          );
+        });
+        if (isDupCode) {
+          alert(`Duplicate slot code "${(slotValObj as any).code}" already exists for this product.`);
+          return;
+        }
+      }
+    }
+
+    setRows(prev => prev.map(row => {
+      if (row.id === stockModalProductId) {
+        let updatedItems = [];
+        if (stockModalItemId) {
+          updatedItems = (row.digitalItems || []).map(item => 
+            item.id === stockModalItemId ? { ...stockModalData } : item
+          );
+        } else {
+          updatedItems = [
+            {
+              ...stockModalData,
+              id: generateUUID(),
+              totalCodes: Object.keys(stockModalData.slots || {}).length,
+              assignedGroup: 'All Groups'
+            },
+            ...(row.digitalItems || [])
+          ];
+        }
+
+        const updated = {
+          ...row,
+          digitalItems: updatedItems,
+          _isModified: true
+        };
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
+      }
+      return row;
+    }));
+
+    setIsStockModalOpen(false);
+    
+    if (stockModalProductId) {
+      setExpandedProductIds(prev => {
+        const next = new Set(prev);
+        next.add(stockModalProductId);
+        return next;
+      });
+    }
   };
 
   // Add nested digital stock item row inside product
@@ -1729,7 +1854,7 @@ export function InventorySheet() {
                                     <Plus className="w-3.5 h-3.5 mr-1" /> Add Custom Slot Column
                                   </Button>
                                   <Button
-                                    onClick={() => handleAddDigitalItemRow(row.id)}
+                                    onClick={() => handleOpenAddStockModal(row.id)}
                                     size="sm"
                                     className="bg-brand-red text-white py-1.5 px-3 rounded-lg text-xs"
                                   >
@@ -1846,15 +1971,24 @@ export function InventorySheet() {
                                               );
                                             })}
 
-                                          {/* Delete Action */}
+                                          {/* Actions */}
                                           <td className="px-2 py-1 text-center">
-                                            <button
-                                              onClick={() => handleDeleteDigitalItemRow(row.id, item.id)}
-                                              className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
-                                              title="Delete account stock row"
-                                            >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                              <button
+                                                onClick={() => handleOpenEditStockModal(row.id, item)}
+                                                className="p-1 text-blue-500 hover:text-blue-700 rounded transition-colors"
+                                                title="Edit stock credentials in popup form"
+                                              >
+                                                <Edit className="w-3.5 h-3.5" />
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteDigitalItemRow(row.id, item.id)}
+                                                className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
+                                                title="Delete account stock row"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
                                           </td>
                                         </tr>
                                       ))}
@@ -2074,6 +2208,166 @@ export function InventorySheet() {
                 className="bg-brand-red text-white"
               >
                 Apply Details
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Add / Edit Stock Item Modal */}
+      {isStockModalOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() => setIsStockModalOpen(false)}
+          title={stockModalItemId ? "Edit Stock Credentials & Keys" : "Add New Stock Credentials Set"}
+        >
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-4">
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
+                1. Account Credentials & Recovery
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Account Email</label>
+                  <input
+                    type="text"
+                    value={stockModalData.email || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, email: e.target.value }))}
+                    placeholder="example@gmail.com"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Password</label>
+                  <input
+                    type="text"
+                    value={stockModalData.password || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, password: e.target.value }))}
+                    placeholder="Sony password"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Outlook Email</label>
+                  <input
+                    type="text"
+                    value={stockModalData.outlookEmail || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, outlookEmail: e.target.value }))}
+                    placeholder="recovery@outlook.com"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Outlook Pass</label>
+                  <input
+                    type="text"
+                    value={stockModalData.outlookPassword || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, outlookPassword: e.target.value }))}
+                    placeholder="Outlook password"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">2FA Secret/Code</label>
+                  <input
+                    type="text"
+                    value={stockModalData.twoFactorCode || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, twoFactorCode: e.target.value }))}
+                    placeholder="2FA Secret key"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">2FA Backup Codes</label>
+                  <input
+                    type="text"
+                    value={stockModalData.backupCodes || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, backupCodes: e.target.value }))}
+                    placeholder="Backup codes"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Region</label>
+                  <input
+                    type="text"
+                    value={stockModalData.region || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, region: e.target.value }))}
+                    placeholder="US, EU, etc."
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Online ID</label>
+                  <input
+                    type="text"
+                    value={stockModalData.onlineId || ''}
+                    onChange={(e) => setStockModalData(p => ({ ...p, onlineId: e.target.value }))}
+                    placeholder="Online ID"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-4">
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
+                2. Variant License Keys / Activation Codes
+              </h4>
+              <div className="space-y-3 text-xs">
+                {Object.keys(stockModalData.slots || {}).map(slotName => {
+                  const valObj = stockModalData.slots[slotName] || { sold: false, code: '' };
+                  return (
+                    <div key={slotName} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{slotName} Code</label>
+                        <input
+                          type="text"
+                          value={valObj.code || ''}
+                          onChange={(e) => {
+                            const newSlots = { ...stockModalData.slots };
+                            newSlots[slotName] = { ...valObj, code: e.target.value };
+                            setStockModalData(p => ({ ...p, slots: newSlots }));
+                          }}
+                          placeholder={`Enter key code for ${slotName}`}
+                          className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white font-mono"
+                        />
+                      </div>
+                      <div className="flex flex-col items-center justify-center pt-4">
+                        <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Sold</label>
+                        <input
+                          type="checkbox"
+                          checked={!!valObj.sold}
+                          disabled={!valObj.code}
+                          onChange={(e) => {
+                            const newSlots = { ...stockModalData.slots };
+                            newSlots[slotName] = { ...valObj, sold: e.target.checked };
+                            setStockModalData(p => ({ ...p, slots: newSlots }));
+                          }}
+                          className="rounded text-brand-red focus:ring-brand-red w-4 h-4"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                {Object.keys(stockModalData.slots || {}).length === 0 && (
+                  <p className="text-xs text-gray-450 italic">No variant slots created. Click "Add Custom Slot Column" in the details panel to add.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-150 dark:border-gray-800">
+              <Button
+                variant="secondary"
+                onClick={() => setIsStockModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveStockModalSubmit}
+                className="bg-brand-red text-white"
+              >
+                {stockModalItemId ? "Apply Changes" : "Add Stock Set"}
               </Button>
             </div>
           </div>
