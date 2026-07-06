@@ -58,6 +58,7 @@ ordersRoutes.get('/orders', requirePermission('orders', 'read'), async (req, res
       values.push(inventoryId);
     }
 
+    const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const [rows] = await pool.query(`SELECT * FROM orders ${whereSql} ORDER BY created_at DESC`, values);
     const userRole = req.user?.role;
     const isSuperAdmin = userRole === 'admin';

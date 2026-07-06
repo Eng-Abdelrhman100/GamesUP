@@ -27,6 +27,7 @@ interface ProductRow {
   sendEmailEnabled: boolean;
   emailTemplate: string | null;
   digitalItems: any[]; // Array of nested stock accounts
+  product_variants?: any[];
 
   // Local state modifiers
   _isNew?: boolean;
@@ -40,6 +41,42 @@ const generateUUID = () => {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
+const getProductSlotNames = (row: any) => {
+  const defaultSlots = ['Primary ps4', 'Primary ps5', 'Secondary', 'Offline ps4', 'Offline ps5'];
+  if (!row) return defaultSlots;
+  
+  let variants: any[] = [];
+  if (Array.isArray(row.product_variants)) {
+    variants = row.product_variants;
+  } else if (typeof row.product_variants === 'string') {
+    try {
+      variants = JSON.parse(row.product_variants);
+    } catch {}
+  }
+  
+  const variantNames = variants
+    .map(v => v.name)
+    .filter(name => name && name.toLowerCase() !== 'full account');
+    
+  if (variantNames.length > 0) {
+    return variantNames;
+  }
+  
+  const existingKeys = new Set<string>();
+  const items = Array.isArray(row.digitalItems) ? row.digitalItems : [];
+  items.forEach((item: any) => {
+    if (item && item.slots) {
+      Object.keys(item.slots).forEach(k => existingKeys.add(k));
+    }
+  });
+  
+  if (existingKeys.size > 0) {
+    return Array.from(existingKeys);
+  }
+  
+  return defaultSlots;
 };
 
 function checkDuplicateEmailOrCode(itemsToCheck: any[]) {
@@ -200,7 +237,7 @@ export function InventorySheet() {
   const [bulkAddProductId, setBulkAddProductId] = useState('');
   const [bulkAddRawText, setBulkAddRawText] = useState('');
   const [bulkAddFormat, setBulkAddFormat] = useState<'email:pass' | 'email:pass:outlook:outlookpass' | 'codes_only'>('email:pass');
-  const [bulkAddSlot, setBulkAddSlot] = useState<'Primary ps4' | 'Primary ps5' | 'Secondary' | 'Offline ps4' | 'Offline ps5'>('Primary ps4');
+  const [bulkAddSlot, setBulkAddSlot] = useState<string>('Primary ps4');
 
   // Description / Details modal state
   const [editingDescriptionProdId, setEditingDescriptionProdId] = useState<string | number | null>(null);
@@ -280,7 +317,8 @@ export function InventorySheet() {
           instructions: p.instructions || null,
           sendEmailEnabled: !!p.sendEmailEnabled,
           emailTemplate: p.emailTemplate || null,
-          digitalItems: items
+          digitalItems: items,
+          product_variants: p.product_variants || p.productVariants || []
         };
       });
 
@@ -437,10 +475,70 @@ export function InventorySheet() {
     setRows(prev => [newProduct, ...prev]);
   };
 
+  const handleAddCustomSlotColumn = (productId: string | number) => {
+    const newSlotName = prompt("Enter the name for the new slot column (e.g., Primary PS5 Pro):");
+    if (!newSlotName || !newSlotName.trim()) return;
+    const cleanSlotName = newSlotName.trim();
+
+    setRows(prev => prev.map(row => {
+      if (row.id === productId) {
+        const existingSlots = getProductSlotNames(row);
+        if (existingSlots.map(s => s.toLowerCase()).includes(cleanSlotName.toLowerCase())) {
+          alert(`Slot "${cleanSlotName}" already exists for this product.`);
+          return row;
+        }
+
+        let variants: any[] = [];
+        if (Array.isArray(row.product_variants)) {
+          variants = [...row.product_variants];
+        } else if (typeof row.product_variants === 'string') {
+          try {
+            variants = JSON.parse(row.product_variants);
+          } catch {
+            variants = [];
+          }
+        }
+
+        variants.push({
+          name: cleanSlotName,
+          price: row.price || null,
+          cost: row.cost || null,
+          stock: 0
+        });
+
+        const updatedDigitalItems = (row.digitalItems || []).map((item: any) => {
+          const slots = { ...(item.slots || {}) };
+          if (!slots[cleanSlotName]) {
+            slots[cleanSlotName] = { sold: false, orderId: null, code: '' };
+          }
+          return { ...item, slots };
+        });
+
+        const updated = {
+          ...row,
+          product_variants: variants,
+          digitalItems: updatedDigitalItems,
+          _isModified: true
+        };
+        
+        updated.stock = calculateProductStock(updated);
+        updated.status = updated.stock > 0 ? 'In Stock' : 'Out of Stock';
+        return updated;
+      }
+      return row;
+    }));
+  };
+
   // Add nested digital stock item row inside product
   const handleAddDigitalItemRow = (productId: string | number) => {
     setRows(prev => prev.map(row => {
       if (row.id === productId) {
+        const slotNames = getProductSlotNames(row);
+        const slotsObj: Record<string, any> = {};
+        slotNames.forEach(name => {
+          slotsObj[name] = { sold: false, orderId: null, code: '' };
+        });
+
         const newItem = {
           id: generateUUID(),
           email: '',
@@ -451,14 +549,8 @@ export function InventorySheet() {
           region: '',
           onlineId: '',
           backupCodes: '',
-          slots: {
-            'Primary ps4': { sold: false, orderId: null, code: '' },
-            'Primary ps5': { sold: false, orderId: null, code: '' },
-            'Secondary': { sold: false, orderId: null, code: '' },
-            'Offline ps4': { sold: false, orderId: null, code: '' },
-            'Offline ps5': { sold: false, orderId: null, code: '' }
-          },
-          totalCodes: 0,
+          slots: slotsObj,
+          totalCodes: slotNames.length,
           assignedGroup: 'All Groups'
         };
 
@@ -679,6 +771,20 @@ export function InventorySheet() {
             await productsAPI.delete(row.id);
           }
         } else if (row._isNew) {
+          const slotNames = getProductSlotNames(row);
+          const productVariants = slotNames.map(name => {
+            let existingVar = null;
+            if (Array.isArray(row.product_variants)) {
+              existingVar = row.product_variants.find((v: any) => v.name === name);
+            }
+            return {
+              name,
+              price: existingVar ? existingVar.price : (row.price != null ? parseFloat(String(row.price)) : null),
+              cost: existingVar ? existingVar.cost : (row.cost != null ? parseFloat(String(row.cost)) : null),
+              stock: (row.digitalItems || []).filter((item: any) => item.slots?.[name] && !item.slots[name].sold && item.slots[name].code).length
+            };
+          });
+
           const payload = {
             name: row.name || 'New Game',
             category_slug: row.category_slug,
@@ -695,10 +801,25 @@ export function InventorySheet() {
             instructions: row.instructions || '',
             sendEmailEnabled: !!row.sendEmailEnabled,
             emailTemplate: row.emailTemplate,
-            digitalItems: row.digitalItems || []
+            digitalItems: row.digitalItems || [],
+            product_variants: productVariants
           };
           await productsAPI.create(payload);
         } else if (row._isModified) {
+          const slotNames = getProductSlotNames(row);
+          const productVariants = slotNames.map(name => {
+            let existingVar = null;
+            if (Array.isArray(row.product_variants)) {
+              existingVar = row.product_variants.find((v: any) => v.name === name);
+            }
+            return {
+              name,
+              price: existingVar ? existingVar.price : (row.price != null ? parseFloat(String(row.price)) : null),
+              cost: existingVar ? existingVar.cost : (row.cost != null ? parseFloat(String(row.cost)) : null),
+              stock: (row.digitalItems || []).filter((item: any) => item.slots?.[name] && !item.slots[name].sold && item.slots[name].code).length
+            };
+          });
+
           const payload = {
             name: row.name,
             category_slug: row.category_slug,
@@ -715,7 +836,8 @@ export function InventorySheet() {
             instructions: row.instructions || '',
             sendEmailEnabled: !!row.sendEmailEnabled,
             emailTemplate: row.emailTemplate,
-            digitalItems: row.digitalItems || []
+            digitalItems: row.digitalItems || [],
+            product_variants: productVariants
           };
           await productsAPI.update(row.id, payload);
         }
@@ -961,6 +1083,13 @@ export function InventorySheet() {
       return;
     }
 
+    const targetProd = rows.find(r => String(r.id) === String(bulkAddProductId));
+    if (!targetProd) {
+      alert('Selected product not found.');
+      return;
+    }
+
+    const slotNames = getProductSlotNames(targetProd);
     const lines = bulkAddRawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const newItems: any[] = [];
 
@@ -969,11 +1098,7 @@ export function InventorySheet() {
       let password = '';
       let outlookEmail = '';
       let outlookPassword = '';
-      let primaryPs4Code = '';
-      let primaryPs5Code = '';
-      let secondaryCode = '';
-      let offlinePs4Code = '';
-      let offlinePs5Code = '';
+      let customSlotCode = '';
 
       const splitLine = (l: string) => {
         if (l.includes(':')) return l.split(':').map(s => s.trim());
@@ -992,19 +1117,19 @@ export function InventorySheet() {
         outlookEmail = parts[2] || '';
         outlookPassword = parts[3] || '';
       } else {
-        if (bulkAddSlot === 'Primary ps4') primaryPs4Code = line;
-        else if (bulkAddSlot === 'Primary ps5') primaryPs5Code = line;
-        else if (bulkAddSlot === 'Secondary') secondaryCode = line;
-        else if (bulkAddSlot === 'Offline ps4') offlinePs4Code = line;
-        else if (bulkAddSlot === 'Offline ps5') offlinePs5Code = line;
+        customSlotCode = line;
       }
 
       const slots: Record<string, any> = {};
-      if (primaryPs4Code) slots['Primary ps4'] = { sold: false, orderId: null, code: primaryPs4Code };
-      if (primaryPs5Code) slots['Primary ps5'] = { sold: false, orderId: null, code: primaryPs5Code };
-      if (secondaryCode) slots['Secondary'] = { sold: false, orderId: null, code: secondaryCode };
-      if (offlinePs4Code) slots['Offline ps4'] = { sold: false, orderId: null, code: offlinePs4Code };
-      if (offlinePs5Code) slots['Offline ps5'] = { sold: false, orderId: null, code: offlinePs5Code };
+      slotNames.forEach(name => {
+        slots[name] = { sold: false, orderId: null, code: '' };
+      });
+
+      if (customSlotCode && bulkAddSlot) {
+        if (slots[bulkAddSlot]) {
+          slots[bulkAddSlot].code = customSlotCode;
+        }
+      }
 
       newItems.push({
         id: generateUUID(),
@@ -1017,16 +1142,10 @@ export function InventorySheet() {
         onlineId: '',
         backupCodes: '',
         slots,
-        totalCodes: Object.keys(slots).length,
+        totalCodes: slotNames.length,
         assignedGroup: 'All Groups'
       });
     });
-
-    const targetProd = rows.find(r => String(r.id) === String(bulkAddProductId));
-    if (!targetProd) {
-      alert('Selected product not found.');
-      return;
-    }
 
     const projectedItems = [...newItems, ...(targetProd.digitalItems || [])];
     const duplicateError = checkDuplicateEmailOrCode(projectedItems);
@@ -1590,6 +1709,8 @@ export function InventorySheet() {
                     {isExpanded && (() => {
                       const { duplicateEmails, duplicateCodes } = getProductDuplicates(Array.isArray(row.digitalItems) ? row.digitalItems : []);
                       const colSpanCount = isSuperAdmin ? 16 : 15;
+                      const slotNames = getProductSlotNames(row);
+                      const minWidthPx = 1200 + (slotNames.length * 224) + 80;
                       return (
                         <tr className="bg-gray-50/50 dark:bg-gray-950/40">
                           <td colSpan={colSpanCount} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -1598,13 +1719,23 @@ export function InventorySheet() {
                                 <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
                                   Digital Stock Accounts & License Keys for "{row.name || 'this game'}"
                                 </h4>
-                                <Button
-                                  onClick={() => handleAddDigitalItemRow(row.id)}
-                                  size="sm"
-                                  className="bg-brand-red text-white py-1.5 px-3 rounded-lg text-xs"
-                                >
-                                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Stock Credentials Set
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleAddCustomSlotColumn(row.id)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-gray-300 text-gray-700 hover:bg-gray-150 py-1.5 px-3 rounded-lg text-xs"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Custom Slot Column
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleAddDigitalItemRow(row.id)}
+                                    size="sm"
+                                    className="bg-brand-red text-white py-1.5 px-3 rounded-lg text-xs"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Stock Credentials Set
+                                  </Button>
+                                </div>
                               </div>
 
                               {/* Sub-grid table */}
@@ -1612,118 +1743,108 @@ export function InventorySheet() {
                                 <p className="text-xs text-gray-400 italic py-2">No digital stock accounts added yet. Click "+ Add Stock Credentials Set" to populate.</p>
                               ) : (
                                 <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 max-h-[400px] overflow-y-auto">
-                                  <table className="w-full text-left text-xs border-collapse table-fixed min-w-[2200px]">
-                                    <thead className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-500 dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-800">
-                                      <tr>
-                                        <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Account Email</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Password</th>
-                                        <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Email</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Pass</th>
-                                        <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">2FA Code</th>
-                                        <th className="w-24 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Region</th>
-                                        <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Online ID</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Backup Codes</th>
-                                        
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS4 Code</th>
-                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Primary PS5 Code</th>
-                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Secondary Code</th>
-                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS4 Code</th>
-                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
-                                        <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Offline PS5 Code</th>
-                                        <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
- 
-                                        <th className="w-16 px-3 py-2.5 text-center">Actions</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                                      {(row.digitalItems || []).map((item) => (
-                                        <tr key={item.id} className="hover:bg-gray-100/50 dark:hover:bg-gray-800/40 bg-white dark:bg-gray-900 transition-colors">
+                                  <table className="w-full text-left text-xs border-collapse table-fixed" style={{ minWidth: `${minWidthPx}px` }}>
+                                      <thead className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-500 dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-800">
+                                        <tr>
+                                          <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Account Email</th>
+                                          <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Password</th>
+                                          <th className="w-52 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Email</th>
+                                          <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Outlook Pass</th>
+                                          <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">2FA Code</th>
+                                          <th className="w-24 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Region</th>
+                                          <th className="w-32 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Online ID</th>
+                                          <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">Backup Codes</th>
                                           
-                                          {/* Standard Credentials Fields */}
-                                          {[
-                                            { field: 'email', placeholder: 'Email Address' },
-                                            { field: 'password', placeholder: 'Sony Password' },
-                                            { field: 'outlookEmail', placeholder: 'Recovery Email' },
-                                            { field: 'outlookPassword', placeholder: 'Recovery Password' },
-                                            { field: 'twoFactorCode', placeholder: '2FA Secret/Code' },
-                                            { field: 'region', placeholder: 'US, EU, etc.' },
-                                            { field: 'onlineId', placeholder: 'Online ID' },
-                                            { field: 'backupCodes', placeholder: '2FA Backup Codes' }
-                                          ].map(col => {
-                                            const rawVal = item[col.field] || '';
-                                            const val = String(rawVal);
-                                            const isDup = (col.field === 'email' || col.field === 'outlookEmail') &&
-                                              val.trim() &&
-                                              duplicateEmails.has(val.trim().toLowerCase());
-                                            return (
-                                              <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-800">
-                                                <input
-                                                  type="text"
-                                                  value={val}
-                                                  placeholder={col.placeholder}
-                                                  onChange={(e) => handleDigitalItemChange(row.id, item.id, col.field, e.target.value)}
-                                                  title={isDup ? "⚠️ Duplicate: Already added for this product!" : col.placeholder}
-                                                  className={`w-full h-8 px-3 text-xs bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-red ${
-                                                    isDup
-                                                      ? 'border border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400 font-semibold animate-pulse'
-                                                      : 'border-none text-gray-900 dark:text-white'
-                                                  }`}
-                                                />
-                                              </td>
-                                            );
-                                          })}
+                                          {slotNames.map(slotName => (
+                                            <React.Fragment key={slotName}>
+                                              <th className="w-40 px-3 py-2.5 border-r border-gray-200 dark:border-gray-800">{slotName} Code</th>
+                                              <th className="w-16 px-1 py-2.5 border-r border-gray-200 dark:border-gray-800 text-center">Sold</th>
+                                            </React.Fragment>
+                                          ))}
 
-                                          {/* Slots & Sold Checkboxes */}
-                                          {[
-                                            'Primary ps4',
-                                            'Primary ps5',
-                                            'Secondary',
-                                            'Offline ps4',
-                                            'Offline ps5'
-                                          ].map(slotName => {
-                                            const slotVal = String(item.slots?.[slotName]?.code || '');
-                                            const isSlotDup = slotVal.trim() && duplicateCodes.has(slotVal.trim().toLowerCase());
-                                            const orderId = item.slots?.[slotName]?.orderId;
-                                            return (
-                                              <React.Fragment key={slotName}>
-                                                {/* Code Cell */}
-                                                <td className="p-0 border-r border-gray-200 dark:border-gray-800">
+                                          <th className="w-16 px-3 py-2.5 text-center">Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                        {(row.digitalItems || []).map((item) => (
+                                          <tr key={item.id} className="hover:bg-gray-100/50 dark:hover:bg-gray-800/40 bg-white dark:bg-gray-900 transition-colors">
+                                            
+                                            {/* Standard Credentials Fields */}
+                                            {[
+                                              { field: 'email', placeholder: 'Email Address' },
+                                              { field: 'password', placeholder: 'Sony Password' },
+                                              { field: 'outlookEmail', placeholder: 'Recovery Email' },
+                                              { field: 'outlookPassword', placeholder: 'Recovery Password' },
+                                              { field: 'twoFactorCode', placeholder: '2FA Secret/Code' },
+                                              { field: 'region', placeholder: 'US, EU, etc.' },
+                                              { field: 'onlineId', placeholder: 'Online ID' },
+                                              { field: 'backupCodes', placeholder: '2FA Backup Codes' }
+                                            ].map(col => {
+                                              const rawVal = item[col.field] || '';
+                                              const val = String(rawVal);
+                                              const isDup = (col.field === 'email' || col.field === 'outlookEmail') &&
+                                                val.trim() &&
+                                                duplicateEmails.has(val.trim().toLowerCase());
+                                              return (
+                                                <td key={col.field} className="p-0 border-r border-gray-200 dark:border-gray-800">
                                                   <input
                                                     type="text"
-                                                    value={slotVal}
-                                                    placeholder={`${slotName} Key`}
-                                                    onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'code', e.target.value)}
-                                                    title={isSlotDup ? "⚠️ Duplicate slot code: Already added for this product!" : `${slotName} Key`}
-                                                    className={`w-full h-8 px-3 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent ${
-                                                      isSlotDup
+                                                    value={val}
+                                                    placeholder={col.placeholder}
+                                                    onChange={(e) => handleDigitalItemChange(row.id, item.id, col.field, e.target.value)}
+                                                    title={isDup ? "⚠️ Duplicate: Already added for this product!" : col.placeholder}
+                                                    className={`w-full h-8 px-3 text-xs bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-red ${
+                                                      isDup
                                                         ? 'border border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400 font-semibold animate-pulse'
                                                         : 'border-none text-gray-900 dark:text-white'
                                                     }`}
                                                   />
                                                 </td>
-                                                {/* Sold Checkbox Cell */}
-                                                <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center relative group">
-                                                  <div className="flex flex-col items-center justify-center gap-1">
+                                              );
+                                            })}
+
+                                            {/* Slots & Sold Checkboxes */}
+                                            {slotNames.map(slotName => {
+                                              const slotVal = String(item.slots?.[slotName]?.code || '');
+                                              const isSlotDup = slotVal.trim() && duplicateCodes.has(slotVal.trim().toLowerCase());
+                                              const orderId = item.slots?.[slotName]?.orderId;
+                                              return (
+                                                <React.Fragment key={slotName}>
+                                                  {/* Code Cell */}
+                                                  <td className="p-0 border-r border-gray-200 dark:border-gray-800">
                                                     <input
-                                                      type="checkbox"
-                                                      checked={!!item.slots?.[slotName]?.sold}
-                                                      disabled={!item.slots?.[slotName]?.code}
-                                                      onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
-                                                      className="rounded text-brand-red focus:ring-brand-red"
+                                                      type="text"
+                                                      value={slotVal}
+                                                      placeholder={`${slotName} Key`}
+                                                      onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'code', e.target.value)}
+                                                      title={isSlotDup ? "⚠️ Duplicate slot code: Already added for this product!" : `${slotName} Key`}
+                                                      className={`w-full h-8 px-3 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand-red bg-transparent ${
+                                                        isSlotDup
+                                                          ? 'border border-red-500 bg-red-500/10 text-red-955 dark:text-red-200 placeholder-red-400 font-semibold animate-pulse'
+                                                          : 'border-none text-gray-900 dark:text-white'
+                                                      }`}
                                                     />
-                                                    {item.slots?.[slotName]?.sold && (
-                                                      <span className="text-[8px] text-gray-400 font-medium tracking-tighter truncate max-w-[50px]" title={orderId ? `Order #${orderId}: ${orderMap[String(orderId)] || 'Manual'}` : 'Sold (No Order ID)'}>
-                                                        {orderId ? `#${orderId}` : 'Sold'}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                </td>
-                                              </React.Fragment>
-                                            );
-                                          })}
+                                                  </td>
+                                                  {/* Sold Checkbox Cell */}
+                                                  <td className="px-1 py-1 border-r border-gray-200 dark:border-gray-800 text-center relative group">
+                                                    <div className="flex flex-col items-center justify-center gap-1">
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={!!item.slots?.[slotName]?.sold}
+                                                        disabled={!item.slots?.[slotName]?.code}
+                                                        onChange={(e) => handleDigitalItemSlotChange(row.id, item.id, slotName, 'sold', e.target.checked)}
+                                                        className="rounded text-brand-red focus:ring-brand-red"
+                                                      />
+                                                      {item.slots?.[slotName]?.sold && (
+                                                        <span className="text-[8px] text-gray-400 font-medium tracking-tighter truncate max-w-[50px]" title={orderId ? `Order #${orderId}: ${orderMap[String(orderId)] || 'Manual'}` : 'Sold (No Order ID)'}>
+                                                          {orderId ? `#${orderId}` : 'Sold'}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  </td>
+                                                </React.Fragment>
+                                              );
+                                            })}
 
                                           {/* Delete Action */}
                                           <td className="px-2 py-1 text-center">
@@ -1804,7 +1925,15 @@ export function InventorySheet() {
             </label>
             <select
               value={bulkAddProductId}
-              onChange={(e) => setBulkAddProductId(e.target.value)}
+              onChange={(e) => {
+                const prodId = e.target.value;
+                setBulkAddProductId(prodId);
+                const targetProd = rows.find(r => String(r.id) === String(prodId));
+                const slots = targetProd ? getProductSlotNames(targetProd) : [];
+                if (slots.length > 0) {
+                  setBulkAddSlot(slots[0]);
+                }
+              }}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
             >
               <option value="">Choose product...</option>
@@ -1837,14 +1966,16 @@ export function InventorySheet() {
                 </label>
                 <select
                   value={bulkAddSlot}
-                  onChange={(e) => setBulkAddSlot(e.target.value as any)}
+                  onChange={(e) => setBulkAddSlot(e.target.value)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
                 >
-                  <option value="Primary ps4">Primary PS4</option>
-                  <option value="Primary ps5">Primary PS5</option>
-                  <option value="Secondary">Secondary</option>
-                  <option value="Offline ps4">Offline PS4</option>
-                  <option value="Offline ps5">Offline PS5</option>
+                  {(() => {
+                    const targetProd = rows.find(r => String(r.id) === String(bulkAddProductId));
+                    const slots = targetProd ? getProductSlotNames(targetProd) : ['Primary ps4', 'Primary ps5', 'Secondary', 'Offline ps4', 'Offline ps5'];
+                    return slots.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ));
+                  })()}
                 </select>
               </div>
             )}
