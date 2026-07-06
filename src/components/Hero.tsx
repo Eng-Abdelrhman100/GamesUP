@@ -279,7 +279,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
 
       {/* Social Media Float Menu (Bottom Left Side) */}
       <div className="absolute bottom-10 left-6 md:left-12 z-20 flex items-center gap-4">
-        <div className="flex flex-col gap-3 bg-[#0d0d11]/80 backdrop-blur-md border border-white/5 p-2 rounded-xl shadow-2xl">
+        <div className="hidden md:flex flex-col gap-3 bg-[#0d0d11]/80 backdrop-blur-md border border-white/5 p-2 rounded-xl shadow-2xl">
           {socialLinks.map((s, idx) => {
             const Icon = s.icon;
             return (

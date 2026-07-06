@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronLeft, Save } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronLeft, Save, SlidersHorizontal } from 'lucide-react';
 import { useStoreSettings } from '@/context/StoreSettingsContext';
 import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc } from '@/utils/api';
 
@@ -538,6 +538,7 @@ export default function ProductEditor() {
     emailTemplate: '',
     isRulesTemplate: false,
     showOutOfStockBadge: true,
+    attributes: {},
   });
 
   const [customSlots, setCustomSlots] = useState<any[]>([]);
@@ -583,6 +584,7 @@ export default function ProductEditor() {
           const slots = (product.product_variants || []).filter((v: any) => v.name.toLowerCase() !== 'full account').map((v: any) => ({
             id: crypto.randomUUID(), name: v.name, price: v.price?.toString() || '', cost: v.cost?.toString() || ''
           }));
+          const attrs = typeof product.attributes === 'string' ? JSON.parse(product.attributes) : (product.attributes || {});
           setFormData({
             ...product,
             category: product.category_slug || '',
@@ -591,6 +593,7 @@ export default function ProductEditor() {
             price: product.price?.toString() || '',
             cost: product.cost?.toString() || '',
             digitalItems: di,
+            attributes: attrs,
             showOutOfStockBadge: product.showOutOfStockBadge === undefined ? true : !!product.showOutOfStockBadge,
             isRulesTemplate: product.emailTemplate === 'rules_for_games' || (product.emailTemplate || '').startsWith('__rules_template__'),
             emailTemplate: (product.emailTemplate || '').startsWith('__rules_template__\n')
@@ -749,6 +752,82 @@ export default function ProductEditor() {
                 </div>
               </div>
               <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Description</label><textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={4} className="w-full px-5 py-4 text-sm font-medium bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl focus:ring-2 focus:ring-red-500 transition-all focus:outline-none" placeholder="Describe the product..." /></div>
+            </div>
+          </Card>
+
+          <Card className="p-8 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600">
+                <SlidersHorizontal className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">Technical Specifications & Video</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Region</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.region || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    attributes: { ...(formData.attributes || {}), region: e.target.value }
+                  })}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="Global / US / EU"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Genre</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.genre || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    attributes: { ...(formData.attributes || {}), genre: e.target.value }
+                  })}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="Action, RPG, Sports"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Platform</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.platform || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    attributes: { ...(formData.attributes || {}), platform: e.target.value }
+                  })}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="PS4 / PS5 / PC"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Game Size</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.gameSize || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    attributes: { ...(formData.attributes || {}), gameSize: e.target.value }
+                  })}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="e.g. 50 GB"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">YouTube Trailer URL</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.videoUrl || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    attributes: { ...(formData.attributes || {}), videoUrl: e.target.value }
+                  })}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                />
+              </div>
             </div>
           </Card>
 

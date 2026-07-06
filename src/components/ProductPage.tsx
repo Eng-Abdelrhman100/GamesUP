@@ -11,11 +11,25 @@ interface ProductPageProps {
   onToggleFavorite: () => void;
 }
 
+const getYoutubeEmbedUrl = (url: string) => {
+  if (!url) return '';
+  let videoId = '';
+  // Match standard, sharing, short, embed formats
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  if (match && match[2].length === 11) {
+    videoId = match[2];
+  }
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+};
+
 export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFavorite }: ProductPageProps) => {
   const [selectedTier, setSelectedTier] = useState<number>(0);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
   const [quantity, setQuantity] = useState<number>(1);
+  
+  const videoUrl = game.attributes?.videoUrl || game.attributes?.trailerUrl;
   
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -334,6 +348,29 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                   <div className="text-white font-black text-sm uppercase italic">{game.attributes.gameSize}</div>
                 </div>
               )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Gameplay Trailer Section */}
+        {videoUrl && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mt-8 bg-bg-card border border-border-subtle rounded-[2.5rem] p-6 md:p-10 shadow-2xl overflow-hidden"
+          >
+            <h3 className="text-lg md:text-xl font-black text-white mb-6 uppercase tracking-wider flex items-center gap-3 italic font-display">
+              <span className="text-brand-red">■</span> Gameplay Trailer
+            </h3>
+            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/5 shadow-inner bg-black">
+              <iframe 
+                src={getYoutubeEmbedUrl(videoUrl)} 
+                title={`${game.title} Gameplay Trailer`}
+                className="absolute inset-0 w-full h-full border-none"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              ></iframe>
             </div>
           </motion.div>
         )}
