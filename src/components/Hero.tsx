@@ -118,7 +118,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
 
   if (loading) {
     return (
-      <div className="relative min-h-[85vh] bg-[#050505] flex items-center justify-center">
+      <div className="relative min-h-[85vh] bg-bg-primary flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-brand-red border-t-transparent rounded-full animate-spin"></div>
           <span className="text-xs font-black tracking-widest text-text-secondary uppercase">Loading Arena...</span>
@@ -166,7 +166,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
   ];
 
   return (
-    <section className="relative min-h-screen md:h-screen w-full bg-[#050505] overflow-hidden flex flex-col justify-end font-sans">
+    <section className="relative min-h-screen md:h-screen w-full bg-bg-primary overflow-hidden flex flex-col justify-end font-sans">
       {/* Background Image Slider */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
@@ -183,13 +183,13 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
               alt={currentSlide.title}
               className="w-full h-full object-cover object-center"
             />
-            {/* Visual Overlays matching the dark thematic design of MW */}
-            <div className="absolute inset-0 bg-[#050505]/45 mix-blend-multiply"></div>
+            {/* Visual Overlays matching the dark/light thematic design */}
+            <div className="absolute inset-0 bg-black/15 dark:bg-black/45 mix-blend-multiply"></div>
             {/* Diagonal left-to-right gradient for text readability */}
-            <div className="absolute inset-y-0 left-0 w-full md:w-[70%] bg-gradient-to-r from-[#050505] via-[#050505]/85 to-transparent z-1"></div>
+            <div className="absolute inset-y-0 left-0 w-full md:w-[70%] bg-gradient-to-r from-bg-primary via-bg-primary/95 dark:via-bg-primary/85 to-transparent z-1"></div>
             {/* Bottom-to-top gradient */}
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#050505] via-[#050505]/70 to-transparent z-1"></div>
-            <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-[#050505]/90 z-1 pointer-events-none"></div>
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-bg-primary via-bg-primary/80 dark:via-bg-primary/70 to-transparent z-1"></div>
+            <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-bg-primary/40 dark:to-bg-primary/90 z-1 pointer-events-none"></div>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -232,18 +232,18 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                 )}
 
                 {/* Main Heading */}
-                <h2 className="text-5xl sm:text-7xl md:text-[90px] font-black tracking-tighter text-white uppercase italic leading-[0.9] font-display drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                <h2 className="text-5xl sm:text-7xl md:text-[90px] font-black tracking-tighter text-text-primary uppercase italic leading-[0.9] font-display drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
                   {currentSlide.title}
                 </h2>
 
                 {/* Subtitle / Description card */}
                 {currentSlide.subtitle && (
-                  <div className="bg-[#0f0f12]/50 backdrop-blur-lg border border-white/5 p-6 rounded-2xl max-w-xl text-left shadow-2xl relative overflow-hidden group">
+                  <div className="bg-[#0f0f12]/5 dark:bg-[#0f0f12]/50 backdrop-blur-lg border border-black/5 dark:border-white/5 p-6 rounded-2xl max-w-xl text-left shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-brand-red"></div>
                     <h4 className="text-brand-red text-[10px] font-black tracking-[0.25em] uppercase mb-2 italic">
                       ABOUT THE GAME
                     </h4>
-                    <p className="text-xs md:text-sm text-[#a1a1aa] leading-relaxed line-clamp-4 font-medium tracking-wide">
+                    <p className="text-xs md:text-sm text-text-secondary leading-relaxed line-clamp-4 font-medium tracking-wide">
                       {currentSlide.subtitle}
                     </p>
                   </div>
@@ -253,7 +253,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                 <div className="pt-2 flex flex-wrap gap-4 items-center">
                   <button
                     onClick={() => handleCtaClick(currentSlide)}
-                    className="relative group overflow-hidden bg-white text-black font-black uppercase text-xs tracking-widest px-10 py-4.5 hover:text-white transition-all duration-300 transform skew-x-[-12deg] shadow-lg shadow-black/40 border border-white active:scale-95"
+                    className="relative group overflow-hidden bg-text-primary text-bg-primary font-black uppercase text-xs tracking-widest px-10 py-4.5 hover:text-white transition-all duration-300 transform skew-x-[-12deg] shadow-lg shadow-black/10 dark:shadow-black/40 border border-text-primary active:scale-95"
                   >
                     {/* Background hover slide */}
                     <div className="absolute inset-0 bg-brand-red transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left z-0"></div>
@@ -265,7 +265,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                   {onShopNow && (
                     <button
                       onClick={onShopNow}
-                      className="group overflow-hidden border border-white/20 text-white font-black uppercase text-xs tracking-widest px-8 py-4.5 hover:bg-white/5 transition-all duration-300 transform skew-x-[-12deg] active:scale-95"
+                      className="group overflow-hidden border border-text-primary/20 text-text-primary font-black uppercase text-xs tracking-widest px-8 py-4.5 hover:bg-text-primary/5 transition-all duration-300 transform skew-x-[-12deg] active:scale-95"
                     >
                       <span className="skew-x-[12deg]">BROWSE LIBRARY</span>
                     </button>
@@ -279,7 +279,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
 
       {/* Social Media Float Menu (Bottom Left Side) */}
       <div className="absolute bottom-10 left-6 md:left-12 z-20 flex items-center gap-4">
-        <div className="hidden md:flex flex-col gap-3 bg-[#0d0d11]/80 backdrop-blur-md border border-white/5 p-2 rounded-xl shadow-2xl">
+        <div className="hidden md:flex flex-col gap-3 bg-[#0d0d11]/5 dark:bg-[#0d0d11]/80 backdrop-blur-md border border-black/5 dark:border-white/5 p-2 rounded-xl shadow-2xl">
           {socialLinks.map((s, idx) => {
             const Icon = s.icon;
             return (
@@ -289,7 +289,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={s.label}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:text-white hover:bg-brand-red/20 transition-all duration-200"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-brand-red/10 dark:hover:bg-brand-red/20 transition-all duration-200"
               >
                 <Icon className="w-4 h-4" />
               </a>
@@ -305,7 +305,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
               onClick={() => setCurrentIndex(idx)}
               aria-label={`Go to slide ${idx + 1}`}
               className={`h-1.5 transition-all duration-300 rounded-full ${
-                currentIndex === idx ? 'w-8 bg-brand-red' : 'w-2 bg-white/20 hover:bg-white/40'
+                currentIndex === idx ? 'w-8 bg-brand-red' : 'w-2 bg-text-primary/20 hover:bg-text-primary/40'
               }`}
             ></button>
           ))}
@@ -316,11 +316,11 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
       {slides.length > 1 && (
         <div className="hidden lg:block absolute bottom-10 right-12 z-20">
           <div className="text-right mb-2">
-            <span className="text-[10px] font-black tracking-[0.3em] text-white/40 uppercase">UP NEXT</span>
+            <span className="text-[10px] font-black tracking-[0.3em] text-text-primary/40 uppercase">UP NEXT</span>
           </div>
           <button
             onClick={() => setCurrentIndex(nextIndex)}
-            className="group relative flex items-end w-80 h-44 rounded-2xl overflow-hidden border border-white/10 shadow-2xl hover:border-brand-red/50 transition-all duration-500 hover:scale-[1.03]"
+            className="group relative flex items-end w-80 h-44 rounded-2xl overflow-hidden border border-text-primary/10 shadow-2xl hover:border-brand-red/50 transition-all duration-500 hover:scale-[1.03]"
           >
             {/* Slide Thumbnail */}
             <img
@@ -328,12 +328,12 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
               alt={nextSlide.title}
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-1"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-bg-primary/95 via-bg-primary/40 dark:from-black dark:via-black/40 to-transparent z-1"></div>
 
             {/* Hover Play/Forward Overlay */}
             <div className="absolute inset-0 flex items-center justify-center z-2">
-              <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:bg-brand-red group-hover:scale-110 group-hover:border-transparent transition-all duration-300 shadow-xl">
-                <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+              <div className="w-12 h-12 rounded-full bg-bg-primary/40 backdrop-blur-md flex items-center justify-center border border-text-primary/20 group-hover:bg-brand-red group-hover:scale-110 group-hover:border-transparent transition-all duration-300 shadow-xl">
+                <Play className="w-4 h-4 text-text-primary fill-current ml-0.5" />
               </div>
             </div>
 
@@ -344,7 +344,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                   {nextSlide.badge}
                 </span>
               )}
-              <h4 className="text-sm font-bold text-white uppercase truncate">
+              <h4 className="text-sm font-bold text-text-primary uppercase truncate">
                 {nextSlide.title}
               </h4>
             </div>
