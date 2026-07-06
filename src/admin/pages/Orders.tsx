@@ -1512,9 +1512,21 @@ export function Orders() {
                 </button>
               </div>
               <div className="p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  You are changing the status of order <strong className="text-gray-900 dark:text-white">#{orders.find(o => o.id === completionOrderId)?.order_number || ''}</strong> to <span className="font-bold text-green-600">Completed</span>.
-                </p>
+                {(() => {
+                  const order = orders.find(o => o.id === completionOrderId);
+                  return order ? (
+                    <>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        You are changing the status of order <strong className="text-gray-900 dark:text-white">#{order.order_number}</strong> to <span className="font-bold text-green-600">Completed</span>.
+                      </p>
+                      <div className="p-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        <div>Product: <span className="font-black text-gray-800 dark:text-white">{order.product_name}</span></div>
+                        <div>Customer: <span className="font-black text-gray-800 dark:text-white">{order.customer_name}</span></div>
+                        <div>Email: <span className="font-black text-gray-800 dark:text-white font-mono">{order.customer_email || 'N/A'}</span></div>
+                      </div>
+                    </>
+                  ) : null;
+                })()}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
                     Custom Instructions / Notes for Customer (Optional)
