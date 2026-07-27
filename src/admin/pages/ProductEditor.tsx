@@ -35,13 +35,12 @@ function countAvailableSlots(digitalItems: any[], categorySlug?: string, subCate
 
 function countAvailableForSlot(digitalItems: any[], slotName: string, categorySlug?: string, subCategorySlug?: string) {
   if (!Array.isArray(digitalItems) || !slotName) return 0;
+  const isFullAccount = slotName.toLowerCase().endsWith('full account');
   let count = 0;
   const now = new Date().getTime();
   const limitDays = String(subCategorySlug || '').toLowerCase().includes('1-month') ? 5 : 10;
   for (const item of digitalItems) {
     if (item.fullAccountSold) continue;
-    const slot = item?.slots?.[slotName];
-    if (!slot) continue;
     let isExpired = false;
     if (categorySlug === 'playstation-plus' && item.createdAt) {
       const createdDate = new Date(item.createdAt).getTime();
@@ -50,8 +49,16 @@ function countAvailableForSlot(digitalItems: any[], slotName: string, categorySl
         isExpired = true;
       }
     }
-    const code = slot?.code ? String(slot.code).trim() : '';
-    if (code && !slot.sold && !isExpired) count += 1;
+    if (isExpired) continue;
+    if (isFullAccount) {
+      const anySlotSold = item.slots ? Object.values(item.slots).some((s: any) => s.sold) : false;
+      if (!anySlotSold) count += 1;
+    } else {
+      const slot = item?.slots?.[slotName];
+      if (!slot) continue;
+      const code = slot?.code ? String(slot.code).trim() : '';
+      if (code && !slot.sold) count += 1;
+    }
   }
   return count;
 }
@@ -64,6 +71,27 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
     email: '', password: '', outlookEmail: '', outlookPassword: '', twoFactorCode: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
   });
   const [slotCodes, setSlotCodes] = useState<Record<string, string>>({});
+
+  const fullAccountSlotName = groupName === 'General' ? 'Full Account' : `${groupName} - Full Account`;
+  const fullAccountSlot = slotsInGroup.find((s: any) => s.name === fullAccountSlotName);
+  const regularSlots = slotsInGroup.filter((s: any) => s.name !== fullAccountSlotName);
+
+  const handleFullAccountChange = (field: 'price' | 'cost', value: string) => {
+    const nextSlots = [...customSlots];
+    const idx = nextSlots.findIndex((s: any) => s.name === fullAccountSlotName);
+    if (idx >= 0) {
+      nextSlots[idx] = { ...nextSlots[idx], [field]: value };
+      setCustomSlots(nextSlots);
+    } else {
+      nextSlots.push({
+        id: crypto.randomUUID(),
+        name: fullAccountSlotName,
+        price: field === 'price' ? value : '',
+        cost: field === 'cost' ? value : ''
+      });
+      setCustomSlots(nextSlots);
+    }
+  };
 
   const isPsnEmailDup = useMemo(() => {
     if (!newItem.email) return false;
@@ -107,11 +135,11 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
 
   useEffect(() => {
     const next: Record<string, string> = {};
-    (slotsInGroup || []).forEach((s: any) => {
+    regularSlots.forEach((s: any) => {
       next[s.name] = slotCodes[s.name] || '';
     });
     setSlotCodes(next);
-  }, [slotsInGroup]);
+  }, [regularSlots]);
 
   const handleGroupNameBlur = () => {
     if (localGroupName === (groupName === 'General' ? '' : groupName)) return;
@@ -190,8 +218,40 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
       </div>
 
       <div className="p-6">
+        {/* Dedicated Full Account Pricing */}
+        <div className={`p-4 mb-6 rounded-2xl border ${isOffline ? 'bg-gray-900/40 border-gray-700' : 'bg-red-50/20 border-red-100 dark:bg-red-950/10 dark:border-red-900/30'} flex flex-col md:flex-row md:items-center justify-between gap-4`}>
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-red-650 dark:text-red-400">Full Account Option</h4>
+            <p className="text-[10px] text-gray-400 mt-1">Set the price for purchasing the entire account (including all slots and credentials).</p>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="w-28">
+              <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Price</label>
+              <input 
+                type="number" 
+                value={fullAccountSlot?.price || ''} 
+                onChange={e => handleFullAccountChange('price', e.target.value)} 
+                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-xs font-bold text-red-600 focus:outline-none" 
+                placeholder="0.00" 
+              />
+            </div>
+            {isAdmin && (
+              <div className="w-28">
+                <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Cost</label>
+                <input 
+                  type="number" 
+                  value={fullAccountSlot?.cost || ''} 
+                  onChange={e => handleFullAccountChange('cost', e.target.value)} 
+                  className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-500 focus:outline-none" 
+                  placeholder="0.00" 
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {slotsInGroup.map((slot: any) => (
+          {regularSlots.map((slot: any) => (
             <div key={slot.id} className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 relative group">
               <button onClick={() => setCustomSlots(customSlots.filter((s: any) => s.id !== slot.id))} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
               <div className="space-y-3">
@@ -278,7 +338,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
           <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700/50 space-y-4">
             <span className="text-[10px] font-black uppercase text-gray-400">Attribute Codes & Backup Codes</span>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {slotsInGroup.map((slot: any) => (
+              {regularSlots.map((slot: any) => (
                 <div key={slot.id}>
                   <label className="block text-[8px] font-black uppercase text-gray-400 mb-1.5 ml-1">{slot.name.split(' - ').pop()} Code</label>
                   <input type="text" value={slotCodes[slot.name] || ''} onChange={e => setSlotCodes({...slotCodes, [slot.name]: e.target.value})} className="w-full px-4 py-2 text-[10px] font-mono rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none" placeholder="XXXX-XXXX-XXXX" />
@@ -308,7 +368,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                   <th className="px-4 py-3">Account Credentials</th>
                   <th className="px-4 py-3 text-center">Full Account</th>
                   <th className="px-4 py-3">Recovery & Region</th>
-                  {slotsInGroup.map((slot: any) => <th key={slot.id} className="px-4 py-3">{slot.name.split(' - ').pop()}</th>)}
+                  {regularSlots.map((slot: any) => <th key={slot.id} className="px-4 py-3">{slot.name.split(' - ').pop()}</th>)}
                   <th className="px-4 py-3">Backup Codes</th>
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
@@ -317,10 +377,10 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                 {groupItems.map((item: any) => (
                   <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 align-top">
                     <td className="px-4 py-3 min-w-[150px]">
-                      <input type="text" value={item.email || ''} onChange={e => onUpdateItem(item.id, { email: e.target.value })} className="w-full bg-transparent border-b border-gray-200 dark:border-gray-800 text-xs py-0.5 focus:border-red-500 focus:outline-none" placeholder="PSN Email" />
-                      <input type="text" value={item.password || ''} onChange={e => onUpdateItem(item.id, { password: e.target.value })} className="w-full bg-transparent border-b border-gray-200 dark:border-gray-800 text-[10px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5 font-mono" placeholder="Password" />
-                      <input type="text" value={item.onlineId || ''} onChange={e => onUpdateItem(item.id, { onlineId: e.target.value })} className="w-full bg-transparent border-b border-gray-200 dark:border-gray-800 text-[9px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5" placeholder="Online ID" />
-                      {item.createdAt && <p className="text-[9px] text-gray-400 mt-1 italic">Added: {new Date(item.createdAt).toLocaleDateString()}</p>}
+                       <input type="text" value={item.email || ''} onChange={e => onUpdateItem(item.id, { email: e.target.value })} className="w-full bg-transparent border-b border-gray-200 dark:border-gray-800 text-xs py-0.5 focus:border-red-500 focus:outline-none" placeholder="PSN Email" />
+                       <input type="text" value={item.password || ''} onChange={e => onUpdateItem(item.id, { password: e.target.value })} className="w-full bg-transparent border-b border-gray-200 dark:border-gray-800 text-[10px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5 font-mono" placeholder="Password" />
+                       <input type="text" value={item.onlineId || ''} onChange={e => onUpdateItem(item.id, { onlineId: e.target.value })} className="w-full bg-transparent border-b border-gray-200 dark:border-gray-800 text-[9px] py-0.5 focus:border-red-500 focus:outline-none mt-1.5" placeholder="Online ID" />
+                       {item.createdAt && <p className="text-[9px] text-gray-400 mt-1 italic">Added: {new Date(item.createdAt).toLocaleDateString()}</p>}
                     </td>
                     <td className="px-4 py-3 text-center min-w-[80px]">
                        <div className="flex flex-col items-center gap-1.5 mt-1">
@@ -353,7 +413,7 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                         <input type="text" value={item.twoFactorCode || ''} onChange={e => onUpdateItem(item.id, { twoFactorCode: e.target.value })} className="flex-1 bg-transparent border-b border-gray-200 dark:border-gray-800 text-[10px] py-0 focus:outline-none focus:border-red-500" placeholder="2FA Code" />
                       </div>
                     </td>
-                    {slotsInGroup.map((slot: any) => {
+                    {regularSlots.map((slot: any) => {
                       const data = item.slots?.[slot.name] || { code: '', sold: false };
                       return (
                         <td key={slot.id} className="px-4 py-3 min-w-[120px]">
