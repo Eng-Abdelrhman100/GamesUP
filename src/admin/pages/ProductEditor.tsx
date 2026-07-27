@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronLeft, Save, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronLeft, Save, SlidersHorizontal, Clipboard, CheckCircle } from 'lucide-react';
 import { useStoreSettings } from '@/context/StoreSettingsContext';
 import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc } from '@/utils/api';
 
@@ -63,7 +63,7 @@ function countAvailableForSlot(digitalItems: any[], slotName: string, categorySl
   return count;
 }
 
-const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, formData, onAddStockItem, groupItems, onRemoveItem, onUpdateItem, onUpdateItemSlot, isAdmin, setFormData }: any) => {
+const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, formData, onAddStockItem, groupItems, onRemoveItem, onUpdateItem, onUpdateItemSlot, isAdmin, setFormData, onSave }: any) => {
   const isOffline = groupName.toLowerCase().includes('offline');
   const { settings } = useStoreSettings();
   const [localGroupName, setLocalGroupName] = useState(groupName === 'General' ? '' : groupName);
@@ -71,6 +71,9 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
     email: '', password: '', outlookEmail: '', outlookPassword: '', twoFactorCode: '', birthdate: '', region: '', onlineId: '', backupCodes: ''
   });
   const [slotCodes, setSlotCodes] = useState<Record<string, string>>({});
+  const [pastedSlots, setPastedSlots] = useState<Record<string, boolean>>({});
+  const [savingRowId, setSavingRowId] = useState<string | null>(null);
+  const [savedRowId, setSavedRowId] = useState<string | null>(null);
 
   const fullAccountSlotName = groupName === 'General' ? 'Full Account' : `${groupName} - Full Account`;
   const fullAccountSlot = slotsInGroup.find((s: any) => s.name === fullAccountSlotName);
@@ -388,18 +391,44 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
           </div>
 
           <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700/50 space-y-4">
-            <span className="text-[10px] font-black uppercase text-gray-400">Attribute Codes & Backup Codes</span>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-gray-400">Attribute Codes & Backup Codes</span>
+              <span className="text-[9px] text-gray-400 italic">Tip: click Paste to insert from clipboard</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {regularSlots.map((slot: any) => (
-                <div key={slot.id}>
-                  <label className="block text-[8px] font-black uppercase text-gray-400 mb-1.5 ml-1">{slot.name.split(' - ').pop()} Code</label>
-                  <input type="text" value={slotCodes[slot.name] || ''} onChange={e => setSlotCodes({...slotCodes, [slot.name]: e.target.value})} className="w-full px-4 py-2 text-[10px] font-mono rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none" placeholder="XXXX-XXXX-XXXX" />
+                <div key={slot.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[8px] font-black uppercase text-gray-400">{slot.name.split(' - ').pop()} Code</label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          setSlotCodes(prev => ({ ...prev, [slot.name]: text.trim() }));
+                          setPastedSlots(prev => ({ ...prev, [slot.name]: true }));
+                          setTimeout(() => setPastedSlots(prev => ({ ...prev, [slot.name]: false })), 1500);
+                        } catch {}
+                      }}
+                      className="flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:border-red-400 hover:text-red-500 transition-all"
+                    >
+                      {pastedSlots[slot.name] ? <CheckCircle className="w-2.5 h-2.5 text-green-500" /> : <Clipboard className="w-2.5 h-2.5" />}
+                      {pastedSlots[slot.name] ? 'Pasted!' : 'Paste'}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={slotCodes[slot.name] || ''}
+                    onChange={e => setSlotCodes({...slotCodes, [slot.name]: e.target.value.trim()})}
+                    className="w-full px-3 py-2 text-[10px] font-mono rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none leading-relaxed"
+                    placeholder="Paste or type the code here..."
+                  />
                 </div>
               ))}
             </div>
             <div>
               <label className="block text-[9px] font-bold text-gray-400 mb-1 ml-1">Backup Codes (one per line)</label>
-              <textarea value={newItem.backupCodes} onChange={e => setNewItem({...newItem, backupCodes: e.target.value})} rows={3} className="w-full px-4 py-2 text-[10px] font-mono rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none" placeholder="REC-001&#10;REC-002" />
+              <textarea value={newItem.backupCodes} onChange={e => setNewItem({...newItem, backupCodes: e.target.value})} rows={4} className="w-full px-4 py-2 text-[10px] font-mono rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="REC-001&#10;REC-002" />
             </div>
           </div>
 
@@ -483,7 +512,28 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                       <textarea value={item.backupCodes || ''} onChange={e => onUpdateItem(item.id, { backupCodes: e.target.value })} rows={2} className="w-full bg-transparent border border-gray-200 dark:border-gray-850 rounded-lg p-1 text-[9px] font-mono focus:outline-none focus:border-red-500 focus:bg-white dark:focus:bg-gray-950" placeholder="Backup codes" />
                     </td>
                     <td className="px-4 py-3 text-right">
-                       <button onClick={() => onRemoveItem(item.id)} className="text-gray-300 hover:text-red-500 mt-1"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex flex-col items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setSavingRowId(item.id);
+                            await onSave();
+                            setSavingRowId(null);
+                            setSavedRowId(item.id);
+                            setTimeout(() => setSavedRowId(null), 2000);
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${
+                            savedRowId === item.id
+                              ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40'
+                          }`}
+                          title="Save all changes to this product"
+                        >
+                          {savedRowId === item.id ? <CheckCircle className="w-3 h-3" /> : savingRowId === item.id ? <span className="animate-spin">⏳</span> : <Save className="w-3 h-3" />}
+                          {savedRowId === item.id ? 'Saved!' : savingRowId === item.id ? 'Saving...' : 'Save'}
+                        </button>
+                        <button onClick={() => onRemoveItem(item.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -759,6 +809,39 @@ export default function ProductEditor() {
     } catch (err) { alert('Failed to save'); } finally { setLoading(false); }
   };
 
+  const handleSaveSilent = async () => {
+    if (!id) return;
+    try {
+      let di = formData.digitalItems;
+      if (isDigital && !isGiftCard) {
+        di = di.map((item: any) => {
+          const slots = { ...(item.slots || {}) };
+          customSlots.forEach(s => {
+            if (!slots[s.name]) slots[s.name] = { sold: false, orderId: null, code: '', price: parseFloat(s.price) || 0, cost: parseFloat(s.cost) || 0 };
+            else { slots[s.name].price = parseFloat(s.price) || 0; slots[s.name].cost = parseFloat(s.cost) || 0; }
+          });
+          return { ...item, slots };
+        });
+      }
+      const stock = isDigital ? (isGiftCard ? di.length : countAvailableSlots(di, formData.category, formData.subCategory)) : (parseInt(formData.stock) || 0);
+      const payload = {
+        ...formData,
+        category_slug: formData.category,
+        sub_category_slug: formData.subCategory,
+        sub_sub_category_slug: formData.subSubCategory || null,
+        price: parseFloat(formData.price) || 0,
+        cost: parseFloat(formData.cost) || 0,
+        stock,
+        digitalItems: di,
+        product_variants: customSlots.map(s => ({ name: s.name, price: parseFloat(s.price) || null, cost: parseFloat(s.cost) || null, stock: isDigital ? countAvailableForSlot(di, s.name, formData.category, formData.subCategory) : 0 })),
+        emailTemplate: formData.isRulesTemplate
+          ? `__rules_template__\n${formData.emailTemplate || ''}`
+          : formData.emailTemplate,
+      };
+      await productsAPI.update(id, payload);
+    } catch (err) { throw err; }
+  };
+
   const onUpdateItem = (itemId: string, updates: any) => {
     setFormData(prev => ({
       ...prev, digitalItems: prev.digitalItems.map((i: any) => {
@@ -948,7 +1031,7 @@ export default function ProductEditor() {
               <div className="flex items-center gap-3 px-2"><div className="w-10 h-10 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-200 dark:shadow-none"><Database className="w-5 h-5" /></div><h3 className="text-lg font-black uppercase tracking-tighter">Inventory Management</h3></div>
               {(() => {
                 const grouped = customSlots.reduce((acc, s) => { const g = s.name.includes(' - ') ? s.name.split(' - ')[0] : 'General'; if (!acc[g]) acc[g] = []; acc[g].push(s); return acc; }, {} as any);
-                return Object.entries(grouped).map(([g, slots]) => <GroupEditor key={g} groupName={g} slotsInGroup={slots} customSlots={customSlots} setCustomSlots={setCustomSlots} formData={formData} onAddStockItem={onAddStockItem} groupItems={formData.digitalItems.filter((i: any) => (i.assignedGroup || 'General') === g)} onRemoveItem={id => setFormData({...formData, digitalItems: formData.digitalItems.filter((i: any) => i.id !== id)})} onUpdateItem={onUpdateItem} onUpdateItemSlot={onUpdateItemSlot} isAdmin={isAdmin} setFormData={setFormData} />);
+                return Object.entries(grouped).map(([g, slots]) => <GroupEditor key={g} groupName={g} slotsInGroup={slots} customSlots={customSlots} setCustomSlots={setCustomSlots} formData={formData} onAddStockItem={onAddStockItem} groupItems={formData.digitalItems.filter((i: any) => (i.assignedGroup || 'General') === g)} onRemoveItem={id => setFormData({...formData, digitalItems: formData.digitalItems.filter((i: any) => i.id !== id)})} onUpdateItem={onUpdateItem} onUpdateItemSlot={onUpdateItemSlot} isAdmin={isAdmin} setFormData={setFormData} onSave={handleSaveSilent} />);
               })()}
               <VariantGenerator customSlots={customSlots} setCustomSlots={setCustomSlots} />
               <Button variant="secondary" onClick={() => setCustomSlots([...customSlots, { id: crypto.randomUUID(), name: 'New Group - Slot 1', price: '', cost: '' }])} className="w-full py-6 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-transparent text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all font-black uppercase tracking-widest text-[10px]"><Plus className="w-5 h-5 mr-2" /> Create New Group</Button>
