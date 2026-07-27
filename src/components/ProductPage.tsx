@@ -207,10 +207,10 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                    {/* Optional Old Price */}
                   {(() => {
                     const displayOriginalPrice = activeOption 
-                      ? (activeOption as any).originalPrice 
+                      ? activeOption.originalPrice 
                       : (game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0);
                     
-                    if (displayOriginalPrice > 0) {
+                    if (displayOriginalPrice && displayOriginalPrice > 0) {
                       return (
                         <span className="text-lg text-gray-400 dark:text-gray-550 line-through font-bold italic">
                           LE {displayOriginalPrice.toFixed(2)}
@@ -235,7 +235,7 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                             LE {activeOption.price.toFixed(2)}
                           </span>
                           {(() => {
-                            const displayOriginalPrice = (activeOption as any).originalPrice || (game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0);
+                            const displayOriginalPrice = activeOption.originalPrice || (game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0);
                             return displayOriginalPrice > 0 ? (
                               <span className="px-4 py-1.5 bg-brand-red/10 text-brand-red border border-brand-red/20 text-xs font-black uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(220,38,38,0.2)]">Sale</span>
                             ) : null;

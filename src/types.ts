@@ -42,6 +42,7 @@ export interface AccountType {
   tier: string;
   originalName: string;
   price: number;
+  originalPrice?: number;
   save: string;
   status: GameStatus;
   icon: string;

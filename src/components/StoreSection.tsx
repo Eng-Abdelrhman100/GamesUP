@@ -346,8 +346,33 @@ export const StoreSection = ({ games, onProductClick, favorites = [], onToggleFa
                       <h3 className="font-black text-[var(--text-primary)] text-base tracking-tight uppercase group-hover:text-brand-red transition-colors font-display line-clamp-1 mb-6 italic transition-colors">{game.title}</h3>
                       
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-border-subtle transition-colors">
-                        <div className="text-2xl font-black text-[var(--text-primary)] italic tracking-tighter transition-colors">
-                          {game.price} <span className="text-[10px] text-text-secondary font-bold ml-0.5 italic transition-colors">L.E</span>
+                        <div className="flex flex-col">
+                          {(() => {
+                            const cardOriginalPrice = game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0;
+                            const lowestVariantOriginal = game.accountTypes?.reduce((min: number, at) => {
+                              const op = at.originalPrice || 0;
+                              return op > 0 && (min === 0 || op < min) ? op : min;
+                            }, 0) || 0;
+                            const displayOrig = lowestVariantOriginal || cardOriginalPrice;
+                            return displayOrig > 0 ? (
+                              <span className="text-[10px] text-text-secondary line-through italic font-bold">{displayOrig} L.E</span>
+                            ) : null;
+                          })()}
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-black text-[var(--text-primary)] italic tracking-tighter transition-colors">
+                              {game.price} <span className="text-[10px] text-text-secondary font-bold ml-0.5 italic transition-colors">L.E</span>
+                            </span>
+                            {(() => {
+                              const cardOriginalPrice = game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0;
+                              const lowestVariantOriginal = game.accountTypes?.reduce((min: number, at) => {
+                                const op = at.originalPrice || 0;
+                                return op > 0 && (min === 0 || op < min) ? op : min;
+                              }, 0) || 0;
+                              return (lowestVariantOriginal || cardOriginalPrice) > 0 ? (
+                                <span className="px-2 py-0.5 bg-brand-red/10 text-brand-red border border-brand-red/20 text-[8px] font-black uppercase rounded-full">Sale</span>
+                              ) : null;
+                            })()}
+                          </div>
                         </div>
                         <button className={`btn-action transition-all ${
                           game.status === 'OUT OF STOCK' 
