@@ -204,10 +204,21 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
               {/* Price Display */}
               <div className="pt-8 relative z-10 border-t border-gray-200 dark:border-[#333]/50">
                 <div className="flex items-end gap-4 mb-2">
-                  {/* Optional Old Price mockup */}
-                  <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-bold italic">
-                    LE {(activeOption ? activeOption.price * 1.4 : game.basePrice * 1.4).toFixed(2)}
-                  </span>
+                   {/* Optional Old Price */}
+                  {(() => {
+                    const displayOriginalPrice = activeOption 
+                      ? (activeOption as any).originalPrice 
+                      : (game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0);
+                    
+                    if (displayOriginalPrice > 0) {
+                      return (
+                        <span className="text-lg text-gray-400 dark:text-gray-550 line-through font-bold italic">
+                          LE {displayOriginalPrice.toFixed(2)}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                   
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -223,7 +234,12 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
                           <span className="bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 mr-2">
                             LE {activeOption.price.toFixed(2)}
                           </span>
-                          <span className="px-4 py-1.5 bg-brand-red/10 text-brand-red border border-brand-red/20 text-xs font-black uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(220,38,38,0.2)]">Sale</span>
+                          {(() => {
+                            const displayOriginalPrice = (activeOption as any).originalPrice || (game.attributes?.originalPrice ? Number(game.attributes.originalPrice) : 0);
+                            return displayOriginalPrice > 0 ? (
+                              <span className="px-4 py-1.5 bg-brand-red/10 text-brand-red border border-brand-red/20 text-xs font-black uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(220,38,38,0.2)]">Sale</span>
+                            ) : null;
+                          })()}
                         </>
                       ) : (
                         <>N/A</>

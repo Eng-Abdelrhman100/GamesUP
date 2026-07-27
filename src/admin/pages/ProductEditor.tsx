@@ -93,6 +93,32 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
     }
   };
 
+  const handleFullAccountOriginalPriceChange = (value: string) => {
+    setFormData((prev: any) => {
+      const attrs = { ...(prev.attributes || {}) };
+      const vOriginalPrices = { ...(attrs.variantOriginalPrices || {}) };
+      if (value === '') {
+        delete vOriginalPrices[fullAccountSlotName];
+      } else {
+        vOriginalPrices[fullAccountSlotName] = value;
+      }
+      return { ...prev, attributes: { ...attrs, variantOriginalPrices: vOriginalPrices } };
+    });
+  };
+
+  const handleRegularSlotOriginalPriceChange = (slotName: string, value: string) => {
+    setFormData((prev: any) => {
+      const attrs = { ...(prev.attributes || {}) };
+      const vOriginalPrices = { ...(attrs.variantOriginalPrices || {}) };
+      if (value === '') {
+        delete vOriginalPrices[slotName];
+      } else {
+        vOriginalPrices[slotName] = value;
+      }
+      return { ...prev, attributes: { ...attrs, variantOriginalPrices: vOriginalPrices } };
+    });
+  };
+
   const isPsnEmailDup = useMemo(() => {
     if (!newItem.email) return false;
     const clean = newItem.email.trim().toLowerCase();
@@ -235,6 +261,16 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                 placeholder="0.00" 
               />
             </div>
+            <div className="w-28">
+              <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Original Price</label>
+              <input 
+                type="number" 
+                value={formData.attributes?.variantOriginalPrices?.[fullAccountSlotName] || ''} 
+                onChange={e => handleFullAccountOriginalPriceChange(e.target.value)} 
+                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-xs font-bold text-red-600 focus:outline-none animate-pulse" 
+                placeholder="e.g. 500" 
+              />
+            </div>
             {isAdmin && (
               <div className="w-28">
                 <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Cost</label>
@@ -260,8 +296,20 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                    onChange={e => {
                      const next = [...customSlots];
                      const idx = next.findIndex(s => s.id === slot.id);
-                     next[idx].name = groupName !== 'General' ? `${groupName} - ${e.target.value}` : e.target.value;
+                     const oldName = slot.name;
+                     const newName = groupName !== 'General' ? `${groupName} - ${e.target.value}` : e.target.value;
+                     next[idx].name = newName;
                      setCustomSlots(next);
+
+                     setFormData((prev: any) => {
+                       const attrs = { ...(prev.attributes || {}) };
+                       const vOriginalPrices = { ...(attrs.variantOriginalPrices || {}) };
+                       if (vOriginalPrices[oldName] !== undefined) {
+                         vOriginalPrices[newName] = vOriginalPrices[oldName];
+                         delete vOriginalPrices[oldName];
+                       }
+                       return { ...prev, attributes: { ...attrs, variantOriginalPrices: vOriginalPrices } };
+                     });
                    }}
                    className="w-full bg-transparent border-none p-0 text-xs font-black text-gray-800 dark:text-white focus:ring-0"
                  />
@@ -269,6 +317,10 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
                    <div className="flex-1">
                      <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Price</label>
                      <input type="number" value={slot.price} onChange={e => { const n = [...customSlots]; n.find(s => s.id === slot.id)!.price = e.target.value; setCustomSlots(n); }} className="w-full bg-transparent border-none p-0 text-xs font-bold text-red-600 focus:ring-0" placeholder="0.00" />
+                   </div>
+                   <div className="flex-1">
+                     <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Orig. Price</label>
+                     <input type="number" value={formData.attributes?.variantOriginalPrices?.[slot.name] || ''} onChange={e => handleRegularSlotOriginalPriceChange(slot.name, e.target.value)} className="w-full bg-transparent border-none p-0 text-xs font-bold text-red-600 focus:ring-0" placeholder="0.00" />
                    </div>
                    {isAdmin && (
                      <div className="flex-1">
@@ -917,6 +969,19 @@ export default function ProductEditor() {
             <div className="flex items-center gap-2 mb-2"><div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600"><Shield className="w-4 h-4" /></div><h3 className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">Pricing & Stock</h3></div>
             <div className="space-y-4">
               <div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Base Price ({settings.currency_symbol})</label><input type="number" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500" /></div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Original Price (Compare-At)</label>
+                <input 
+                  type="number" 
+                  value={formData.attributes?.originalPrice || ''} 
+                  onChange={e => setFormData({
+                    ...formData, 
+                    attributes: { ...(formData.attributes || {}), originalPrice: e.target.value } 
+                  })} 
+                  className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500" 
+                  placeholder="e.g. 500"
+                />
+              </div>
               {!isDigital && (<div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Physical Stock</label><input type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500" /></div>)}
               {isAdmin && (<div><label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Cost Price</label><input type="number" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} className="w-full px-5 py-3 text-sm font-black bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:outline-none" /></div>)}
               

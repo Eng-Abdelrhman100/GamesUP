@@ -139,11 +139,14 @@ export default function App() {
                   if (parts.length === 1 && (lowerName.includes('primary') || lowerName.includes('secondary') || lowerName.includes('full account'))) {
                     group = 'Type';
                   }
+                  const variantOriginalPrices = p.attributes?.variantOriginalPrices || {};
+                  const originalPrice = Number(variantOriginalPrices[v.name]) || Number(p.attributes?.originalPrice) || 0;
                   return {
                     group,
                     tier,
                     originalName: v.name,
                     price: Number(v.price) || 0,
+                    originalPrice,
                     save: '0%',
                     status: v.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'),
                     icon: v.name.toUpperCase().includes('PLATINUM') ? '💎' : v.name.toUpperCase().includes('GOLD') ? '🥇' : '🥈',
@@ -151,7 +154,7 @@ export default function App() {
                   };
                 })
               : [
-                  { group: 'General', tier: 'Standard', originalName: 'Standard', price: Number(p.price) || 0, save: '0%', status: p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'), icon: '🥈', isAvailable: p.stock > 0 || p.showOutOfStockBadge === false }
+                  { group: 'General', tier: 'Standard', originalName: 'Standard', price: Number(p.price) || 0, originalPrice: Number(p.attributes?.originalPrice) || 0, save: '0%', status: p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'), icon: '🥈', isAvailable: p.stock > 0 || p.showOutOfStockBadge === false }
                 ]
           }));
           setGames(mappedGames);
