@@ -310,7 +310,7 @@ export function Orders() {
                         // Full Account purchase: only available if NO individual slots have been sold
                         const isFullAccount = matchedKey.toLowerCase().endsWith('full account');
                         if (isFullAccount) {
-                          const anySlotSold = Object.values(di.slots).some((s: any) => s.sold);
+                          const anySlotSold = Object.values(di.slots).some((s: any) => s && s.sold);
                           if (anySlotSold) continue;
                           
                           di.fullAccountSold = true;
