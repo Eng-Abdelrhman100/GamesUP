@@ -206,11 +206,23 @@ export function OrderDataOverview() {
 
             if (item.slots && selectedSlotName) {
               const keys = Object.keys(item.slots);
-              const matchedKey = keys.find(k => 
+              const candidateKeys = keys.filter(k => 
                 k.toLowerCase() === selectedSlotName.toLowerCase() ||
                 k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
                 k.toLowerCase().includes(selectedSlotName.toLowerCase())
-              ) || '';
+              );
+              let matchedKey = '';
+              if (candidateKeys.length > 0) {
+                const bestKey = candidateKeys.find(k => {
+                  const parts = k.toLowerCase().split(' - ');
+                  if (parts.length > 1) {
+                    const groupPrefix = parts[0].trim();
+                    return productNameLower.includes(groupPrefix);
+                  }
+                  return false;
+                });
+                matchedKey = bestKey || candidateKeys[0];
+              }
               if (matchedKey) {
                 slotName = matchedKey;
                 if (!code) code = item.slots[matchedKey]?.code || '';

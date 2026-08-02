@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronLeft, Save, SlidersHorizontal, Clipboard, CheckCircle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, Image as ImageIcon, Database, Shield, Download, Layout, Mail, Lock, MapPin, User, Calendar, Hash, Key, AlertTriangle, ChevronLeft, Save, SlidersHorizontal, Clipboard, CheckCircle, Globe } from 'lucide-react';
 import { useStoreSettings } from '@/context/StoreSettingsContext';
 import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc } from '@/utils/api';
 
@@ -234,16 +234,41 @@ const GroupEditor = ({ groupName, slotsInGroup, customSlots, setCustomSlots, for
             className={`font-black text-sm bg-transparent border-none focus:ring-0 ${isOffline ? 'text-white placeholder-gray-600' : 'text-gray-800 dark:text-white placeholder-gray-400'} w-1/2 p-0 focus:outline-none ml-2`}
           />
         </div>
-        <Button
-          variant="secondary" size="sm"
-          onClick={() => {
-            const prefix = groupName !== 'General' ? `${groupName} - ` : '';
-            setCustomSlots([...customSlots, { id: crypto.randomUUID(), name: `${prefix}New Slot`, price: '', cost: '' }]);
-          }}
-          className="rounded-full h-8 text-[10px] font-black uppercase"
-        >
-          <Plus className="w-3 h-3 mr-1" /> Add variant
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline" size="sm"
+            onClick={() => {
+              const prefix = groupName !== 'General' ? `${groupName} - ` : '';
+              const defaultSlots = ['Full Account', 'Primary PS4', 'Primary PS5', 'Secondary', 'Offline PS4', 'Offline PS5'];
+              const nextSlots = [...customSlots];
+              defaultSlots.forEach(name => {
+                const slotFullName = `${prefix}${name}`;
+                if (!nextSlots.some(s => s.name.toLowerCase() === slotFullName.toLowerCase())) {
+                  nextSlots.push({
+                    id: crypto.randomUUID(),
+                    name: slotFullName,
+                    price: '',
+                    cost: ''
+                  });
+                }
+              });
+              setCustomSlots(nextSlots);
+            }}
+            className="rounded-full h-8 text-[10px] font-black uppercase border border-dashed border-gray-250 dark:border-gray-650 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+          >
+            <SlidersHorizontal className="w-3 h-3 mr-1" /> Load Default Slots
+          </Button>
+          <Button
+            variant="secondary" size="sm"
+            onClick={() => {
+              const prefix = groupName !== 'General' ? `${groupName} - ` : '';
+              setCustomSlots([...customSlots, { id: crypto.randomUUID(), name: `${prefix}New Slot`, price: '', cost: '' }]);
+            }}
+            className="rounded-full h-8 text-[10px] font-black uppercase"
+          >
+            <Plus className="w-3 h-3 mr-1" /> Add variant
+          </Button>
+        </div>
       </div>
 
       <div className="p-6">
@@ -704,6 +729,7 @@ export default function ProductEditor() {
   });
 
   const [customSlots, setCustomSlots] = useState<any[]>([]);
+  const [newGroupName, setNewGroupName] = useState('');
 
   const isDigital = (formData.category || '').toLowerCase().includes('digital') || 
                    (formData.category || '').toLowerCase().includes('games') || 
@@ -1033,8 +1059,83 @@ export default function ProductEditor() {
                 const grouped = customSlots.reduce((acc, s) => { const g = s.name.includes(' - ') ? s.name.split(' - ')[0] : 'General'; if (!acc[g]) acc[g] = []; acc[g].push(s); return acc; }, {} as any);
                 return Object.entries(grouped).map(([g, slots]) => <GroupEditor key={g} groupName={g} slotsInGroup={slots} customSlots={customSlots} setCustomSlots={setCustomSlots} formData={formData} onAddStockItem={onAddStockItem} groupItems={formData.digitalItems.filter((i: any) => (i.assignedGroup || 'General') === g)} onRemoveItem={id => setFormData({...formData, digitalItems: formData.digitalItems.filter((i: any) => i.id !== id)})} onUpdateItem={onUpdateItem} onUpdateItemSlot={onUpdateItemSlot} isAdmin={isAdmin} setFormData={setFormData} onSave={handleSaveSilent} />);
               })()}
+              <div className="flex gap-4">
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={() => {
+                    const defaultSlots = ['Full Account', 'Primary PS4', 'Primary PS5', 'Secondary', 'Offline PS4', 'Offline PS5'];
+                    const nextSlots = [...customSlots];
+                    defaultSlots.forEach(name => {
+                      if (!nextSlots.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+                        nextSlots.push({ id: crypto.randomUUID(), name, price: '', cost: '' });
+                      }
+                    });
+                    setCustomSlots(nextSlots);
+                  }} 
+                  className="py-4 px-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all font-bold uppercase tracking-wider text-[10px]"
+                >
+                  <SlidersHorizontal className="w-4 h-4 mr-2 flex-shrink-0" /> Load General Slots (No Group)
+                </Button>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 space-y-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200">Create Custom Group</h4>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Define a custom group (e.g. Standard, Limited, English, Arabic) and load slots into it.</p>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input 
+                    type="text"
+                    value={newGroupName}
+                    onChange={e => setNewGroupName(e.target.value)}
+                    placeholder="Enter Group Name (e.g. Standard, Limited, English)"
+                    className="flex-1 px-4 py-2.5 text-xs font-bold bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-850 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-800 dark:text-white"
+                  />
+                  <Button 
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const gName = newGroupName.trim();
+                      const groupPrefix = gName ? `${gName} - ` : '';
+                      setCustomSlots([...customSlots, { id: crypto.randomUUID(), name: `${groupPrefix}New Slot`, price: '', cost: '' }]);
+                      setNewGroupName('');
+                    }}
+                    className="rounded-2xl text-[10px] font-black uppercase py-3"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Create Group
+                  </Button>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const gName = newGroupName.trim();
+                      if (!gName) {
+                        alert('Please enter a group name first.');
+                        return;
+                      }
+                      const groupPrefix = `${gName} - `;
+                      const defaultSlots = ['Full Account', 'Primary PS4', 'Primary PS5', 'Secondary', 'Offline PS4', 'Offline PS5'];
+                      const nextSlots = [...customSlots];
+                      defaultSlots.forEach(name => {
+                        const slotFullName = `${groupPrefix}${name}`;
+                        if (!nextSlots.some(s => s.name.toLowerCase() === slotFullName.toLowerCase())) {
+                          nextSlots.push({ id: crypto.randomUUID(), name: slotFullName, price: '', cost: '' });
+                        }
+                      });
+                      setCustomSlots(nextSlots);
+                      setNewGroupName('');
+                    }}
+                    className="rounded-2xl text-[10px] font-black uppercase py-3 border-dashed border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 mr-1" /> Load Default Slots inside Group
+                  </Button>
+                </div>
+              </div>
+
               <VariantGenerator customSlots={customSlots} setCustomSlots={setCustomSlots} />
-              <Button variant="secondary" onClick={() => setCustomSlots([...customSlots, { id: crypto.randomUUID(), name: 'New Group - Slot 1', price: '', cost: '' }])} className="w-full py-6 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-transparent text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all font-black uppercase tracking-widest text-[10px]"><Plus className="w-5 h-5 mr-2" /> Create New Group</Button>
             </div>
           )}
         </div>

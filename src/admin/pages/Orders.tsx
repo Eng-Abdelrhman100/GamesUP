@@ -75,11 +75,23 @@ export function Orders() {
 
             if (item.slots && selectedSlotName) {
               const keys = Object.keys(item.slots);
-              const matchedKey = keys.find(k => 
+              const candidateKeys = keys.filter(k => 
                 k.toLowerCase() === selectedSlotName.toLowerCase() ||
                 k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
                 k.toLowerCase().includes(selectedSlotName.toLowerCase())
-              ) || '';
+              );
+              let matchedKey = '';
+              if (candidateKeys.length > 0) {
+                const bestKey = candidateKeys.find(k => {
+                  const parts = k.toLowerCase().split(' - ');
+                  if (parts.length > 1) {
+                    const groupPrefix = parts[0].trim();
+                    return productNameLower.includes(groupPrefix);
+                  }
+                  return false;
+                });
+                matchedKey = bestKey || candidateKeys[0];
+              }
               if (matchedKey) {
                 slotName = matchedKey;
                 if (!code) code = item.slots[matchedKey]?.code || '';
@@ -275,18 +287,44 @@ export function Orders() {
 
                   if (di.slots) {
                     const keys = Object.keys(di.slots);
-                    const matchedKey = keys.find(k => 
+                    const candidateKeys = keys.filter(k => 
                       k.toLowerCase() === selectedSlotName.toLowerCase() ||
                       k.toLowerCase().endsWith(selectedSlotName.toLowerCase()) ||
                       k.toLowerCase().includes(selectedSlotName.toLowerCase())
-                    ) || '';
+                    );
+                    let matchedKey = '';
+                    if (candidateKeys.length > 0) {
+                      const bestKey = candidateKeys.find(k => {
+                        const parts = k.toLowerCase().split(' - ');
+                        if (parts.length > 1) {
+                          const groupPrefix = parts[0].trim();
+                          return productNameLower.includes(groupPrefix);
+                        }
+                        return false;
+                      });
+                      matchedKey = bestKey || candidateKeys[0];
+                    }
                     if (matchedKey) {
                       const slot = di.slots[matchedKey];
                       if (slot && !slot.sold && slot.code) {
-                        // Allocate slot
-                        slot.sold = true;
-                        slot.orderId = currentOrder.order_number || currentOrder.id;
-                        slot.customerName = currentOrder.customer_name;
+                        // Full Account purchase: only available if NO individual slots have been sold
+                        const isFullAccount = matchedKey.toLowerCase().endsWith('full account');
+                        if (isFullAccount) {
+                          const anySlotSold = Object.values(di.slots).some((s: any) => s.sold);
+                          if (anySlotSold) continue;
+                          
+                          di.fullAccountSold = true;
+                          Object.keys(di.slots).forEach(key => {
+                            di.slots[key].sold = true;
+                            di.slots[key].orderId = currentOrder.order_number || currentOrder.id;
+                            di.slots[key].customerName = currentOrder.customer_name;
+                          });
+                        } else {
+                          slot.sold = true;
+                          slot.orderId = currentOrder.order_number || currentOrder.id;
+                          slot.customerName = currentOrder.customer_name;
+                        }
+                        
                         assignedDigitalItem = di;
                         allocatedSlotKey = matchedKey;
                         updated = true;

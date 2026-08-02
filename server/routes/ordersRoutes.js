@@ -148,14 +148,36 @@ ordersRoutes.post('/orders', async (req, res) => {
           if (di.fullAccountSold) continue;
           if (!di.slots) continue;
           const keys = Object.keys(di.slots);
-          const matchedKey = keys.find(k => 
+          
+          const candidateKeys = keys.filter(k => 
             k.toLowerCase() === selectedSlotName.toLowerCase() ||
             k.toLowerCase().includes(selectedSlotName.toLowerCase()) ||
             selectedSlotName.toLowerCase().includes(k.toLowerCase())
           );
+          
+          let matchedKey = '';
+          if (candidateKeys.length > 0) {
+            const bestKey = candidateKeys.find(k => {
+              const parts = k.toLowerCase().split(' - ');
+              if (parts.length > 1) {
+                const groupPrefix = parts[0].trim();
+                return itemStringLower.includes(groupPrefix);
+              }
+              return false;
+            });
+            matchedKey = bestKey || candidateKeys[0];
+          }
+
           if (matchedKey) {
             const slot = di.slots[matchedKey];
             if (slot && !slot.sold && slot.code) {
+              // Full Account purchase: only available if NO individual slots have been sold
+              const isFullAccount = matchedKey.toLowerCase().endsWith('full account');
+              if (isFullAccount) {
+                const anySlotSold = Object.values(di.slots).some((s: any) => s.sold);
+                if (anySlotSold) continue;
+              }
+              
               assignedDI = di;
               allocatedSlotKey = matchedKey;
               break;
@@ -164,9 +186,19 @@ ordersRoutes.post('/orders', async (req, res) => {
         }
 
         if (assignedDI && allocatedSlotKey) {
-          assignedDI.slots[allocatedSlotKey].sold = true;
-          assignedDI.slots[allocatedSlotKey].orderId = orderObj.order_number || orderObj.id;
-          assignedDI.slots[allocatedSlotKey].customerName = orderObj.customer_name;
+          const isFullAccount = allocatedSlotKey.toLowerCase().endsWith('full account');
+          if (isFullAccount) {
+            assignedDI.fullAccountSold = true;
+            Object.keys(assignedDI.slots).forEach(key => {
+              assignedDI.slots[key].sold = true;
+              assignedDI.slots[key].orderId = orderObj.order_number || orderObj.id;
+              assignedDI.slots[key].customerName = orderObj.customer_name;
+            });
+          } else {
+            assignedDI.slots[allocatedSlotKey].sold = true;
+            assignedDI.slots[allocatedSlotKey].orderId = orderObj.order_number || orderObj.id;
+            assignedDI.slots[allocatedSlotKey].customerName = orderObj.customer_name;
+          }
           updatedProducts.set(product.id, digitalItems);
           deliveryDetails.push({
             name: itemString,
@@ -320,15 +352,35 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
         if (!di.slots) continue;
 
         const keys = Object.keys(di.slots);
-        const matchedKey = keys.find(k => 
+        const candidateKeys = keys.filter(k => 
           k.toLowerCase() === selectedSlotName.toLowerCase() ||
           k.toLowerCase().includes(selectedSlotName.toLowerCase()) ||
           selectedSlotName.toLowerCase().includes(k.toLowerCase())
         );
 
+        let matchedKey = '';
+        if (candidateKeys.length > 0) {
+          const bestKey = candidateKeys.find(k => {
+            const parts = k.toLowerCase().split(' - ');
+            if (parts.length > 1) {
+              const groupPrefix = parts[0].trim();
+              return itemStringLower.includes(groupPrefix);
+            }
+            return false;
+          });
+          matchedKey = bestKey || candidateKeys[0];
+        }
+
         if (matchedKey) {
           const slot = di.slots[matchedKey];
           if (slot && !slot.sold && slot.code) {
+            // Full Account purchase: only available if NO individual slots have been sold
+            const isFullAccount = matchedKey.toLowerCase().endsWith('full account');
+            if (isFullAccount) {
+              const anySlotSold = Object.values(di.slots).some((s: any) => s.sold);
+              if (anySlotSold) continue;
+            }
+
             assignedDI = di;
             allocatedSlotKey = matchedKey;
             break;
@@ -338,9 +390,19 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
 
       if (assignedDI && allocatedSlotKey) {
         // Mark as sold
-        assignedDI.slots[allocatedSlotKey].sold = true;
-        assignedDI.slots[allocatedSlotKey].orderId = order.order_number || order.id;
-        assignedDI.slots[allocatedSlotKey].customerName = order.customer_name;
+        const isFullAccount = allocatedSlotKey.toLowerCase().endsWith('full account');
+        if (isFullAccount) {
+          assignedDI.fullAccountSold = true;
+          Object.keys(assignedDI.slots).forEach(key => {
+            assignedDI.slots[key].sold = true;
+            assignedDI.slots[key].orderId = order.order_number || order.id;
+            assignedDI.slots[key].customerName = order.customer_name;
+          });
+        } else {
+          assignedDI.slots[allocatedSlotKey].sold = true;
+          assignedDI.slots[allocatedSlotKey].orderId = order.order_number || order.id;
+          assignedDI.slots[allocatedSlotKey].customerName = order.customer_name;
+        }
 
         updatedProducts.set(product.id, digitalItems);
 
