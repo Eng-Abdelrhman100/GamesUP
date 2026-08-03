@@ -62,7 +62,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
   const [activeTab, setActiveTab] = useState<'all' | 'products' | 'giftcards'>(filterCategory ? 'products' : 'all');
   const [categoryFilter, setCategoryFilter] = useState(filterCategory || 'All');
   const [giftCategoryFilter, setGiftCategoryFilter] = useState('All');
-  const [isAlertsBannerCollapsed, setIsAlertsBannerCollapsed] = useState(false);
+  const [isAlertsBannerCollapsed, setIsAlertsBannerCollapsed] = useState(true);
   
   useEffect(() => {
     if (filterCategory) {
@@ -352,7 +352,7 @@ export function Products({ filterCategory }: { filterCategory?: string } = {}) {
                 Stock Alerts ({lowStockProducts.length})
               </span>
             </div>
-            <ChevronDown className={`w-4 h-4 text-red-500 transition-transform ${isAlertsBannerCollapsed ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-red-500 transition-transform ${!isAlertsBannerCollapsed ? 'rotate-180' : ''}`} />
           </div>
           
           {!isAlertsBannerCollapsed && (
