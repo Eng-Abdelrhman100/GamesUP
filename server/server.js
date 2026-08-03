@@ -11,6 +11,7 @@ import { pool } from './db/pool.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const port = process.env.PORT ? Number.parseInt(String(process.env.PORT), 10) : 5174;
