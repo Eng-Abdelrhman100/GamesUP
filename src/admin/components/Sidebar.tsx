@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties, Coins } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties, Coins, ShieldCheck } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { Screen } from '../AdminApp';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
@@ -32,7 +32,8 @@ const menuItems: MenuItem[] = [
     children: [
       { id: 'data-overview' as Screen, label: 'Data Overview', icon: Database },
       { id: 'inventory-sheet' as Screen, label: 'Inventory Sheet', icon: TableProperties },
-      { id: 'playstation-plus' as Screen, label: 'Playstation Plus', icon: Gamepad2 }
+      { id: 'playstation-plus' as Screen, label: 'Playstation Plus', icon: Gamepad2 },
+      { id: 'ps-plus-inventory' as Screen, label: 'PS Plus Accounts', icon: ShieldCheck }
     ]
   },
   { 

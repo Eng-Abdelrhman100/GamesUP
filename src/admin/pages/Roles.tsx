@@ -27,7 +27,7 @@ const permissionKeys = [
   'dashboard', 'products', 'data-overview', 'inventory-sheet', 'orders', 'sold-products',
   'order-chats', 'pos', 'analytics', 'customers', 'game-requests', 'balance-inventory',
   'banners', 'hero-slider', 'outlook', 'hr', 'tasks', 'team', 'roles', 'system',
-  'delivery', 'email-templates', 'expenses', 'account-profitability', 'settings'
+  'delivery', 'email-templates', 'expenses', 'account-profitability', 'ps-plus-inventory', 'settings'
 ];
 
 const permissionLabels: { [key: string]: string } = {
@@ -55,6 +55,7 @@ const permissionLabels: { [key: string]: string } = {
   'email-templates': 'Email Templates',
   expenses: 'Expenses',
   'account-profitability': 'Account Profitability',
+  'ps-plus-inventory': 'PS Plus Account Inventory',
   settings: 'Settings',
 };
 

@@ -21,6 +21,7 @@ import { uploadRoutes } from './uploadRoutes.js';
 import { customersRoutes } from './customersRoutes.js';
 import { balanceInventoryRoutes } from './balanceInventoryRoutes.js';
 import { accountFinanceRoutes } from './accountFinanceRoutes.js';
+import { psPlusRoutes } from './psPlusRoutes.js';
 import { posRoutes } from './posRoutes.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
@@ -49,4 +50,5 @@ apiRouter.use(uploadRoutes);
 apiRouter.use(tableRoutes);
 apiRouter.use(balanceInventoryRoutes);
 apiRouter.use(accountFinanceRoutes);
+apiRouter.use(psPlusRoutes);
 apiRouter.use(posRoutes);

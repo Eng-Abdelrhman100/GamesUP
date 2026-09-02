@@ -30,10 +30,11 @@ import { SupportChats } from './pages/SupportChats';
 import { GameRequests } from './pages/GameRequests';
 import { BalanceInventory } from './pages/BalanceInventory';
 import { AccountProfitability } from './pages/AccountProfitability';
+import { PsPlusInventory } from './pages/PsPlusInventory';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory' | 'account-profitability';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory' | 'account-profitability' | 'ps-plus-inventory';
 
 export default function AdminApp() {
   const navigate = useNavigate();
@@ -266,6 +267,7 @@ export default function AdminApp() {
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><OrderDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
               <Route path="playstation-plus" element={<ProtectedRoute id="playstation-plus"><Products filterCategory="playstation-plus" /></ProtectedRoute>} />
+              <Route path="ps-plus-inventory" element={<ProtectedRoute id="ps-plus-inventory"><PsPlusInventory /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute id="orders"><Orders /></ProtectedRoute>} />
               <Route path="order-chats" element={<ProtectedRoute id="order-chats"><SupportChats /></ProtectedRoute>} />
               <Route path="sold-products" element={<ProtectedRoute id="sold-products"><SoldProducts /></ProtectedRoute>} />

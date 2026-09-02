@@ -203,6 +203,78 @@ async function main() {
   await ensureAccountCostTables(connection);
   console.log('"account_costs", "account_sales", "balance_usage" tables checked/created successfully.');
 
+  // 7. Create PS Plus inventory tables
+  const ensurePsPlusTables = async (conn) => {
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS ps_plus_accounts (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        email VARCHAR(191) NOT NULL,
+        password_encrypted TEXT NULL,
+        credential_ref VARCHAR(64) NULL,
+        status ENUM('AVAILABLE','RESERVED','SOLD','DISABLED','EXPIRED') NOT NULL DEFAULT 'AVAILABLE',
+        license_id BIGINT UNSIGNED NULL,
+        created_by BIGINT UNSIGNED NULL,
+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_ps_plus_accounts_email (email),
+        KEY idx_ps_plus_accounts_status (status),
+        KEY idx_ps_plus_accounts_license (license_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS ps_plus_backup_codes (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        account_id BIGINT UNSIGNED NOT NULL,
+        code VARCHAR(191) NOT NULL,
+        status ENUM('AVAILABLE','USED','INVALID') NOT NULL DEFAULT 'AVAILABLE',
+        used_at DATETIME(3) NULL,
+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_ps_plus_backup_code (code),
+        KEY idx_ps_plus_backup_account (account_id),
+        CONSTRAINT fk_ps_plus_backup_account
+          FOREIGN KEY (account_id) REFERENCES ps_plus_accounts(id)
+          ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS ps_plus_license_codes (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        license_code VARCHAR(191) NOT NULL,
+        status ENUM('AVAILABLE','ASSIGNED','USED') NOT NULL DEFAULT 'AVAILABLE',
+        account_id BIGINT UNSIGNED NULL,
+        assigned_at DATETIME(3) NULL,
+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_ps_plus_license_code (license_code),
+        KEY idx_ps_plus_license_account (account_id),
+        KEY idx_ps_plus_license_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT UNSIGNED NULL,
+        user_email VARCHAR(191) NULL,
+        action VARCHAR(64) NOT NULL,
+        entity_type VARCHAR(64) NULL,
+        entity_id BIGINT UNSIGNED NULL,
+        metadata JSON NULL,
+        ip_address VARCHAR(64) NULL,
+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (id),
+        KEY idx_audit_log_entity (entity_type, entity_id),
+        KEY idx_audit_log_created (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  };
+
+  console.log('Checking "ps_plus_accounts", "ps_plus_backup_codes", "ps_plus_license_codes", "audit_log" tables...');
+  await ensurePsPlusTables(connection);
+  console.log('PS Plus inventory + audit_log tables checked/created successfully.');
+
   await connection.end();
 }
 

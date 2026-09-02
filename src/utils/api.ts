@@ -453,6 +453,74 @@ export const accountFinanceAPI = {
   },
 };
 
+// PS Plus Account Inventory API — account + 12 backup codes + optional license (admin/manager)
+export const psPlusAPI = {
+  getStats: async () => requestJson<{ success: boolean; stats: any }>(`/ps-plus/stats`, { auth: 'admin' }),
+  getAccounts: async (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return requestJson<{ success: boolean; accounts: any[] }>(`/ps-plus/accounts${suffix}`, { auth: 'admin' });
+  },
+  getAccount: async (id: string | number) => requestJson<any>(`/ps-plus/accounts/${id}`, { auth: 'admin' }),
+  createAccount: async (payload: { email: string; password: string; backupCodes: string[] }) => {
+    return requestJson<any>(`/ps-plus/accounts`, { method: 'POST', body: payload, auth: 'admin' });
+  },
+  createInventory: async (payload: any) => {
+    return requestJson<any>(`/ps-plus/inventory`, { method: 'POST', body: payload, auth: 'admin' });
+  },
+  updateAccount: async (id: string | number, payload: any) => {
+    return requestJson<any>(`/ps-plus/accounts/${id}`, { method: 'PUT', body: payload, auth: 'admin' });
+  },
+  deleteAccount: async (id: string | number) => {
+    await requestJson(`/ps-plus/accounts/${id}`, { method: 'DELETE', auth: 'admin' });
+    return true;
+  },
+  revealPassword: async (id: string | number) => {
+    return requestJson<{ success: boolean; password: string }>(`/ps-plus/accounts/${id}/reveal-password`, { method: 'POST', auth: 'admin' });
+  },
+  getLicenses: async (params?: { status?: string }) => {
+    const qs = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
+    return requestJson<{ success: boolean; licenses: any[] }>(`/ps-plus/licenses${qs}`, { auth: 'admin' });
+  },
+  addLicenses: async (licenseCodes: string[]) => {
+    return requestJson<any>(`/ps-plus/licenses`, { method: 'POST', body: { licenseCodes }, auth: 'admin' });
+  },
+  assignLicense: async (id: string | number, accountId: string | number) => {
+    return requestJson<any>(`/ps-plus/licenses/${id}/assign`, { method: 'PUT', body: { accountId }, auth: 'admin' });
+  },
+  removeLicense: async (id: string | number) => {
+    return requestJson<any>(`/ps-plus/licenses/${id}/remove`, { method: 'PUT', auth: 'admin' });
+  },
+  deleteLicense: async (id: string | number) => {
+    await requestJson(`/ps-plus/licenses/${id}`, { method: 'DELETE', auth: 'admin' });
+    return true;
+  },
+  markBackupUsed: async (id: string | number) => {
+    return requestJson<any>(`/ps-plus/backup-codes/${id}/used`, { method: 'PUT', auth: 'admin' });
+  },
+  replaceBackup: async (id: string | number, newCode: string) => {
+    return requestJson<any>(`/ps-plus/backup-codes/${id}/replace`, { method: 'PUT', body: { newCode }, auth: 'admin' });
+  },
+  importRows: async (rows: any[]) => {
+    return requestJson<any>(`/ps-plus/import`, { method: 'POST', body: { rows }, auth: 'admin' });
+  },
+  lookupOrder: async (orderNumber: string) => {
+    return requestJson<any>(`/ps-plus/orders/lookup?order_number=${encodeURIComponent(orderNumber)}`, { auth: 'admin' });
+  },
+  markSold: async (id: string | number, orderNumber?: string) => {
+    return requestJson<any>(`/ps-plus/accounts/${id}/mark-sold`, { method: 'POST', body: { order_number: orderNumber || '' }, auth: 'admin' });
+  },
+  getAudit: async (params?: { entityType?: string; entityId?: string | number }) => {
+    const qs = new URLSearchParams();
+    if (params?.entityType) qs.set('entityType', params.entityType);
+    if (params?.entityId) qs.set('entityId', String(params.entityId));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return requestJson<{ success: boolean; items: any[] }>(`/ps-plus/audit${suffix}`, { auth: 'admin' });
+  },
+};
+
 // Init API - No longer needed with MySQL backend
 export const initAPI = {
   initialize: async () => { return { success: true }; },
