@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, Edit2, Check, X, DollarSign } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, Check, X, DollarSign, Coins } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { balanceInventoryAPI } from '../../utils/api';
+import { balanceInventoryAPI, accountFinanceAPI } from '../../utils/api';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -23,6 +23,7 @@ interface BalanceItem {
 export function BalanceInventory() {
   const { formatPrice } = useStoreSettings();
   const [items, setItems] = useState<BalanceItem[]>([]);
+  const [usageMap, setUsageMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -47,6 +48,21 @@ export function BalanceInventory() {
       setLoading(true);
       const data = await balanceInventoryAPI.getAll();
       setItems(data.items || []);
+
+      // Load usage (funds drawn from each balance to create accounts)
+      try {
+        const usageRes = await accountFinanceAPI.getBalanceUsage();
+        const usageRows = usageRes?.items || [];
+        const map: Record<string, number> = {};
+        usageRows.forEach((r: any) => {
+          const key = String(r.balance_id);
+          map[key] = (map[key] || 0) + (Number(r.amount_used) || 0);
+        });
+        setUsageMap(map);
+      } catch (usageErr) {
+        console.error('Failed to load balance usage', usageErr);
+        setUsageMap({});
+      }
     } catch (err) {
       console.error('Failed to load balance inventory:', err);
     } finally {
@@ -147,14 +163,15 @@ export function BalanceInventory() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Dollar Balance</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Rate (EGP)</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Total EGP</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Used / Remaining</th>
                 <th className="text-right py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-gray-500">Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No accounts found</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-gray-500">No accounts found</td></tr>
               ) : (
                 filteredItems.map((item) => (
                   <tr key={item.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -224,6 +241,20 @@ export function BalanceInventory() {
                     </td>
                     <td className="py-4 px-4 text-sm font-bold text-blue-600">
                       {formatPrice(item.dollar_balance * item.dollar_to_egp_rate)}
+                    </td>
+                    <td className="py-4 px-4 text-sm">
+                      {(() => {
+                        const used = usageMap[String(item.id)] || 0;
+                        const remaining = Math.max(0, (Number(item.dollar_balance) || 0) - used);
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1 text-orange-600 dark:text-orange-400 font-semibold">
+                              <Coins className="w-3 h-3" /> {used.toFixed(2)} used
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{remaining.toFixed(2)} remaining</span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex justify-end gap-2">

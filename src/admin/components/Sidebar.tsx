@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties, Coins } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { Screen } from '../AdminApp';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
@@ -46,6 +46,7 @@ const menuItems: MenuItem[] = [
   { id: 'sold-products' as Screen, label: 'Sold Products', icon: Key },
   { id: 'pos' as Screen, label: 'Point of Sale', icon: CreditCard },
   { id: 'analytics' as Screen, label: 'Analytics & Revenue', icon: TrendingUp },
+  { id: 'account-profitability' as Screen, label: 'Account Profitability', icon: Coins },
   { id: 'expenses' as Screen, label: 'Expenses', icon: Receipt },
   { id: 'customers' as Screen, label: 'Customers', icon: Users },
   { id: 'game-requests' as Screen, label: 'Requested Games', icon: Gamepad2 },

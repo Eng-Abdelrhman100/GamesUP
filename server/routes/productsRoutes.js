@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireRoles, requirePermission } from '../middleware/authMiddleware.js';
+import { upsertAccountCosts } from './accountFinanceRoutes.js';
 
 export const productsRoutes = Router();
 
@@ -339,6 +340,19 @@ productsRoutes.post('/products/import', async (req, res) => {
             p.showOutOfStockBadge !== undefined ? (p.showOutOfStockBadge ? 1 : 0) : 1
           ]
         );
+
+        // Persist acquisition cost basis for any items that carry cost metadata.
+        const importedProductId = p.id || (await (async () => {
+          const [lookup] = await pool.query('SELECT id FROM products WHERE name = ? ORDER BY id DESC LIMIT 1', [p.name]);
+          return lookup?.[0]?.id || null;
+        })());
+        if (importedProductId) {
+          try {
+            await upsertAccountCosts(conn, importedProductId, parsedDigitalItems);
+          } catch (costErr) {
+            console.error(`Failed to persist account costs for imported product "${p.name}":`, costErr);
+          }
+        }
       }
 
       await conn.commit();
@@ -402,6 +416,13 @@ productsRoutes.post('/products', async (req, res) => {
       );
 
       const productId = result.insertId;
+
+      // Persist acquisition cost basis for any digital items that carry cost metadata.
+      try {
+        await upsertAccountCosts(conn, productId, productData.digitalItems);
+      } catch (costErr) {
+        console.error('Failed to persist account costs for new product:', costErr);
+      }
 
       if (variants.length) {
         const values = [];
@@ -513,6 +534,15 @@ productsRoutes.put('/products/:id', async (req, res) => {
             `INSERT INTO product_variants (product_id, name, price, cost, stock) VALUES ${vPlaceholders}`,
             vValues
           );
+        }
+      }
+
+      // Persist acquisition cost basis for any digital items that carry cost metadata.
+      if (productData.digitalItems !== undefined) {
+        try {
+          await upsertAccountCosts(conn, id, productData.digitalItems);
+        } catch (costErr) {
+          console.error('Failed to persist account costs for updated product:', costErr);
         }
       }
 

@@ -420,6 +420,39 @@ export const balanceInventoryAPI = {
   delete: async (id: string | number) => requestJson(`/balance-inventory/${id}`, { method: 'DELETE', auth: 'admin' }),
 };
 
+// Account Finance API — acquisition costs, sales history, profitability (admin/manager only)
+export const accountFinanceAPI = {
+  getCosts: async (productId?: string | number) => {
+    const qs = productId ? `?productId=${encodeURIComponent(String(productId))}` : '';
+    return requestJson<{ success: boolean; items: any[] }>(`/account-finance/costs${qs}`, { auth: 'admin' });
+  },
+  saveCosts: async (productId: string | number, items: any[]) => {
+    return requestJson<{ success: boolean; count: number }>(`/account-finance/costs`, { method: 'POST', body: { productId, items }, auth: 'admin' });
+  },
+  getItemDetail: async (productId: string | number, digitalItemId: string) => {
+    return requestJson<any>(`/account-finance/item/${productId}/${encodeURIComponent(digitalItemId)}`, { auth: 'admin' });
+  },
+  getDashboard: async (filters?: { productId?: string | number; type?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (filters?.productId) qs.set('productId', String(filters.productId));
+    if (filters?.type) qs.set('type', filters.type);
+    if (filters?.from) qs.set('from', filters.from);
+    if (filters?.to) qs.set('to', filters.to);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return requestJson<any>(`/account-finance/dashboard${suffix}`, { auth: 'admin' });
+  },
+  recordBalanceUsage: async (payload: { balanceId: string | number; productId: string | number; digitalItemIds: string[]; costPerAccount?: number; quantity?: number; amountUsed?: number; deductFromBalance?: boolean }) => {
+    return requestJson<{ success: boolean; quantity: number; amountUsed: number | null }>(`/account-finance/balance-usage`, { method: 'POST', body: payload, auth: 'admin' });
+  },
+  getBalanceUsage: async (balanceId?: string | number) => {
+    const qs = balanceId ? `?balanceId=${encodeURIComponent(String(balanceId))}` : '';
+    return requestJson<{ success: boolean; items: any[] }>(`/account-finance/balance-usage${qs}`, { auth: 'admin' });
+  },
+  addSale: async (sale: any) => {
+    return requestJson<{ success: boolean }>(`/account-finance/sales`, { method: 'POST', body: sale, auth: 'admin' });
+  },
+};
+
 // Init API - No longer needed with MySQL backend
 export const initAPI = {
   initialize: async () => { return { success: true }; },

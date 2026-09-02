@@ -29,10 +29,11 @@ import { Expenses } from './pages/Expenses';
 import { SupportChats } from './pages/SupportChats';
 import { GameRequests } from './pages/GameRequests';
 import { BalanceInventory } from './pages/BalanceInventory';
+import { AccountProfitability } from './pages/AccountProfitability';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory' | 'account-profitability';
 
 export default function AdminApp() {
   const navigate = useNavigate();
@@ -285,6 +286,7 @@ export default function AdminApp() {
               <Route path="delivery" element={<ProtectedRoute id="delivery"><Delivery /></ProtectedRoute>} />
               <Route path="email-templates" element={<ProtectedRoute id="email-templates"><EmailTemplates /></ProtectedRoute>} />
               <Route path="balance-inventory" element={<ProtectedRoute id="balance-inventory"><BalanceInventory /></ProtectedRoute>} />
+              <Route path="account-profitability" element={<ProtectedRoute id="account-profitability"><AccountProfitability /></ProtectedRoute>} />
               <Route path="*" element={
                 <div className="flex flex-col items-center justify-center h-full">
                   <h1 className="text-2xl font-bold mb-2">Page Not Found</h1>

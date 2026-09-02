@@ -147,6 +147,127 @@ async function ensureBalanceInventoryActivationCodesColumnExists() {
   }
 }
 
+async function ensureAccountCostTables() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS account_costs (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      product_id BIGINT UNSIGNED NOT NULL,
+      digital_item_id CHAR(36) NOT NULL,
+      acquisition_type ENUM('purchased','created_from_balance','legacy','unknown') NOT NULL DEFAULT 'unknown',
+      acquisition_cost DECIMAL(10, 2) NULL,
+      source_balance_id BIGINT UNSIGNED NULL,
+      source_balance_email VARCHAR(191) NULL,
+      reference_note VARCHAR(191) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_account_cost_item (product_id, digital_item_id),
+      KEY idx_account_costs_product (product_id),
+      KEY idx_account_costs_type (acquisition_type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS account_sales (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      account_sale_id CHAR(36) NOT NULL,
+      product_id BIGINT UNSIGNED NOT NULL,
+      digital_item_id CHAR(36) NOT NULL,
+      slot_name VARCHAR(191) NOT NULL,
+      order_id BIGINT UNSIGNED NULL,
+      order_number VARCHAR(191) NULL,
+      buyer_name VARCHAR(191) NULL,
+      buyer_email VARCHAR(191) NULL,
+      sale_price DECIMAL(10, 2) NULL,
+      sale_date DATETIME(3) NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'active',
+      is_full_account TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_account_sale_ref (digital_item_id, slot_name, order_number),
+      KEY idx_account_sales_item (product_id, digital_item_id),
+      KEY idx_account_sales_order (order_id),
+      KEY idx_account_sales_created (sale_date, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS balance_usage (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      balance_id BIGINT UNSIGNED NOT NULL,
+      balance_email VARCHAR(191) NULL,
+      product_id BIGINT UNSIGNED NULL,
+      digital_item_id CHAR(36) NULL,
+      quantity INT NOT NULL DEFAULT 1,
+      amount_used DECIMAL(10, 2) NULL,
+      cost_per_account DECIMAL(10, 2) NULL,
+      created_by BIGINT UNSIGNED NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      KEY idx_balance_usage_balance (balance_id),
+      KEY idx_balance_usage_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+// One-time backfill: mark existing sold slots as 'legacy' cost rows + build historical
+// account_sales rows from the denormalized slot.sold stamps already present in products.
+async function backfillAccountFinance() {
+  const flag = 'account_finance_backfill_v1';
+  const [flagRows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', [flag]);
+  const alreadyDone = flagRows?.[0]?.setting_value;
+  if (alreadyDone && String(alreadyDone) === '1') return;
+
+  const [products] = await pool.query('SELECT id, name, digitalItems FROM products');
+  let costInserted = 0;
+  let saleInserted = 0;
+
+  for (const product of products) {
+    let digitalItems = null;
+    try {
+      digitalItems = typeof product.digitalItems === 'string' ? JSON.parse(product.digitalItems) : (product.digitalItems || []);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(digitalItems)) continue;
+
+    for (const item of digitalItems) {
+      if (!item || !item.id || !item.slots) continue;
+
+      const soldSlots = Object.entries(item.slots).filter(([, slot]) => slot && slot.sold && slot.orderId);
+      if (!soldSlots.length) continue;
+
+      // Legacy cost row (cost NULL — never assumed), idempotent
+      await pool.query(
+        `INSERT IGNORE INTO account_costs (product_id, digital_item_id, acquisition_type, acquisition_cost)
+         VALUES (?, ?, 'legacy', NULL)`,
+        [product.id, String(item.id)]
+      );
+      costInserted += 1;
+
+      for (const [slotName, slot] of soldSlots) {
+        const isFullAccount = item.fullAccountSold === true || String(slotName).toLowerCase().includes('full account');
+        const saleId = `backfill-${product.id}-${item.id}-${slotName}`.slice(0, 36);
+        const orderNumber = slot.orderId && String(slot.orderId) !== 'MANUAL' ? String(slot.orderId) : null;
+
+        await pool.query(
+          `INSERT IGNORE INTO account_sales
+            (account_sale_id, product_id, digital_item_id, slot_name, order_id, order_number,
+             buyer_name, buyer_email, sale_price, sale_date, status, is_full_account)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, NULL, NOW(), 'active', ?)`,
+          [saleId, product.id, String(item.id), String(slotName), orderNumber,
+           slot.customerName || null, slot.customerEmail || null, isFullAccount ? 1 : 0]
+        );
+        saleInserted += 1;
+      }
+    }
+  }
+
+  await pool.query(
+    'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+    [flag, '1']
+  );
+  console.log(`Account finance backfill complete: ${costInserted} legacy costs, ${saleInserted} historical sales.`);
+}
+
 async function ensureProductAttributesSeeded() {
   const [rows] = await pool.query('SELECT name FROM product_attributes');
   const existingNames = new Set((rows || []).map((r) => String(r.name || '').trim().toLowerCase()).filter(Boolean));
@@ -267,9 +388,11 @@ async function bootstrap() {
     { name: 'products sub_sub_category_slug column', fn: ensureProductSubSubCategorySlugColumnExists },
     { name: 'products digital_game_type column', fn: ensureDigitalGameTypeColumnExists },
     { name: 'balance_inventory activation_codes column', fn: ensureBalanceInventoryActivationCodesColumnExists },
+    { name: 'account cost/sales/balance_usage tables', fn: ensureAccountCostTables },
     { name: 'product attributes', fn: ensureProductAttributesSeeded },
     { name: 'homepage categories', fn: ensureHomepageCategoriesSeeded },
     { name: 'system categories', fn: ensureSystemCategoriesSeeded },
+    { name: 'account finance historical backfill', fn: backfillAccountFinance },
   ];
 
   for (const step of seedSteps) {

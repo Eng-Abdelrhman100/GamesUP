@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth, requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 import { sendMailInternal } from '../controllers/emailController.js';
+import { insertAccountSalesForDelivery, setOrderSaleStatus } from './accountFinanceRoutes.js';
 
 export const ordersRoutes = Router();
 
@@ -202,6 +203,8 @@ ordersRoutes.post('/orders', async (req, res) => {
           updatedProducts.set(product.id, digitalItems);
           deliveryDetails.push({
             name: itemString,
+            digitalItemId: assignedDI.id || '',
+            productId: product.id,
             email: assignedDI.email || '',
             password: assignedDI.password || '',
             code: assignedDI.slots[allocatedSlotKey].code || '',
@@ -212,7 +215,8 @@ ordersRoutes.post('/orders', async (req, res) => {
             region: assignedDI.region || '',
             onlineId: assignedDI.onlineId || '',
             backupCodes: assignedDI.backupCodes || '',
-            slotName: allocatedSlotKey
+            slotName: allocatedSlotKey,
+            isFullAccount: allocatedSlotKey.toLowerCase().endsWith('full account'),
           });
         }
       }
@@ -228,6 +232,13 @@ ordersRoutes.post('/orders', async (req, res) => {
         // Refresh orderObj for email content
         const [refreshedRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [orderObj.id]);
         orderObj = normalizeOrderRow(refreshedRows[0]);
+
+        // Record the auditable per-account sale transactions for this allocation
+        try {
+          await insertAccountSalesForDelivery(pool, orderObj, deliveryDetails);
+        } catch (saleErr) {
+          console.error('Failed to record account sales for new order:', saleErr);
+        }
       }
     } catch (allocErr) {
       console.error('Initial auto-allocation failed:', allocErr);
@@ -408,6 +419,8 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
 
         deliveryDetails.push({
           name: itemString,
+          digitalItemId: assignedDI.id || '',
+          productId: product.id,
           email: assignedDI.email || '',
           password: assignedDI.password || '',
           code: assignedDI.slots[allocatedSlotKey].code || '',
@@ -418,7 +431,8 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
           region: assignedDI.region || '',
           onlineId: assignedDI.onlineId || '',
           backupCodes: assignedDI.backupCodes || '',
-          slotName: allocatedSlotKey
+          slotName: allocatedSlotKey,
+          isFullAccount: allocatedSlotKey.toLowerCase().endsWith('full account'),
         });
       }
     }
@@ -448,6 +462,16 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
         id
       ]
     );
+
+    // Record the auditable per-account sale transactions for this allocation
+    try {
+      const [freshOrderRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
+      if (freshOrderRows.length) {
+        await insertAccountSalesForDelivery(pool, normalizeOrderRow(freshOrderRows[0]), deliveryDetails);
+      }
+    } catch (saleErr) {
+      console.error('Failed to record account sales for auto-allocate:', saleErr);
+    }
 
     return res.json({ success: true, message: `Successfully allocated ${deliveryDetails.length} items`, delivery: deliveryDetails });
   } catch (err) {
@@ -495,6 +519,16 @@ ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req
 
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
     const norm = normalizeOrderRow(rows[0]);
+
+    // Sync account_sales rows when an order moves to a converted or cancelled status.
+    if (norm && o.status !== undefined) {
+      try {
+        await setOrderSaleStatus(pool, norm.id, norm.order_number, o.status);
+      } catch (statusErr) {
+        console.error('Failed to sync account sale status for order:', statusErr);
+      }
+    }
+
     if (req.user?.role !== 'admin' && norm) {
       norm.phone = norm.phone ? '********' : null;
     }

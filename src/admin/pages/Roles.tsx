@@ -27,7 +27,7 @@ const permissionKeys = [
   'dashboard', 'products', 'data-overview', 'inventory-sheet', 'orders', 'sold-products',
   'order-chats', 'pos', 'analytics', 'customers', 'game-requests', 'balance-inventory',
   'banners', 'hero-slider', 'outlook', 'hr', 'tasks', 'team', 'roles', 'system',
-  'delivery', 'email-templates', 'expenses', 'settings'
+  'delivery', 'email-templates', 'expenses', 'account-profitability', 'settings'
 ];
 
 const permissionLabels: { [key: string]: string } = {
@@ -54,6 +54,7 @@ const permissionLabels: { [key: string]: string } = {
   delivery: 'Delivery Options',
   'email-templates': 'Email Templates',
   expenses: 'Expenses',
+  'account-profitability': 'Account Profitability',
   settings: 'Settings',
 };
 
