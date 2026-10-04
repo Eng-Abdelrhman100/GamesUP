@@ -188,7 +188,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
             {/* Subtle top gradient for navbar contrast */}
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-bg-primary/60 dark:from-black/70 to-transparent z-1 pointer-events-none"></div>
             {/* Smooth bottom-to-top gradient rising from the bottom section */}
-            <div className="absolute inset-x-0 bottom-0 h-2/3 md:h-3/4 bg-gradient-to-t from-bg-primary via-bg-primary/80 dark:via-bg-primary/75 to-transparent z-1 pointer-events-none"></div>
+            <div className="absolute inset-x-0 bottom-0 h-3/4 md:h-4/5 bg-gradient-to-t from-bg-primary via-bg-primary/80 dark:via-bg-primary/75 to-transparent z-1 pointer-events-none"></div>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -216,7 +216,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
       </div>
 
       {/* Hero Content Container - Aligned to bottom */}
-      <div className="relative z-10 max-w-[1400px] w-full mx-auto px-6 md:px-12 pl-6 md:pl-20 flex-1 flex flex-col justify-end pb-12 md:pb-16 pt-28">
+      <div className="relative z-10 max-w-[1400px] w-full mx-auto px-6 md:px-12 pl-6 md:pl-20 flex-1 flex flex-col justify-end pb-24 sm:pb-28 md:pb-32 lg:pb-36 pt-28">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end w-full">
           {/* Slide Description Panel */}
           <div className="lg:col-span-8 flex flex-col items-start text-left max-w-3xl">
