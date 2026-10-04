@@ -271,7 +271,7 @@ export function Expenses() {
           onClick={() => setActiveTab('expenses')}
           className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all ${
             activeTab === 'expenses'
-              ? 'border-red-500 text-red-650 dark:text-red-400'
+              ? 'border-red-500 text-red-600 dark:text-red-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
@@ -281,7 +281,7 @@ export function Expenses() {
           onClick={() => setActiveTab('reports')}
           className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all ${
             activeTab === 'reports'
-              ? 'border-red-500 text-red-650 dark:text-red-400'
+              ? 'border-red-500 text-red-600 dark:text-red-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
@@ -572,8 +572,8 @@ export function Expenses() {
                   onClick={() => setTransactionsTab('sales')}
                   className={`pb-2.5 px-4 border-b-2 transition-all ${
                     transactionsTab === 'sales'
-                      ? 'border-red-500 text-red-650 dark:text-red-400'
-                      : 'border-transparent text-gray-500'
+                      ? 'border-red-500 text-red-600 dark:text-red-400 font-semibold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
                   }`}
                 >
                   Completed Sales ({reportsData.filteredOrders.length})
@@ -583,8 +583,8 @@ export function Expenses() {
                   onClick={() => setTransactionsTab('expenses')}
                   className={`pb-2.5 px-4 border-b-2 transition-all ${
                     transactionsTab === 'expenses'
-                      ? 'border-red-500 text-red-655 dark:text-red-400'
-                      : 'border-transparent text-gray-500'
+                      ? 'border-red-500 text-red-600 dark:text-red-400 font-semibold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
                   }`}
                 >
                   Expense Entries ({reportsData.filteredExpenses.length})

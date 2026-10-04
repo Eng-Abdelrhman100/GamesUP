@@ -339,15 +339,15 @@ export function Settings() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <div className="flex gap-4 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'border-red-600 text-white'
-                  : 'border-transparent text-white hover:text-red-300'
+                  ? 'border-red-600 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               {tab.label}
