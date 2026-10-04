@@ -184,12 +184,11 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
               className="w-full h-full object-cover object-center"
             />
             {/* Visual Overlays matching the dark/light thematic design */}
-            <div className="absolute inset-0 bg-black/15 dark:bg-black/45 mix-blend-multiply"></div>
-            {/* Diagonal left-to-right gradient for text readability */}
-            <div className="absolute inset-y-0 left-0 w-full md:w-[70%] bg-gradient-to-r from-bg-primary via-bg-primary/95 dark:via-bg-primary/85 to-transparent z-1"></div>
-            {/* Bottom-to-top gradient */}
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-bg-primary via-bg-primary/80 dark:via-bg-primary/70 to-transparent z-1"></div>
-            <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-bg-primary/40 dark:to-bg-primary/90 z-1 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-black/10 dark:bg-black/35"></div>
+            {/* Subtle top gradient for navbar contrast */}
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-bg-primary/60 dark:from-black/70 to-transparent z-1 pointer-events-none"></div>
+            {/* Smooth bottom-to-top gradient rising from the bottom section */}
+            <div className="absolute inset-x-0 bottom-0 h-2/3 md:h-3/4 bg-gradient-to-t from-bg-primary via-bg-primary/80 dark:via-bg-primary/75 to-transparent z-1 pointer-events-none"></div>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -197,9 +196,28 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
       {/* Grid Pattern overlay for tech/tactical aesthetic */}
       <div className="absolute inset-0 grid-pattern opacity-[0.04] z-[2] pointer-events-none"></div>
 
-      {/* Hero Content Container */}
-      <div className="relative z-10 max-w-[1400px] w-full mx-auto px-6 md:px-12 flex-1 flex flex-col justify-center pt-24 pb-20 md:pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center h-full">
+      {/* Social Media Float Menu (Floating Left Side) */}
+      <div className="hidden md:flex flex-col gap-3 fixed md:absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 z-20 bg-[#0d0d11]/5 dark:bg-[#0d0d11]/80 backdrop-blur-md border border-black/5 dark:border-white/5 p-2 rounded-xl shadow-2xl">
+        {socialLinks.map((s, idx) => {
+          const Icon = s.icon;
+          return (
+            <a
+              key={idx}
+              href={s.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={s.label}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-brand-red/10 dark:hover:bg-brand-red/20 transition-all duration-200"
+            >
+              <Icon className="w-4 h-4" />
+            </a>
+          );
+        })}
+      </div>
+
+      {/* Hero Content Container - Aligned to bottom */}
+      <div className="relative z-10 max-w-[1400px] w-full mx-auto px-6 md:px-12 pl-6 md:pl-20 flex-1 flex flex-col justify-end pb-12 md:pb-16 pt-28">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end w-full">
           {/* Slide Description Panel */}
           <div className="lg:col-span-8 flex flex-col items-start text-left max-w-3xl">
             <AnimatePresence mode="wait">
@@ -232,18 +250,18 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                 )}
 
                 {/* Main Heading */}
-                <h2 className="text-5xl sm:text-7xl md:text-[90px] font-black tracking-tighter text-text-primary uppercase italic leading-[0.9] font-display drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                <h2 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter text-text-primary uppercase italic leading-[0.9] font-display drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
                   {currentSlide.title}
                 </h2>
 
                 {/* Subtitle / Description card */}
                 {currentSlide.subtitle && (
-                  <div className="bg-[#0f0f12]/5 dark:bg-[#0f0f12]/50 backdrop-blur-lg border border-black/5 dark:border-white/5 p-6 rounded-2xl max-w-xl text-left shadow-2xl relative overflow-hidden group">
+                  <div className="bg-[#0f0f12]/5 dark:bg-[#0f0f12]/50 backdrop-blur-lg border border-black/5 dark:border-white/5 p-4 md:p-5 rounded-2xl max-w-xl text-left shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-brand-red"></div>
-                    <h4 className="text-brand-red text-[10px] font-black tracking-[0.25em] uppercase mb-2 italic">
+                    <h4 className="text-brand-red text-[10px] font-black tracking-[0.25em] uppercase mb-1.5 italic">
                       ABOUT THE GAME
                     </h4>
-                    <p className="text-xs md:text-sm text-text-secondary leading-relaxed line-clamp-4 font-medium tracking-wide">
+                    <p className="text-xs md:text-sm text-text-secondary leading-relaxed line-clamp-3 font-medium tracking-wide">
                       {currentSlide.subtitle}
                     </p>
                   </div>
@@ -253,7 +271,7 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                 <div className="pt-2 flex flex-wrap gap-4 items-center">
                   <button
                     onClick={() => handleCtaClick(currentSlide)}
-                    className="relative group overflow-hidden bg-text-primary text-bg-primary font-black uppercase text-xs tracking-widest px-10 py-4.5 hover:text-white transition-all duration-300 transform skew-x-[-12deg] shadow-lg shadow-black/10 dark:shadow-black/40 border border-text-primary active:scale-95"
+                    className="relative group overflow-hidden bg-text-primary text-bg-primary font-black uppercase text-xs tracking-widest px-8 md:px-10 py-4 hover:text-white transition-all duration-300 transform skew-x-[-12deg] shadow-lg shadow-black/10 dark:shadow-black/40 border border-text-primary active:scale-95"
                   >
                     {/* Background hover slide */}
                     <div className="absolute inset-0 bg-brand-red transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left z-0"></div>
@@ -265,92 +283,71 @@ export const Hero = ({ games = [], onProductClick, onShopNow }: HeroProps) => {
                   {onShopNow && (
                     <button
                       onClick={onShopNow}
-                      className="group overflow-hidden border border-text-primary/20 text-text-primary font-black uppercase text-xs tracking-widest px-8 py-4.5 hover:bg-text-primary/5 transition-all duration-300 transform skew-x-[-12deg] active:scale-95"
+                      className="group overflow-hidden border border-text-primary/20 text-text-primary font-black uppercase text-xs tracking-widest px-7 md:px-8 py-4 hover:bg-text-primary/5 transition-all duration-300 transform skew-x-[-12deg] active:scale-95"
                     >
                       <span className="skew-x-[12deg]">BROWSE LIBRARY</span>
                     </button>
                   )}
                 </div>
+
+                {/* Carousel Slide Indicators */}
+                <div className="flex gap-2 pt-2 items-center">
+                  {slides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentIndex(idx)}
+                      aria-label={`Go to slide ${idx + 1}`}
+                      className={`h-1.5 transition-all duration-300 rounded-full ${
+                        currentIndex === idx ? 'w-8 bg-brand-red' : 'w-2 bg-text-primary/20 hover:bg-text-primary/40'
+                      }`}
+                    ></button>
+                  ))}
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
-        </div>
-      </div>
 
-      {/* Social Media Float Menu (Bottom Left Side) */}
-      <div className="absolute bottom-10 left-6 md:left-12 z-20 flex items-center gap-4">
-        <div className="hidden md:flex flex-col gap-3 bg-[#0d0d11]/5 dark:bg-[#0d0d11]/80 backdrop-blur-md border border-black/5 dark:border-white/5 p-2 rounded-xl shadow-2xl">
-          {socialLinks.map((s, idx) => {
-            const Icon = s.icon;
-            return (
-              <a
-                key={idx}
-                href={s.url}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={s.label}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-brand-red/10 dark:hover:bg-brand-red/20 transition-all duration-200"
-              >
-                <Icon className="w-4 h-4" />
-              </a>
-            );
-          })}
-        </div>
-        
-        {/* Carousel Slide Indicators */}
-        <div className="flex gap-2">
-          {slides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              aria-label={`Go to slide ${idx + 1}`}
-              className={`h-1.5 transition-all duration-300 rounded-full ${
-                currentIndex === idx ? 'w-8 bg-brand-red' : 'w-2 bg-text-primary/20 hover:bg-text-primary/40'
-              }`}
-            ></button>
-          ))}
-        </div>
-      </div>
-
-      {/* Up Next Card Slider Navigation (Bottom Right Side) */}
-      {slides.length > 1 && (
-        <div className="hidden lg:block absolute bottom-10 right-12 z-20">
-          <div className="text-right mb-2">
-            <span className="text-[10px] font-black tracking-[0.3em] text-text-primary/40 uppercase">UP NEXT</span>
-          </div>
-          <button
-            onClick={() => setCurrentIndex(nextIndex)}
-            className="group relative flex items-end w-80 h-44 rounded-2xl overflow-hidden border border-text-primary/10 shadow-2xl hover:border-brand-red/50 transition-all duration-500 hover:scale-[1.03]"
-          >
-            {/* Slide Thumbnail */}
-            <img
-              src={nextSlide.imageUrl}
-              alt={nextSlide.title}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-bg-primary/95 via-bg-primary/40 dark:from-black dark:via-black/40 to-transparent z-1"></div>
-
-            {/* Hover Play/Forward Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center z-2">
-              <div className="w-12 h-12 rounded-full bg-bg-primary/40 backdrop-blur-md flex items-center justify-center border border-text-primary/20 group-hover:bg-brand-red group-hover:scale-110 group-hover:border-transparent transition-all duration-300 shadow-xl">
-                <Play className="w-4 h-4 text-text-primary fill-current ml-0.5" />
+          {/* Up Next Card Slider Navigation (Bottom Right Side) */}
+          {slides.length > 1 && (
+            <div className="hidden lg:flex lg:col-span-4 flex-col items-end justify-end">
+              <div className="text-right mb-2">
+                <span className="text-[10px] font-black tracking-[0.3em] text-text-primary/40 uppercase">UP NEXT</span>
               </div>
-            </div>
+              <button
+                onClick={() => setCurrentIndex(nextIndex)}
+                className="group relative flex items-end w-72 h-40 xl:w-80 xl:h-44 rounded-2xl overflow-hidden border border-text-primary/10 shadow-2xl hover:border-brand-red/50 transition-all duration-500 hover:scale-[1.03]"
+              >
+                {/* Slide Thumbnail */}
+                <img
+                  src={nextSlide.imageUrl}
+                  alt={nextSlide.title}
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-bg-primary/95 via-bg-primary/40 dark:from-black dark:via-black/40 to-transparent z-1"></div>
 
-            {/* Slide Metadata */}
-            <div className="relative p-4 z-10 w-full text-left">
-              {nextSlide.badge && (
-                <span className="text-[9px] font-black text-brand-red tracking-widest uppercase italic block mb-1">
-                  {nextSlide.badge}
-                </span>
-              )}
-              <h4 className="text-sm font-bold text-text-primary uppercase truncate">
-                {nextSlide.title}
-              </h4>
+                {/* Hover Play/Forward Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center z-2">
+                  <div className="w-12 h-12 rounded-full bg-bg-primary/40 backdrop-blur-md flex items-center justify-center border border-text-primary/20 group-hover:bg-brand-red group-hover:scale-110 group-hover:border-transparent transition-all duration-300 shadow-xl">
+                    <Play className="w-4 h-4 text-text-primary fill-current ml-0.5" />
+                  </div>
+                </div>
+
+                {/* Slide Metadata */}
+                <div className="relative p-4 z-10 w-full text-left">
+                  {nextSlide.badge && (
+                    <span className="text-[9px] font-black text-brand-red tracking-widest uppercase italic block mb-1">
+                      {nextSlide.badge}
+                    </span>
+                  )}
+                  <h4 className="text-sm font-bold text-text-primary uppercase truncate">
+                    {nextSlide.title}
+                  </h4>
+                </div>
+              </button>
             </div>
-          </button>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 };
