@@ -592,13 +592,13 @@ export function Settings() {
       {/* Categories */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          <div className="p-8 bg-[#0f0f0f] border border-white/10 relative overflow-hidden rounded-[2rem]">
+          <div className="p-8 bg-white dark:bg-[#0f0f0f] border border-gray-200 dark:border-white/10 relative overflow-hidden rounded-[2rem] shadow-sm">
             <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none"></div>
             
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Home Categories</h3>
-                <p className="text-sm text-gray-400 mt-1 font-bold uppercase tracking-wider">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase italic">Home Categories</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-bold uppercase tracking-wider">
                   Configure the homepage deployment sectors and category cards
                 </p>
               </div>
@@ -616,7 +616,7 @@ export function Settings() {
                         ]
                       }));
                     }}
-                    className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/20 text-white rounded-xl text-sm font-bold transition-all"
+                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white rounded-xl text-sm font-bold transition-all"
                   >
                     Load Defaults
                   </button>
@@ -625,7 +625,7 @@ export function Settings() {
                   <select
                     value={selectedCategoryToAdd}
                     onChange={(e) => setSelectedCategoryToAdd(e.target.value)}
-                    className="px-4 py-2.5 bg-black border border-white/20 text-white rounded-xl text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
+                    className="px-4 py-2.5 bg-gray-50 dark:bg-black border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white rounded-xl text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
                   >
                     <option value="custom">-- Custom / Blank Category --</option>
                     {systemCategories.map((c: any) => (
@@ -687,18 +687,18 @@ export function Settings() {
             {settingsLoading && (
               <div className="flex items-center justify-center py-20">
                 <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="ml-3 text-gray-400 font-bold uppercase text-sm tracking-wider">Loading categories...</span>
+                <span className="ml-3 text-gray-500 dark:text-gray-400 font-bold uppercase text-sm tracking-wider">Loading categories...</span>
               </div>
             )}
 
             {/* Empty state */}
             {!settingsLoading && formData.homepage_categories.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                  <Gamepad className="w-8 h-8 text-gray-600" />
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center mb-4">
+                  <Gamepad className="w-8 h-8 text-gray-500 dark:text-gray-600" />
                 </div>
-                <p className="text-white font-black uppercase text-lg italic">No Categories Yet</p>
-                <p className="text-gray-500 text-sm mt-1 mb-6">Click "Load Defaults" to restore the 4 default categories, or "Add Category" to create a new one.</p>
+                <p className="text-gray-900 dark:text-white font-black uppercase text-lg italic">No Categories Yet</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 mb-6">Click "Load Defaults" to restore the 4 default categories, or "Add Category" to create a new one.</p>
               </div>
             )}
 
@@ -706,14 +706,14 @@ export function Settings() {
             {!settingsLoading && formData.homepage_categories.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {formData.homepage_categories.map((cat, idx) => (
-                  <div key={cat.id || idx} className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl flex flex-col gap-4">
+                  <div key={cat.id || idx} className="p-5 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-3xl flex flex-col gap-4">
                     
                     {/* Preview Image */}
-                    <div className="relative h-[140px] rounded-2xl overflow-hidden border border-white/10 group">
+                    <div className="relative h-[140px] rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 group">
                       <img
                         src={cat.image ?? ''}
                         alt={cat.title ?? 'Category'}
-                        className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                        className="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
@@ -746,7 +746,7 @@ export function Settings() {
                           {cat.title ?? ''}
                         </span>
                       </div>
-                      <span className="absolute top-3 right-3 text-[9px] font-black text-white/50 uppercase tracking-widest">
+                      <span className="absolute top-3 right-3 text-[9px] font-black text-white/70 uppercase tracking-widest">
                         {cat.count ?? ''}
                       </span>
                     </div>
@@ -754,7 +754,7 @@ export function Settings() {
                     {/* Fields */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Category Title</label>
+                        <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Category Title</label>
                         <input
                           type="text"
                           value={cat.title ?? ''}
@@ -768,11 +768,11 @@ export function Settings() {
                             }));
                           }}
                           placeholder="e.g. ACTION & ADVENTURE RPG"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                          className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Assets Count</label>
+                        <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Assets Count</label>
                         <input
                           type="text"
                           value={cat.count ?? ''}
@@ -786,13 +786,13 @@ export function Settings() {
                             }));
                           }}
                           placeholder="e.g. 24 ASSETS"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                          className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">System Category</label>
+                      <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">System Category</label>
                       <select
                         value={cat.system_category_slug ?? ''}
                         onChange={(e) => {
@@ -804,7 +804,7 @@ export function Settings() {
                             )
                           }));
                         }}
-                        className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
+                        className="w-full px-3 py-2 bg-white dark:bg-black border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
                       >
                         <option value="">Auto (based on title)</option>
                         {systemCategories.map((c: any) => (
@@ -816,7 +816,7 @@ export function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Description</label>
+                      <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Description</label>
                       <textarea
                         value={cat.desc ?? ''}
                         onChange={(e) => {
@@ -829,14 +829,14 @@ export function Settings() {
                           }));
                         }}
                         placeholder="Short tagline for this category..."
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors resize-none"
+                        className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors resize-none"
                         rows={2}
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Icon</label>
+                        <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Icon</label>
                         <select
                           value={cat.icon ?? 'Gamepad'}
                           onChange={(e) => {
@@ -848,7 +848,7 @@ export function Settings() {
                               )
                             }));
                           }}
-                          className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
+                          className="w-full px-3 py-2 bg-white dark:bg-black border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:border-red-500 transition-colors"
                         >
                           <option value="Swords">⚔️ Swords</option>
                           <option value="Zap">⚡ Zap</option>
@@ -861,7 +861,7 @@ export function Settings() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Upload Image</label>
+                        <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Upload Image</label>
                         <div className="relative">
                           <input
                             type="file"
@@ -886,7 +886,7 @@ export function Settings() {
                           />
                           <label
                             htmlFor={`cat-img-${cat.id || idx}`}
-                            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-white hover:bg-gray-100 dark:bg-white/5 dark:hover:bg-white/10 border border-gray-300 dark:border-white/10 text-gray-800 dark:text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
                           >
                             <Upload className="w-3.5 h-3.5" /> Choose Image
                           </label>
@@ -895,7 +895,7 @@ export function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Image URL</label>
+                      <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Image URL</label>
                       <input
                         type="text"
                         value={cat.image ?? ''}
@@ -909,12 +909,12 @@ export function Settings() {
                           }));
                         }}
                         placeholder="https://..."
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                        className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Redirect URL (Optional)</label>
+                      <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Redirect URL (Optional)</label>
                       <input
                         type="text"
                         value={cat.redirect_url ?? ''}
@@ -928,18 +928,18 @@ export function Settings() {
                           }));
                         }}
                         placeholder="e.g., /shop, /category/consoles, or a full https:// URL"
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                        className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                       />
                     </div>
 
                     {/* Remove */}
-                    <div className="flex justify-end pt-2 border-t border-white/5">
+                    <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-white/5">
                       <button
                         onClick={() => setFormData(prev => ({
                           ...prev,
                           homepage_categories: prev.homepage_categories.filter((_, i) => i !== idx)
                         }))}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900/40 text-red-400 hover:text-red-300 rounded-xl text-xs font-bold transition-all"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-900/40 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-xl text-xs font-bold transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Remove
                       </button>
@@ -955,13 +955,13 @@ export function Settings() {
       {/* Home Sections */}
       {activeTab === 'home-sections' && (
         <div className="space-y-6">
-          <div className="p-8 bg-[#0f0f0f] border border-white/10 relative overflow-hidden rounded-[2rem]">
+          <div className="p-8 bg-white dark:bg-[#0f0f0f] border border-gray-200 dark:border-white/10 relative overflow-hidden rounded-[2rem] shadow-sm">
             <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none"></div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Home Sections</h3>
-                <p className="text-sm text-gray-400 mt-1 font-bold uppercase tracking-wider">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase italic">Home Sections</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-bold uppercase tracking-wider">
                   Add homepage rows (title + selected games)
                 </p>
               </div>
@@ -984,42 +984,42 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl flex flex-col gap-4 mb-8">
+            <div className="p-5 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-3xl flex flex-col gap-4 mb-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-[11px] font-black text-white tracking-widest uppercase italic">Best Selling</h4>
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+                  <h4 className="text-[11px] font-black text-gray-900 dark:text-white tracking-widest uppercase italic">Best Selling</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">
                     Select products for the homepage best selling row
                   </p>
                 </div>
-                <div className="text-[10px] font-black text-white/50 uppercase tracking-widest">
+                <div className="text-[10px] font-black text-gray-500 dark:text-white/50 uppercase tracking-widest">
                   {formData.best_selling_product_ids.length} games
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Search Games</label>
+                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Search Games</label>
                   <input
                     type="text"
                     value={bestSellingSearch}
                     onChange={(e) => setBestSellingSearch(e.target.value)}
                     placeholder="Type to filter..."
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                    className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Selected</label>
-                  <div className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold">
+                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Selected</label>
+                  <div className="w-full px-3 py-2 bg-white dark:bg-black border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold">
                     {formData.best_selling_product_ids.length} games
                   </div>
                 </div>
               </div>
 
-              <div className="border border-white/10 rounded-2xl overflow-hidden">
+              <div className="border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-black/30">
                 <div className="max-h-64 overflow-auto">
                   {bestSellingFilteredProducts.length === 0 ? (
-                    <div className="p-4 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                    <div className="p-4 text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
                       No matching games
                     </div>
                   ) : (
@@ -1027,10 +1027,10 @@ export function Settings() {
                       const pid = String(p?.id ?? '');
                       const checked = (formData.best_selling_product_ids || []).includes(pid);
                       return (
-                        <label key={pid} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/5 hover:bg-white/[0.03] cursor-pointer">
+                        <label key={pid} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/[0.03] cursor-pointer">
                           <div className="min-w-0">
-                            <div className="text-white text-xs font-bold truncate">{p?.name || `#${pid}`}</div>
-                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">
+                            <div className="text-gray-900 dark:text-white text-xs font-bold truncate">{p?.name || `#${pid}`}</div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate">
                               {p?.category_slug ? String(p.category_slug) : 'UNCATEGORIZED'}
                             </div>
                           </div>
@@ -1056,11 +1056,11 @@ export function Settings() {
 
             {formData.homepage_sections.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                  <Gamepad className="w-8 h-8 text-gray-600" />
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center mb-4">
+                  <Gamepad className="w-8 h-8 text-gray-500 dark:text-gray-600" />
                 </div>
-                <p className="text-white font-black uppercase text-lg italic">No Sections Yet</p>
-                <p className="text-gray-500 text-sm mt-1 mb-6">Click “Add Section” to create a new homepage row.</p>
+                <p className="text-gray-900 dark:text-white font-black uppercase text-lg italic">No Sections Yet</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 mb-6">Click “Add Section” to create a new homepage row.</p>
               </div>
             )}
 
@@ -1078,18 +1078,18 @@ export function Settings() {
                   });
 
                   return (
-                    <div key={sec.id || idx} className="p-5 bg-white/[0.03] border border-white/10 rounded-3xl flex flex-col gap-4">
+                    <div key={sec.id || idx} className="p-5 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-3xl flex flex-col gap-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">SECTION</span>
-                          <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
+                          <span className="text-[10px] font-black text-gray-500 dark:text-white/50 uppercase tracking-widest">SECTION</span>
+                          <span className="text-[10px] font-black text-gray-500 dark:text-white/50 uppercase tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
                           
                           {/* Reorder Buttons */}
                           <div className="flex items-center gap-1 ml-2">
                             <button
                               onClick={() => moveSection(idx, 'up')}
                               disabled={idx === 0}
-                              className="p-1 text-gray-500 hover:text-white disabled:opacity-20 transition-colors"
+                              className="p-1 text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white disabled:opacity-20 transition-colors"
                               title="Move Up"
                             >
                               <ChevronUp className="w-3.5 h-3.5" />
@@ -1097,7 +1097,7 @@ export function Settings() {
                             <button
                               onClick={() => moveSection(idx, 'down')}
                               disabled={idx === formData.homepage_sections.length - 1}
-                              className="p-1 text-gray-500 hover:text-white disabled:opacity-20 transition-colors"
+                              className="p-1 text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white disabled:opacity-20 transition-colors"
                               title="Move Down"
                             >
                               <ChevronDown className="w-3.5 h-3.5" />
@@ -1111,14 +1111,14 @@ export function Settings() {
                               homepage_sections: prev.homepage_sections.filter((_, i) => i !== idx)
                             }));
                           }}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-900/40 text-red-400 hover:text-red-300 rounded-xl text-xs font-bold transition-all"
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-900/40 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-xl text-xs font-bold transition-all"
                         >
                           <Trash2 className="w-3.5 h-3.5" /> Remove
                         </button>
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Title</label>
+                        <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Title</label>
                         <input
                           type="text"
                           value={sec.title ?? ''}
@@ -1130,33 +1130,33 @@ export function Settings() {
                             }));
                           }}
                           placeholder="e.g. FEATURED DROPS"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                          className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Search Games</label>
+                          <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Search Games</label>
                           <input
                             type="text"
                             value={q}
                             onChange={(e) => setSectionSearch(prev => ({ ...prev, [sec.id]: e.target.value }))}
                             placeholder="Type to filter..."
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold placeholder-gray-700 focus:outline-none focus:border-red-500 transition-colors"
+                            className="w-full px-3 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Selected</label>
-                          <div className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-bold">
+                          <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-1.5">Selected</label>
+                          <div className="w-full px-3 py-2 bg-white dark:bg-black border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-bold">
                             {sec.productIds?.length || 0} games
                           </div>
                         </div>
                       </div>
 
-                      <div className="border border-white/10 rounded-2xl overflow-hidden">
+                      <div className="border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-black/30">
                         <div className="max-h-64 overflow-auto">
                           {filteredProducts.length === 0 ? (
-                            <div className="p-4 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                            <div className="p-4 text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
                               No matching games
                             </div>
                           ) : (
@@ -1164,10 +1164,10 @@ export function Settings() {
                               const pid = String(p?.id ?? '');
                               const checked = (sec.productIds || []).includes(pid);
                               return (
-                                <label key={pid} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/5 hover:bg-white/[0.03] cursor-pointer">
+                                <label key={pid} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/[0.03] cursor-pointer">
                                   <div className="min-w-0">
-                                    <div className="text-white text-xs font-bold truncate">{p?.name || `#${pid}`}</div>
-                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">
+                                    <div className="text-gray-900 dark:text-white text-xs font-bold truncate">{p?.name || `#${pid}`}</div>
+                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate">
                                       {p?.category_slug ? String(p.category_slug) : 'UNCATEGORIZED'}
                                     </div>
                                   </div>
