@@ -9,11 +9,20 @@ export const authRoutes = Router();
 authRoutes.post('/auth/register', async (req, res) => {
   try {
     const { email, password, name, phone } = req.body || {};
-    const user = await register({ email, password, name, role: 'customer', phone });
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ success: false, error: 'Full name is required' });
+    }
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    }
+
+    const cleanPhone = String(phone).trim();
+    const cleanName = String(name).trim();
+    const user = await register({ email, password, name: cleanName, role: 'customer', phone: cleanPhone });
 
     await pool.query(
       'INSERT INTO customers (name, email, phone) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), phone = VALUES(phone)',
-      [user.user_metadata?.name || 'Customer', user.email, phone || null]
+      [user.user_metadata?.name || cleanName, user.email, cleanPhone]
     );
 
     return res.json({ user });
@@ -66,6 +75,18 @@ authRoutes.put('/auth/profile', requireAuth, async (req, res) => {
       permissions,
     } = req.body || {};
 
+    if (req.user.role === 'customer') {
+      if (name !== undefined && (!name || !String(name).trim())) {
+        return res.status(400).json({ success: false, error: 'Full name is required' });
+      }
+      if (phone !== undefined && (!phone || !String(phone).trim())) {
+        return res.status(400).json({ success: false, error: 'Phone number is required' });
+      }
+    }
+
+    const cleanName = name !== undefined ? (name ? String(name).trim() : null) : undefined;
+    const cleanPhone = phone !== undefined ? (phone ? String(phone).trim() : null) : undefined;
+
     const permissionsJson = permissions === undefined ? undefined : JSON.stringify(permissions);
 
     await pool.query(
@@ -80,8 +101,8 @@ authRoutes.put('/auth/profile', requireAuth, async (req, res) => {
            permissions = COALESCE(?, permissions)
        WHERE id = ?`,
       [
-        name ?? null,
-        phone ?? null,
+        cleanName ?? null,
+        cleanPhone ?? null,
         address ?? null,
         city ?? null,
         state ?? null,
@@ -95,7 +116,7 @@ authRoutes.put('/auth/profile', requireAuth, async (req, res) => {
     if (req.user.role === 'customer') {
       await pool.query(
         'INSERT INTO customers (name, email, phone) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), phone = VALUES(phone)',
-        [name || req.user.name || 'Customer', req.user.email, phone || null]
+        [cleanName || req.user.name || 'Customer', req.user.email, cleanPhone || null]
       );
     }
 

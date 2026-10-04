@@ -545,6 +545,7 @@ export function Orders() {
       amount: '',
       customerName: '',
       customerEmail: '',
+      phone: '',
       date: new Date().toISOString().split('T')[0],
       status: 'pending',
       paymentMethod: 'cash',
@@ -574,6 +575,10 @@ export function Orders() {
         alert('Customer email is required.');
         return;
       }
+      if (!manualOrder.phone?.trim()) {
+        alert('Customer phone number is required.');
+        return;
+      }
       if (!productName) {
         alert('Product name is required.');
         return;
@@ -591,6 +596,7 @@ export function Orders() {
         order_number: orderNumber,
         customer_name: manualOrder.customerName.trim(),
         customer_email: manualOrder.customerEmail.trim(),
+        phone: manualOrder.phone.trim(),
         product_name: productName,
         date: manualOrder.date,
         status: manualOrder.status,
@@ -934,20 +940,31 @@ export function Orders() {
               </div>
 
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)] space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Name *</label>
                     <input
                       value={manualOrder.customerName}
                       onChange={(e) => setManualOrder({ ...manualOrder, customerName: e.target.value })}
+                      placeholder="e.g. John Doe"
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Email</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Email *</label>
                     <input
                       value={manualOrder.customerEmail}
                       onChange={(e) => setManualOrder({ ...manualOrder, customerEmail: e.target.value })}
+                      placeholder="e.g. john@example.com"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Phone *</label>
+                    <input
+                      value={manualOrder.phone}
+                      onChange={(e) => setManualOrder({ ...manualOrder, phone: e.target.value })}
+                      placeholder="e.g. 01012345678"
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>

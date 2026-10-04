@@ -102,7 +102,7 @@ export const api = {
 };
 
 export const authAPI = {
-  signup: async (email: string, password: string, name: string, phone?: string) => {
+  signup: async (email: string, password: string, name: string, phone: string) => {
     return requestJson<{ user: any }>(`/auth/register`, { method: 'POST', body: { email, password, name, phone }, auth: 'none' });
   },
   login: async (email: string, password: string) => {

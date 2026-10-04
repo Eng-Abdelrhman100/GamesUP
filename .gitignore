@@ -18,3 +18,4 @@ server/.env.local
 gamesup_deploy_key
 gamesup_deploy_key.pub
 server/uploads/
+opencode.json

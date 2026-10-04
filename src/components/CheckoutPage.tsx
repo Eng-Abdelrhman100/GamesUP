@@ -131,6 +131,12 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
       return;
     }
 
+    const cleanDigits = customerPhone.trim().replace(/[\s\-\(\)\+]/g, '');
+    if (cleanDigits.length < 6 || !/^\+?[0-9\s\-\(\)]+$/.test(customerPhone.trim())) {
+      setErrorMsg('Please enter a valid phone number (at least 6 digits).');
+      return;
+    }
+
     if (paymentMethod !== 'CARD' && !paymentProof) {
       setErrorMsg('Please upload a screenshot of your transaction proof.');
       return;
@@ -144,10 +150,17 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
       const hasSession = localStorage.getItem('customerSession');
       if (hasSession) {
         try {
-          await authAPI.updateProfile({
+          const profileRes = await authAPI.updateProfile({
             name: customerName.trim(),
             phone: customerPhone.trim(),
           });
+          if (profileRes?.user) {
+            try {
+              const currentSession = JSON.parse(hasSession);
+              currentSession.user = profileRes.user;
+              localStorage.setItem('customerSession', JSON.stringify(currentSession));
+            } catch (storageErr) {}
+          }
         } catch (profileErr) {
           console.error('Failed to auto-save customer profile during checkout:', profileErr);
         }
@@ -321,32 +334,41 @@ export const CheckoutPage = ({ cart, onBack, onConfirm }: CheckoutPageProps) => 
             <div className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10 space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Operator Alias (Full Name)</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                    Operator Alias (Full Name) <span className="text-brand-red">*</span>
+                  </label>
                   <input 
                     type="text" 
                     placeholder="GHOST_OPERATOR (e.g., John Doe)" 
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
+                    required
                     className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all" 
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Contact Link (Email Address)</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                    Contact Link (Email Address) <span className="text-brand-red">*</span>
+                  </label>
                   <input 
                     type="email" 
                     placeholder="INTEL@SAMURAI.HQ (e.g., john.doe@example.com)" 
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
+                    required
                     className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all" 
                   />
                 </div>
                 <div className="space-y-3 md:col-span-2">
-                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Comms Frequency (Phone Number)</label>
+                  <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                    Comms Frequency (Phone Number) <span className="text-brand-red">*</span>
+                  </label>
                   <input 
                     type="tel" 
                     placeholder="e.g., 01012345678" 
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
+                    required
                     className="w-full bg-bg-dark border border-border-subtle rounded-2xl px-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all" 
                   />
                 </div>

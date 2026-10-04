@@ -10,6 +10,7 @@ customersRoutes.get('/customers', requirePermission('customers', 'read'), async 
       `SELECT
          LOWER(customer_email) AS email,
          MAX(customer_name) AS name_from_orders,
+         MAX(phone) AS phone_from_orders,
          COUNT(*) AS orders_count,
          SUM(COALESCE(amount, 0)) AS total_spent,
          MIN(created_at) AS first_order_date,
@@ -39,7 +40,7 @@ customersRoutes.get('/customers', requirePermission('customers', 'read'), async 
         id: email,
         name: (override?.name || row.name_from_orders || 'Unknown'),
         email,
-        phone: override?.phone || '',
+        phone: override?.phone || row.phone_from_orders || '',
         location: 'Unknown',
         joinDate,
         orders: ordersCount,

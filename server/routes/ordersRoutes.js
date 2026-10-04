@@ -78,6 +78,17 @@ ordersRoutes.get('/orders', requirePermission('orders', 'read'), async (req, res
 ordersRoutes.post('/orders', async (req, res) => {
   try {
     const o = req.body || {};
+    if (!o.customer_name || !String(o.customer_name).trim()) {
+      return res.status(400).json({ success: false, error: 'Customer name is required' });
+    }
+    if (!o.phone || !String(o.phone).trim()) {
+      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    }
+
+    const cleanName = String(o.customer_name).trim();
+    const cleanPhone = String(o.phone).trim();
+    const cleanEmail = o.customer_email ? String(o.customer_email).trim().toLowerCase() : null;
+
     const [result] = await pool.query(
       `INSERT INTO orders
        (order_number, customer_name, customer_email, phone, product_name, date, status, amount,
@@ -86,9 +97,9 @@ ordersRoutes.post('/orders', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         o.order_number,
-        o.customer_name,
-        o.customer_email || null,
-        o.phone || null,
+        cleanName,
+        cleanEmail,
+        cleanPhone,
         o.product_name || null,
         o.date || null,
         o.status || null,
@@ -106,6 +117,27 @@ ordersRoutes.post('/orders', async (req, res) => {
     );
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
     let orderObj = normalizeOrderRow(rows[0]);
+
+    // Synchronize phone number to customers and users accounts
+    if (cleanEmail && cleanPhone) {
+      try {
+        await pool.query(
+          `INSERT INTO customers (name, email, phone)
+           VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             name = COALESCE(VALUES(name), name),
+             phone = VALUES(phone)`,
+          [cleanName, cleanEmail, cleanPhone]
+        );
+
+        await pool.query(
+          `UPDATE users SET phone = ? WHERE LOWER(email) = ? AND (phone IS NULL OR phone = '')`,
+          [cleanPhone, cleanEmail]
+        );
+      } catch (syncErr) {
+        console.error('Failed to sync customer/user phone from order:', syncErr);
+      }
+    }
 
     // Auto-allocate immediately for digital products
     try {

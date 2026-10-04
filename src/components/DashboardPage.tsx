@@ -105,8 +105,18 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name || !phone) {
-      setErrorMsg('Please fill in all fields.');
+    const trimmedEmail = email.trim();
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedEmail || !password || !trimmedName || !trimmedPhone) {
+      setErrorMsg('Please fill in all fields (Full Name, Email, Phone Number, Password).');
+      return;
+    }
+
+    const cleanDigits = trimmedPhone.replace(/[\s\-\(\)\+]/g, '');
+    if (cleanDigits.length < 6 || !/^\+?[0-9\s\-\(\)]+$/.test(trimmedPhone)) {
+      setErrorMsg('Please enter a valid phone number (at least 6 digits).');
       return;
     }
 
@@ -114,10 +124,10 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
     setErrorMsg('');
     try {
       // Register new user
-      await authAPI.signup(email, password, name, phone);
+      await authAPI.signup(trimmedEmail, password, trimmedName, trimmedPhone);
       
       // Auto login after signup
-      const res = await authAPI.login(email, password);
+      const res = await authAPI.login(trimmedEmail, password);
       if (res && res.session) {
         localStorage.setItem('customerSession', JSON.stringify(res.session));
         setUser(res.user);
@@ -151,8 +161,22 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profileName.trim()) {
+    const trimmedName = profileName.trim();
+    const trimmedPhone = profilePhone.trim();
+
+    if (!trimmedName) {
       setErrorMsg('Name is required.');
+      return;
+    }
+
+    if (!trimmedPhone) {
+      setErrorMsg('Phone number is required.');
+      return;
+    }
+
+    const cleanDigits = trimmedPhone.replace(/[\s\-\(\)\+]/g, '');
+    if (cleanDigits.length < 6 || !/^\+?[0-9\s\-\(\)]+$/.test(trimmedPhone)) {
+      setErrorMsg('Please enter a valid phone number (at least 6 digits).');
       return;
     }
 
@@ -161,13 +185,24 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
     setSuccessMsg('');
     try {
       const res = await authAPI.updateProfile({
-        name: profileName.trim(),
-        phone: profilePhone.trim()
+        name: trimmedName,
+        phone: trimmedPhone
       });
       if (res && res.user) {
         setUser(res.user);
         setProfileName(res.user.user_metadata?.name || '');
         setProfilePhone(res.user.user_metadata?.phone || '');
+
+        // Update local session
+        const storedSession = localStorage.getItem('customerSession');
+        if (storedSession) {
+          try {
+            const parsed = JSON.parse(storedSession);
+            parsed.user = res.user;
+            localStorage.setItem('customerSession', JSON.stringify(parsed));
+          } catch (storageErr) {}
+        }
+
         setSuccessMsg('Profile updated successfully.');
         setTimeout(() => setSuccessMsg(''), 3000);
       }
@@ -289,7 +324,9 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                 /* Signup Form */
                 <form onSubmit={handleSignup} className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Full Name</label>
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                      Full Name <span className="text-brand-red">*</span>
+                    </label>
                     <div className="relative">
                       <User className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                       <input
@@ -304,7 +341,9 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Email Address</label>
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                      Email Address <span className="text-brand-red">*</span>
+                    </label>
                     <div className="relative">
                       <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                       <input
@@ -319,7 +358,9 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Comms Frequency (Phone Number)</label>
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                      Comms Frequency (Phone Number) <span className="text-brand-red">*</span>
+                    </label>
                     <div className="relative">
                       <Phone className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                       <input
@@ -334,7 +375,9 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Password</label>
+                    <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                      Password <span className="text-brand-red">*</span>
+                    </label>
                     <div className="relative">
                       <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                       <input
@@ -409,6 +452,21 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
 
             {/* Main Content */}
             <div className="lg:col-span-8 space-y-8 animate-fadeIn">
+              {/* Missing Phone Alert Banner */}
+              {(!user.user_metadata?.phone || !String(user.user_metadata.phone).trim()) && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-[2rem] p-6 flex items-center gap-4 text-amber-400">
+                  <div className="p-3 bg-amber-500/20 rounded-2xl flex-shrink-0">
+                    <Phone className="h-6 w-6 text-amber-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-300">Action Required: Phone Number Missing</h4>
+                    <p className="text-[10px] font-semibold text-amber-200/80 leading-relaxed mt-0.5">
+                      A phone number is mandatory for your account to complete checkout and receive instant game delivery intel. Please update your profile below.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Profile Details Form */}
               <div className="bg-bg-card border border-border-subtle rounded-[2.5rem] p-10">
                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-border-subtle/50">
@@ -419,7 +477,9 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                 <form onSubmit={handleProfileUpdate} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Full Name</label>
+                      <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                        Full Name <span className="text-brand-red">*</span>
+                      </label>
                       <div className="relative">
                         <User className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                         <input
@@ -434,7 +494,9 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">Phone Number</label>
+                      <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest italic px-2">
+                        Phone Number <span className="text-brand-red">*</span>
+                      </label>
                       <div className="relative">
                         <Phone className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                         <input
@@ -443,6 +505,7 @@ export const DashboardPage = ({ onBack, onViewChange }: DashboardPageProps) => {
                           value={profilePhone}
                           onChange={(e) => setProfilePhone(e.target.value)}
                           className="w-full bg-bg-dark border border-border-subtle rounded-2xl pl-14 pr-6 py-4 text-xs font-bold focus:outline-none focus:border-brand-red transition-all"
+                          required
                         />
                       </div>
                     </div>

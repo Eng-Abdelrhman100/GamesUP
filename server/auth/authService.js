@@ -60,6 +60,15 @@ export async function register({ email, password, name, role = 'customer', phone
     throw err;
   }
 
+  const normalizedRole = normalizeRole(role) || String(role || 'customer').trim().toLowerCase();
+  const trimmedPhone = phone ? String(phone).trim() : null;
+
+  if (normalizedRole === 'customer' && !trimmedPhone) {
+    const err = new Error('Phone number is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const normalizedEmail = String(email).trim().toLowerCase();
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -70,11 +79,9 @@ export async function register({ email, password, name, role = 'customer', phone
     throw err;
   }
 
-  const normalizedRole = normalizeRole(role) || String(role || 'customer').trim().toLowerCase();
-
   const [result] = await pool.query(
     'INSERT INTO users (email, password_hash, name, role, phone) VALUES (?, ?, ?, ?, ?)',
-    [normalizedEmail, passwordHash, name || null, normalizedRole, phone]
+    [normalizedEmail, passwordHash, name || null, normalizedRole, trimmedPhone]
   );
 
   const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [result.insertId]);
