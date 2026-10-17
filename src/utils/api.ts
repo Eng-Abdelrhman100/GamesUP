@@ -173,6 +173,9 @@ export const ordersAPI = {
   update: async (id: string | number, order: any) => {
     return requestJson<any>(`/orders/${id}`, { method: 'PUT', body: order, auth: 'admin' });
   },
+  validate: async (order: any) => {
+    return requestJson<{ success: boolean; expectedTotal?: number; errors?: string[] }>(`/orders/validate`, { method: 'POST', body: order, auth: 'none' });
+  },
   create: async (order: any) => {
      return requestJson<any>(`/orders`, { method: 'POST', body: order, auth: 'none' });
   },
@@ -185,6 +188,26 @@ export const ordersAPI = {
 export const customersAPI = {
   getAll: async () => {
     return requestJson<{ customers: any[] }>(`/customers`, { auth: 'admin' });
+  },
+  getOrders: async (email: string) => {
+    return requestJson<{ orders: any[] }>(`/customers/${encodeURIComponent(email)}/orders`, { auth: 'admin' });
+  },
+  exportCsv: async () => {
+    const token = getAccessToken('admin');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${getApiBase()}/api/customers/export`, { headers });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `customers_export_${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return true;
   },
   update: async (id: string | number, customer: any) => {
     return requestJson<any>(`/customers/${id}`, { method: 'PUT', body: customer, auth: 'admin' });
@@ -604,6 +627,27 @@ export const gameRequestsAPI = {
   },
   update: async (id: string | number, payload: any) => {
     return requestJson<any>(`/admin/game-requests/${id}`, { method: 'PUT', body: payload, auth: 'any' });
+  },
+};
+
+// Service booking API — repair / install slots (days + times configured in Settings)
+export const bookingAPI = {
+  getAvailability: async (days = 28) => {
+    return requestJson<{ success: boolean; enabled: boolean; days: any[]; taken: Record<string, string[]> }>(`/booking-availability?days=${days}`, { auth: 'none' });
+  },
+  create: async (payload: any) => {
+    return requestJson<any>(`/bookings`, { method: 'POST', body: payload, auth: 'none' });
+  },
+  getAll: async (status?: string) => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return requestJson<{ bookings: any[] }>(`/bookings${qs}`, { auth: 'admin' });
+  },
+  update: async (id: string | number, payload: any) => {
+    return requestJson<any>(`/bookings/${id}`, { method: 'PUT', body: payload, auth: 'admin' });
+  },
+  delete: async (id: string | number) => {
+    await requestJson(`/bookings/${id}`, { method: 'DELETE', auth: 'admin' });
+    return true;
   },
 };
 

@@ -18,6 +18,7 @@ import { FavoritesPage } from './components/FavoritesPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { RequestGamePage } from './components/RequestGamePage';
+import { BookingPage } from './components/BookingPage';
 import { DashboardPage } from './components/DashboardPage';
 import { CheckoutPage } from './components/CheckoutPage';
 import { OrderConfirmationPage } from './components/OrderConfirmationPage';
@@ -30,6 +31,8 @@ import { Footer } from './components/Footer';
 import { Game, CartItem, AccountType, AppView } from './types';
 import { GAMES_DATA } from './constants';
 import { categoriesAPI, productsAPI, normalizeImageSrc } from './utils/api';
+import { getAvailability, filterSellableGames, isPhysicalProduct } from './utils/availability';
+import { ShopByPlatform, GtaCollectionSection, PsPlusSection, GiftCardsSection, RequestGameCTA, WhyGamesUp } from './components/homepage/HomepageSections';
 import { useStoreSettings } from './context/StoreSettingsContext';
 import { Facebook, Instagram, MessageCircle, Twitter } from 'lucide-react';
 
@@ -74,8 +77,14 @@ export default function App() {
         );
 
         if (products && products.length > 0) {
-          const mappedGames: Game[] = products.map((p: any) => ({
+          const mappedGames: Game[] = products.map((p: any) => {
+            const attrs = (p.attributes && typeof p.attributes === 'object') ? p.attributes : {};
+            const upcoming = !!(p.is_upcoming || attrs.is_upcoming || attrs.isUpcoming
+              || String(attrs.availability || '').toLowerCase() === 'coming_soon'
+              || String(p.digital_game_type || '').toLowerCase() === 'upcoming'
+              || String(p.status || '').toLowerCase() === 'coming soon');
             // basePrice should show the lowest available attribute/variant price (excluding "Full Account")
+            return {
             id: String(p.id),
             title: p.name,
             image: normalizeImageSrc(p.image || ''),
@@ -125,10 +134,11 @@ export default function App() {
                   String(p.category_slug).replace(/[-_]/g, ' '))
               : 'Uncategorized',
             tags: [],
-            status: p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'),
+            status: upcoming ? 'COMING SOON' : (p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK')),
             description: p.description || '',
             instructions: p.instructions || '',
             attributes: p.attributes || {},
+            is_upcoming: upcoming || undefined,
             accountTypes: Array.isArray(p.product_variants) && p.product_variants.length > 0
               ? p.product_variants.map((v: any) => {
                   const parts = v.name.split(' - ');
@@ -155,8 +165,9 @@ export default function App() {
                 })
               : [
                   { group: 'General', tier: 'Standard', originalName: 'Standard', price: Number(p.price) || 0, originalPrice: Number(p.attributes?.originalPrice) || 0, save: '0%', status: p.stock > 0 ? 'IN STOCK' : (p.showOutOfStockBadge !== false ? 'OUT OF STOCK' : 'IN STOCK'), icon: '🥈', isAvailable: p.stock > 0 || p.showOutOfStockBadge === false }
-                ]
-          }));
+                ],
+            };
+          });
           setGames(mappedGames);
         }
       } catch (error) {
@@ -201,8 +212,33 @@ export default function App() {
   const bestSellingGames = useMemo(() => {
     if (!bestSellingIds.length) return [];
     const byId = new Map<string, Game>(games.map((g) => [String(g.id), g]));
-    return bestSellingIds.map((id) => byId.get(String(id))).filter(Boolean) as Game[];
+    // TASK 02: best sellers show only available, correctly priced products.
+    return bestSellingIds
+      .map((id) => byId.get(String(id)))
+      .filter(Boolean)
+      .filter((g) => getAvailability(g).isPurchasable) as Game[];
   }, [bestSellingIds, games]);
+
+  // ASK 01: customer-facing listings never include dead (OOS + zero-priced) products.
+  const sellableGames = useMemo(() => filterSellableGames(games), [games]);
+
+  const gtaGames = useMemo(
+    () => sellableGames.filter((g) => `${g.title} ${g.description} ${g.tags.join(' ')}`.toLowerCase().includes('gta')),
+    [sellableGames],
+  );
+
+  const psPlusGames = useMemo(
+    () => sellableGames.filter((g) =>
+      String(g.categorySlug || g.category || '').toLowerCase().includes('playstation-plus')
+      || String(g.categorySlug || g.category || '').toLowerCase().includes('playstation plus')),
+    [sellableGames],
+  );
+
+  const giftCardGames = useMemo(
+    () => sellableGames.filter((g) =>
+      String(g.categorySlug || g.category || '').toLowerCase().includes('gift')),
+    [sellableGames],
+  );
 
   const collectionGames = useMemo(() => {
     const ids = collection?.productIds;
@@ -304,6 +340,14 @@ export default function App() {
       setSelectedGame(null);
       setCollection(null);
       setView('request');
+      window.scrollTo(0, 0);
+      return true;
+    }
+
+    if (path === '/booking' || path.startsWith('/booking')) {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('booking');
       window.scrollTo(0, 0);
       return true;
     }
@@ -439,6 +483,14 @@ export default function App() {
       setCollection(null);
       setView('request');
       window.history.pushState({}, '', '/request-game');
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (nextView === 'booking') {
+      setSelectedGame(null);
+      setCollection(null);
+      setView('booking');
+      window.history.pushState({}, '', '/booking');
       window.scrollTo(0, 0);
       return;
     }
@@ -580,6 +632,11 @@ export default function App() {
   };
 
   const addToCart = (game: Game, accountType: AccountType) => {
+    // ASK 01: never allow unavailable or zero-priced products into the cart,
+    // even through direct product URLs.
+    const availability = getAvailability(game);
+    if (!availability.isPurchasable) return;
+    if (!(Number(accountType?.price) > 0) || accountType?.isAvailable === false) return;
     const newItem: CartItem = {
       cartId: `${game.id}-${accountType.tier}-${Date.now()}`,
       gameId: game.id,
@@ -588,6 +645,7 @@ export default function App() {
       tier: accountType.tier,
       price: accountType.price,
       quantity: 1,
+      isPhysical: isPhysicalProduct(game),
     };
     setCartItems(prev => [...prev, newItem]);
     setIsCartOpen(true);
@@ -623,15 +681,26 @@ export default function App() {
       case 'home':
         return (
           <>
-            <Hero 
-              games={games} 
-              onProductClick={handleProductClick} 
-              onShopNow={handleShopNow} 
+            {/* 01 — Hero banner (GTA VI pre-orders subject to availability) */}
+            <Hero
+              games={sellableGames}
+              onProductClick={handleProductClick}
+              onShopNow={handleShopNow}
             />
-            <Stats />
+            {/* 02 — Shop by Platform: PS5 · PS4 · Xbox · PC */}
+            <ShopByPlatform
+              onSelect={(platform) => {
+                setShopCategory('ALL');
+                setView('shop');
+                setCollection(null);
+                window.history.pushState({}, '', `/shop?platform=${encodeURIComponent(platform)}`);
+                window.scrollTo(0, 0);
+              }}
+            />
+            {/* 03 — Best Sellers (available, correctly priced only) */}
             {bestSellingGames.length > 0 && (
               <CategoryRow
-                title="BEST SELLING"
+                title="BEST SELLERS"
                 games={bestSellingGames}
                 onProductClick={handleProductClick}
                 onSeeAll={openBestSellers}
@@ -639,8 +708,33 @@ export default function App() {
                 onToggleFavorite={toggleFavorite}
               />
             )}
+            {/* 04 — GTA VI dedicated collection / pre-order landing */}
+            <GtaCollectionSection
+              games={gtaGames}
+              onProductClick={handleProductClick}
+              onSeeAll={() => openCollection('GTA VI', gtaGames.map((g) => String(g.id)))}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+            />
+            {/* 05 — PlayStation Plus plans and durations */}
+            <PsPlusSection
+              games={psPlusGames}
+              onProductClick={handleProductClick}
+              onSeeAll={handleSeeAll}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+            />
+            {/* 06 — Gift Cards denominations and regions */}
+            <GiftCardsSection
+              games={giftCardGames}
+              onProductClick={handleProductClick}
+              onSeeAll={handleSeeAll}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+            />
+            <Stats />
             <Categories onCategoryClick={handleCategoryClick} />
-            
+
             {homepageSections.length > 0 ? (
               homepageSections.map((sec: any) => (
                 <CategoryRow
@@ -655,25 +749,25 @@ export default function App() {
               ))
             ) : (
               <>
-                <CategoryRow 
-                  title="ACTION MISSIONS" 
-                  games={games.filter(g => g.category?.toUpperCase() === 'ACTION')} 
+                <CategoryRow
+                  title="ACTION MISSIONS"
+                  games={sellableGames.filter(g => g.category?.toUpperCase() === 'ACTION')}
                   onProductClick={handleProductClick}
                   onSeeAll={handleSeeAll}
                   favorites={favorites}
                   onToggleFavorite={toggleFavorite}
                 />
-                <CategoryRow 
-                  title="SPORTS ARENA" 
-                  games={games.filter(g => g.category?.toUpperCase() === 'SPORTS')} 
+                <CategoryRow
+                  title="SPORTS ARENA"
+                  games={sellableGames.filter(g => g.category?.toUpperCase() === 'SPORTS')}
                   onProductClick={handleProductClick}
                   onSeeAll={handleSeeAll}
                   favorites={favorites}
                   onToggleFavorite={toggleFavorite}
                 />
-                <CategoryRow 
-                  title="RPG FRONTIERS" 
-                  games={games.filter(g => g.category?.toUpperCase() === 'RPG')} 
+                <CategoryRow
+                  title="RPG FRONTIERS"
+                  games={sellableGames.filter(g => g.category?.toUpperCase() === 'RPG')}
                   onProductClick={handleProductClick}
                   onSeeAll={handleSeeAll}
                   favorites={favorites}
@@ -682,12 +776,24 @@ export default function App() {
               </>
             )}
 
-            <StoreSection 
-              games={games}
-              onProductClick={handleProductClick} 
+            <StoreSection
+              games={sellableGames}
+              onProductClick={handleProductClick}
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
             />
+            {/* 07 — Request Any Game */}
+            <RequestGameCTA
+              onRequest={() => {
+                setSelectedGame(null);
+                setCollection(null);
+                setView('request');
+                window.history.pushState({}, '', '/request-game');
+                window.scrollTo(0, 0);
+              }}
+            />
+            {/* 08 — Why Games Up? */}
+            <WhyGamesUp />
           </>
         );
       case 'shop':
@@ -758,6 +864,8 @@ export default function App() {
         return <ContactPage onBack={handleBackToHome} />;
       case 'request':
         return <RequestGamePage onBack={handleBackToHome} />;
+      case 'booking':
+        return <BookingPage onBack={handleBackToHome} />;
       case 'instructions_ps4':
         return <InstructionsPS4Page onBack={handleBackToHome} />;
       case 'instructions_ps5':

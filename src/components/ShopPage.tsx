@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Filter, Search, Grid, List as ListIcon, Star, ShoppingCart, SlidersHorizontal, X, ArrowLeft, Heart } from 'lucide-react';
 import { Game } from '../types';
+import { getAvailability } from '../utils/availability';
 
 interface ShopPageProps {
   games: Game[];
@@ -37,6 +38,14 @@ export const ShopPage = ({
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [tierFilter, setTierFilter] = useState<string>('ALL');
+  const [platformFilter, setPlatformFilter] = useState<string>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get('platform') || 'ALL').toUpperCase();
+    } catch {
+      return 'ALL';
+    }
+  });
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
 
@@ -102,6 +111,9 @@ export const ShopPage = ({
   const tiers = ['ALL', 'PLATINUM', 'GOLD', 'SILVER'];
 
   const filteredGames = games.filter(game => {
+    // ASK 01: dead listings (out of stock + zero price) never appear in shop listings.
+    const availability = getAvailability(game);
+    if (availability.isDeadListing) return false;
     const gameCategorySlug = String((game as any)?.categorySlug || '').trim().toUpperCase();
     const matchesCategory =
       activeCategory === 'ALL'
@@ -116,10 +128,18 @@ export const ShopPage = ({
     const matchesSearch = game.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || game.status === statusFilter;
     const matchesTier = tierFilter === 'ALL' || game.accountTypes.some(t => t.tier === tierFilter && t.isAvailable);
+    const platformHaystack = [
+      String((game.attributes as any)?.platform || ''),
+      String(game.category || ''),
+      String((game as any)?.categorySlug || ''),
+      String((game as any)?.subCategorySlug || ''),
+      (game.accountTypes || []).map((t: any) => `${t.group} ${t.tier}`).join(' '),
+    ].join(' ').toLowerCase();
+    const matchesPlatform = platformFilter === 'ALL' || platformHaystack.includes(platformFilter.toLowerCase());
     const matchesMinPrice = minPrice === '' || game.basePrice >= parseInt(minPrice);
     const matchesMaxPrice = maxPrice === '' || game.basePrice <= parseInt(maxPrice);
-    
-    return matchesCategory && matchesSubCategory && matchesSearch && matchesStatus && matchesTier && matchesMinPrice && matchesMaxPrice;
+
+    return matchesCategory && matchesSubCategory && matchesSearch && matchesStatus && matchesTier && matchesPlatform && matchesMinPrice && matchesMaxPrice;
   }).sort((a, b) => {
     if (priceSort === 'LOW') return a.basePrice - b.basePrice;
     if (priceSort === 'HIGH') return b.basePrice - a.basePrice;
@@ -226,6 +246,23 @@ export const ShopPage = ({
                 ))}
               </div>
             )}
+
+            {/* Shop by Platform: PS5 · PS4 · Xbox · PC */}
+            <div className="mt-4 flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
+              {['ALL', 'PS5', 'PS4', 'XBOX', 'PC'].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPlatformFilter(p)}
+                  className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.2em] italic whitespace-nowrap transition-all ${
+                    platformFilter === p
+                      ? 'bg-brand-red text-white shadow-lg shadow-brand-red/20'
+                      : 'bg-bg-card/40 border border-border-subtle text-text-secondary hover:border-brand-red/30'
+                  }`}
+                >
+                  {p === 'ALL' ? 'All Platforms' : p}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -326,7 +363,9 @@ export const ShopPage = ({
                     
                     {/* Badges */}
                     <div className="absolute top-6 left-6 flex flex-col gap-2">
-                       {game.status !== 'IN STOCK' && (
+                       {String(game.status).toUpperCase() === 'COMING SOON' ? (
+                         <span className="bg-amber-500 text-black text-[9px] font-black tracking-[0.2em] px-4 py-2 rounded-xl uppercase italic">Coming Soon</span>
+                       ) : game.status !== 'IN STOCK' && (
                          <span className="bg-brand-red/90 backdrop-blur-md text-white text-[9px] font-black tracking-[0.2em] px-4 py-2 rounded-xl uppercase italic border border-white/10">{game.status}</span>
                        )}
                        <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black tracking-[0.2em] px-4 py-2 rounded-xl uppercase italic border border-white/10">L.E {game.basePrice}</span>
@@ -369,7 +408,7 @@ export const ShopPage = ({
               <div className="col-span-full py-32 text-center text-text-secondary">
                 <X className="h-16 w-16 mx-auto mb-6 opacity-20" />
                 <p className="text-xl font-black uppercase tracking-[0.1em] italic">No Assets Matching This Protocol</p>
-                <button onClick={() => {setActiveCategory('ALL'); setSearchQuery(''); setMinPrice(''); setMaxPrice(''); setStatusFilter('ALL'); setTierFilter('ALL');}} className="mt-4 text-brand-red font-black uppercase tracking-widest hover:underline italic">Reset Filters</button>
+                <button onClick={() => {setActiveCategory('ALL'); setSearchQuery(''); setMinPrice(''); setMaxPrice(''); setStatusFilter('ALL'); setTierFilter('ALL'); setPlatformFilter('ALL');}} className="mt-4 text-brand-red font-black uppercase tracking-widest hover:underline italic">Reset Filters</button>
               </div>
             )}
           </AnimatePresence>

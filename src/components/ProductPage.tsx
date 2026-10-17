@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Star, ShoppingCart, ShieldCheck, Zap, Info, ChevronRight, Check, Heart, Box, CheckSquare, Square } from 'lucide-react';
 import { Game, AccountType } from '../types';
+import { getAvailability } from '../utils/availability';
+import { ProductInformation, ProductKindBadge } from './ProductDetails';
 
 interface ProductPageProps {
   game: Game;
@@ -34,6 +36,10 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  const availability = getAvailability(game);
+  const isComingSoon = availability.isUpcoming;
+  const canPurchase = availability.isPurchasable;
 
   const visibleAccountTypes = game.accountTypes.filter((opt) => {
     const t = String((opt as any)?.tier || '').toLowerCase();
@@ -106,10 +112,13 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
             
             <div className="absolute bottom-6 md:bottom-12 left-6 md:left-12 right-6 md:right-12">
               <div className="flex flex-wrap gap-2 md:gap-3 mb-4 md:mb-6">
-                 {game.status !== 'IN STOCK' && (
-                   <span className="bg-brand-red text-white text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase italic shadow-2xl shadow-brand-red/40">{game.status}</span>
-                 )}
-                 <span className="bg-white/10 backdrop-blur-xl text-white text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase border border-white/10 italic">Digital Authority Verified</span>
+                {isComingSoon ? (
+                  <span className="bg-amber-500 text-black text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase italic shadow-2xl">Coming Soon</span>
+                ) : game.status !== 'IN STOCK' && (
+                  <span className="bg-brand-red text-white text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase italic shadow-2xl shadow-brand-red/40">{game.status}</span>
+                )}
+                <ProductKindBadge game={game} />
+                <span className="bg-white/10 backdrop-blur-xl text-white text-[8px] md:text-[10px] font-black tracking-[0.2em] px-3 md:px-4 py-1 md:py-1.5 rounded-full uppercase border border-white/10 italic">Digital Authority Verified</span>
               </div>
               <h1 className="text-3xl md:text-6xl lg:text-7xl font-black tracking-[-0.05em] text-black dark:text-white uppercase font-display leading-[0.9] italic mb-6">
                 {game.title}
@@ -295,28 +304,49 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
               </div>
 
               {/* Actions */}
+              {!canPurchase && (
+                <div className="relative z-10 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-300 italic mb-1">
+                    {isComingSoon ? 'Coming Soon — not yet available for purchase' : 'Currently unavailable'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 font-bold mb-4">
+                    {isComingSoon
+                      ? 'This title will open for orders once availability and pricing are confirmed.'
+                      : 'This product has no purchasable inventory or valid pricing right now.'}
+                  </p>
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, '', `/request-game?title=${encodeURIComponent(game.title)}`);
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }}
+                    className="w-full py-4 rounded-2xl font-black tracking-widest text-xs uppercase italic bg-amber-500 text-black hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Request This Game
+                  </button>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
                 <button 
                   onClick={() => {
-                    if (activeOption) {
+                    if (activeOption && canPurchase) {
                        for(let i=0; i<quantity; i++) onAddToCart(game, activeOption);
                     }
                   }}
-                  className={`py-5 rounded-2xl font-black tracking-widest text-xs flex items-center justify-center gap-3 transition-all duration-300 uppercase italic border-2 ${(!activeOption || !agreedToTerms) ? 'opacity-40 cursor-not-allowed border-gray-300 dark:border-[#333] text-gray-500 bg-transparent' : 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.2)]'}`}
-                  disabled={!activeOption || !agreedToTerms}
+                  className={`py-5 rounded-2xl font-black tracking-widest text-xs flex items-center justify-center gap-3 transition-all duration-300 uppercase italic border-2 ${(!activeOption || !agreedToTerms || !canPurchase) ? 'opacity-40 cursor-not-allowed border-gray-300 dark:border-[#333] text-gray-500 bg-transparent' : 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.2)]'}`}
+                  disabled={!activeOption || !agreedToTerms || !canPurchase}
                 >
                   Add to Inventory
                   <ShoppingCart className="h-4 w-4" />
                 </button>
                 <button 
                   onClick={() => {
-                    if (activeOption) {
+                    if (activeOption && canPurchase) {
                        for(let i=0; i<quantity; i++) onAddToCart(game, activeOption);
                        // Add logic to go to checkout directly here
                     }
                   }}
-                  className={`py-5 rounded-2xl font-black tracking-widest text-xs flex items-center justify-center gap-3 transition-all duration-300 uppercase italic border-2 ${(!activeOption || !agreedToTerms) ? 'opacity-40 cursor-not-allowed border-gray-300 dark:border-[#333] text-gray-500 bg-transparent' : 'bg-brand-red text-white border-brand-red hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.3)]'}`}
-                  disabled={!activeOption || !agreedToTerms}
+                  className={`py-5 rounded-2xl font-black tracking-widest text-xs flex items-center justify-center gap-3 transition-all duration-300 uppercase italic border-2 ${(!activeOption || !agreedToTerms || !canPurchase) ? 'opacity-40 cursor-not-allowed border-gray-300 dark:border-[#333] text-gray-500 bg-transparent' : 'bg-brand-red text-white border-brand-red hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.3)]'}`}
+                  disabled={!activeOption || !agreedToTerms || !canPurchase}
                 >
                   Instant Buy 
                   <ChevronRight className="h-4 w-4" />
@@ -406,6 +436,9 @@ export const ProductPage = ({ game, onBack, onAddToCart, isFavorited, onToggleFa
             </div>
           </motion.div>
         )}
+
+        {/* TASK 03 — standardized product information template */}
+        <ProductInformation game={game} />
       </div>
     </div>
   );

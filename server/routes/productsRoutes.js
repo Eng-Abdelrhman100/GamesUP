@@ -74,6 +74,81 @@ function checkDuplicateDigitalItems(digitalItems) {
 }
 
 
+function isUpcomingProduct(product) {
+  if (!product) return false;
+  const attrs = product.attributes && typeof product.attributes === 'object' ? product.attributes : {};
+  if (attrs.is_upcoming === true || attrs.isUpcoming === true) return true;
+  if (String(attrs.is_upcoming || '').toLowerCase() === 'true') return true;
+  if (String(attrs.availability || '').toLowerCase() === 'coming_soon') return true;
+  if (String(product.digital_game_type || '').toLowerCase() === 'upcoming') return true;
+  if (String(product.status || '').toLowerCase() === 'coming soon') return true;
+  return false;
+}
+
+function getEffectivePrices(product) {
+  const prices = [];
+  const base = Number(product.price);
+  if (Number.isFinite(base) && base > 0) prices.push(base);
+  const variants = Array.isArray(product.product_variants) ? product.product_variants : [];
+  for (const v of variants) {
+    const n = Number(v?.price);
+    if (Number.isFinite(n) && n > 0) prices.push(n);
+  }
+  return prices;
+}
+
+function getMinPurchasablePrice(product) {
+  const variants = Array.isArray(product.product_variants) ? product.product_variants : [];
+  const inStockPrices = variants
+    .filter((v) => Number(v?.stock) > 0)
+    .map((v) => Number(v?.price))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (inStockPrices.length) return Math.min(...inStockPrices);
+  const anyPrices = variants
+    .map((v) => Number(v?.price))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (anyPrices.length) return Math.min(...anyPrices);
+  const base = Number(product.price);
+  return Number.isFinite(base) ? base : 0;
+}
+
+// A product is purchasable only when it has valid pricing (>0) AND purchasable inventory (>0).
+// Upcoming products are never directly purchasable — they surface as "Coming Soon".
+function isPurchasableProduct(product) {
+  if (!product) return false;
+  if (isUpcomingProduct(product)) return false;
+  const minPrice = getMinPurchasablePrice(product);
+  if (!(minPrice > 0)) return false;
+  const stock = Number(product.stock);
+  if (Number.isFinite(stock) && stock <= 0) {
+    // Allow variant-level stock to rescue the product (e.g. non-slot catalogs).
+    const variants = Array.isArray(product.product_variants) ? product.product_variants : [];
+    const variantStock = variants.some((v) => Number(v?.stock) > 0);
+    if (!variantStock) return false;
+  }
+  return true;
+}
+
+// Out-of-stock AND zero-priced products must never appear in active sales listings.
+function isDeadListing(product) {
+  if (!product) return true;
+  if (isUpcomingProduct(product)) return false;
+  const stock = Number(product.stock);
+  const outOfStock = !Number.isFinite(stock) || stock <= 0;
+  const minPrice = getMinPurchasablePrice(product);
+  return outOfStock && !(minPrice > 0);
+}
+
+function withAvailabilityFlags(product) {
+  if (!product) return product;
+  return {
+    ...product,
+    is_upcoming: isUpcomingProduct(product),
+    is_purchasable: isPurchasableProduct(product),
+    min_purchasable_price: getMinPurchasablePrice(product),
+  };
+}
+
 function normalizeProductRow(row) {
   return {
     ...row,
@@ -216,6 +291,9 @@ productsRoutes.get('/public/products', async (req, res) => {
     const withVariants = await attachVariants(products);
     const processedProducts = withVariants
       .map(processProductExpiration)
+      .map(withAvailabilityFlags)
+      // ASK 01: never surface out-of-stock + zero-priced products in sales listings.
+      .filter((p) => !isDeadListing(p))
       .filter((p) => {
         if (p.category_slug === 'playstation-plus' && p.stock <= 0) {
           return false;
@@ -239,7 +317,7 @@ productsRoutes.get('/public/products/:id', async (req, res) => {
       [id]
     );
     const withVariants = { ...product, product_variants: variants };
-    const processed = processProductExpiration(withVariants);
+    const processed = withAvailabilityFlags(processProductExpiration(withVariants));
     return res.json({ product: processed });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to fetch product' });

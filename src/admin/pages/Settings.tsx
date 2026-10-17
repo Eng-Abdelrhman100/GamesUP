@@ -105,6 +105,12 @@ export function Settings() {
     binance_enabled: false,
     paypal_details: '',
     paypal_enabled: false,
+    booking_enabled: true,
+    booking_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+      day,
+      enabled: true,
+      times: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+    })) as { day: string; enabled: boolean; times: string[] }[],
   });
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
 
@@ -191,6 +197,19 @@ export function Settings() {
         binance_enabled: settings.binance_enabled || false,
         paypal_details: settings.paypal_details || '',
         paypal_enabled: settings.paypal_enabled || false,
+        booking_enabled: (settings as any).booking_enabled == null ? true : !!(settings as any).booking_enabled,
+        booking_days: (Array.isArray((settings as any).booking_days) && (settings as any).booking_days.length > 0
+          ? (settings as any).booking_days
+          : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+              day,
+              enabled: true,
+              times: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+            }))
+        ).map((d: any) => ({
+          day: String(d?.day || ''),
+          enabled: d?.enabled !== false,
+          times: Array.isArray(d?.times) ? d.times.map((t: any) => String(t)) : [],
+        })),
       });
     }
   }, [settings]);
@@ -320,6 +339,7 @@ export function Settings() {
 
   const tabs = [
     { id: 'store', label: 'Store Info' },
+    { id: 'booking', label: 'Booking' },
     { id: 'categories', label: 'Home Categories' },
     { id: 'home-sections', label: 'Home Sections' },
     { id: 'payments', label: 'Payments' },
@@ -1612,6 +1632,114 @@ export function Settings() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Booking — repair / install slots */}
+      {activeTab === 'booking' && (
+        <div className="space-y-6">
+          <Card className="p-8">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Service Booking</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Let customers book a repair or game-installation slot. Days and times below drive the storefront picker.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, booking_enabled: !formData.booking_enabled })}
+                className={`relative inline-flex items-center h-7 w-14 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${
+                  formData.booking_enabled ? 'bg-red-600' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transform transition-transform duration-200 ease-in-out ${
+                    formData.booking_enabled ? 'translate-x-8' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              Status: {formData.booking_enabled ? 'Available' : 'Unavailable'}
+            </p>
+          </Card>
+
+          <Card className="p-8">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Weekly Schedule</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Enable days and set the bookable times for each day of the week.</p>
+            <div className="space-y-4">
+              {formData.booking_days.map((d, dayIdx) => (
+                <div key={d.day} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={d.enabled}
+                        onChange={(e) => setFormData((prev) => ({
+                          ...prev,
+                          booking_days: prev.booking_days.map((x, i) => (i === dayIdx ? { ...x, enabled: e.target.checked } : x)),
+                        }))}
+                        className="w-4 h-4 rounded text-red-600 focus:ring-red-500"
+                      />
+                      <span className="font-medium text-gray-900 dark:text-white w-24">{d.day}</span>
+                    </label>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{d.times.length} time(s)</span>
+                  </div>
+                  {d.enabled && (
+                    <div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {d.times.map((t, timeIdx) => (
+                          <span key={`${t}-${timeIdx}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-900 dark:text-white">
+                            {t}
+                            <button
+                              type="button"
+                              onClick={() => setFormData((prev) => ({
+                                ...prev,
+                                booking_days: prev.booking_days.map((x, i) => (i === dayIdx ? { ...x, times: x.times.filter((_, ti) => ti !== timeIdx) } : x)),
+                              }))}
+                              className="text-gray-400 hover:text-red-600 transition-colors"
+                              title="Remove time"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
+                        ))}
+                        {d.times.length === 0 && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 italic">No times yet — add at least one.</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="time"
+                          id={`booking-time-${dayIdx}`}
+                          className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const input = document.getElementById(`booking-time-${dayIdx}`) as HTMLInputElement | null;
+                            const value = input?.value?.trim();
+                            if (!value) return;
+                            setFormData((prev) => {
+                              const current = prev.booking_days[dayIdx]?.times || [];
+                              if (current.includes(value)) return prev;
+                              return {
+                                ...prev,
+                                booking_days: prev.booking_days.map((x, i) => (i === dayIdx ? { ...x, times: [...x.times, value].sort() } : x)),
+                              };
+                            });
+                            if (input) input.value = '';
+                          }}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors"
+                        >
+                          <Plus className="w-4 h-4" /> Add Time
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 

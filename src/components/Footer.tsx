@@ -81,6 +81,7 @@ export const Footer = ({ isDark, onViewChange }: FooterProps) => {
                 { label: 'The Catalog', action: () => onViewChange?.('shop') },
                 { label: 'Special Offers', action: () => onViewChange?.('shop') },
                 { label: 'Best Sellers', action: () => onViewChange?.('best_sellers') },
+                { label: 'Book Repair / Install', action: () => onViewChange?.('booking') },
                 { label: 'New Missions', action: () => onViewChange?.('shop') },
                 { label: 'About GamesUp', action: () => onViewChange?.('about') },
               ].map(l => (

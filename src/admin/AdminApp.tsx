@@ -28,13 +28,14 @@ import { EmailTemplates } from './pages/EmailTemplates';
 import { Expenses } from './pages/Expenses';
 import { SupportChats } from './pages/SupportChats';
 import { GameRequests } from './pages/GameRequests';
+import { Bookings } from './pages/Bookings';
 import { BalanceInventory } from './pages/BalanceInventory';
 import { AccountProfitability } from './pages/AccountProfitability';
 import { PsPlusInventory } from './pages/PsPlusInventory';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory' | 'account-profitability' | 'ps-plus-inventory';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'bookings' | 'balance-inventory' | 'account-profitability' | 'ps-plus-inventory';
 
 export default function AdminApp() {
   const navigate = useNavigate();
@@ -276,6 +277,7 @@ export default function AdminApp() {
               <Route path="customers" element={<ProtectedRoute id="customers"><Customers /></ProtectedRoute>} />
               <Route path="expenses" element={<ProtectedRoute id="expenses"><Expenses /></ProtectedRoute>} />
               <Route path="game-requests" element={<ProtectedRoute id="game-requests"><GameRequests /></ProtectedRoute>} />
+              <Route path="bookings" element={<ProtectedRoute id="bookings"><Bookings /></ProtectedRoute>} />
               <Route path="banners" element={<ProtectedRoute id="banners"><Banners /></ProtectedRoute>} />
               <Route path="hero-slider" element={<ProtectedRoute id="hero-slider"><HeroSliderBanners /></ProtectedRoute>} />
               <Route path="outlook" element={<ProtectedRoute id="outlook"><Outlook /></ProtectedRoute>} />

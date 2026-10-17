@@ -6,6 +6,7 @@ export type AppView =
   | 'about'
   | 'contact'
   | 'request'
+  | 'booking'
   | 'dashboard'
   | 'shop'
   | 'best_sellers'
@@ -16,7 +17,7 @@ export type AppView =
   | 'instructions_ps5'
   | 'search';
 
-export type GameStatus = 'IN STOCK' | 'OUT OF STOCK' | 'LIMITED' | 'NEW';
+export type GameStatus = 'IN STOCK' | 'OUT OF STOCK' | 'LIMITED' | 'NEW' | 'COMING SOON';
 
 export interface Game {
   id: string;
@@ -35,6 +36,9 @@ export interface Game {
   subSubCategorySlug?: string;
   accountTypes: AccountType[];
   attributes?: Record<string, any>;
+  is_upcoming?: boolean;
+  is_purchasable?: boolean;
+  min_purchasable_price?: number;
 }
 
 export interface AccountType {
@@ -57,4 +61,5 @@ export interface CartItem {
   tier: string;
   price: number;
   quantity: number;
+  isPhysical?: boolean;
 }

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties, Coins, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Users, CheckSquare, UserCog, Settings, LogOut, ChevronLeft, Shield, Mail, Image, Clock, CreditCard, Layers, Truck, Key, Database, Eye, Receipt, MessageSquare, SlidersHorizontal, Gamepad2, TableProperties, Coins, ShieldCheck, CalendarClock } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { Screen } from '../AdminApp';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
@@ -51,6 +51,7 @@ const menuItems: MenuItem[] = [
   { id: 'expenses' as Screen, label: 'Expenses', icon: Receipt },
   { id: 'customers' as Screen, label: 'Customers', icon: Users },
   { id: 'game-requests' as Screen, label: 'Requested Games', icon: Gamepad2 },
+  { id: 'bookings' as Screen, label: 'Service Bookings', icon: CalendarClock },
   { id: 'banners' as Screen, label: 'Banners', icon: Image },
   { id: 'hero-slider' as Screen, label: 'Hero Slider', icon: SlidersHorizontal },
   { id: 'balance-inventory' as Screen, label: 'Balance Inventory', icon: CreditCard },

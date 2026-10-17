@@ -70,6 +70,70 @@ const defaultAccountSlotAttributes = [
   { name: 'Offline PS5', type: 'text', display_order: 5 },
 ];
 
+async function ensureCustomerSchemaExists() {
+  const alters = [
+    `ALTER TABLE customers ADD COLUMN preferred_platform VARCHAR(64) NULL AFTER phone`,
+    `ALTER TABLE customers ADD COLUMN marketing_consent TINYINT(1) NOT NULL DEFAULT 0 AFTER preferred_platform`,
+    `ALTER TABLE customers ADD COLUMN avg_order_value DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER marketing_consent`,
+    `ALTER TABLE customers ADD COLUMN purchase_frequency DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER avg_order_value`,
+    `ALTER TABLE customers ADD COLUMN purchased_products JSON NULL AFTER purchase_frequency`,
+    `ALTER TABLE orders ADD COLUMN customer_id BIGINT UNSIGNED NULL AFTER id`,
+    `ALTER TABLE orders ADD COLUMN preferred_platform VARCHAR(64) NULL AFTER phone`,
+    `ALTER TABLE orders ADD COLUMN marketing_consent TINYINT(1) NOT NULL DEFAULT 0 AFTER preferred_platform`,
+  ];
+  for (const sql of alters) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
+}
+
+async function ensureServiceBookingsTableExists() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS service_bookings (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      service_type VARCHAR(16) NOT NULL DEFAULT 'repair',
+      booking_date DATE NOT NULL,
+      booking_time VARCHAR(16) NOT NULL,
+      day_of_week VARCHAR(16) NULL,
+      customer_name VARCHAR(191) NOT NULL,
+      customer_email VARCHAR(191) NULL,
+      phone VARCHAR(64) NOT NULL,
+      notes TEXT NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      KEY idx_booking_slot (booking_date, booking_time),
+      KEY idx_booking_date (booking_date),
+      KEY idx_booking_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+async function ensureBookingDefaultsSeeded() {
+  const [enabledRows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['booking_enabled']);
+  if (!enabledRows.length) {
+    // Booking is available by default.
+    await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['booking_enabled', 'true']);
+  }
+  const [daysRows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['booking_days']);
+  const existing = daysRows?.[0]?.setting_value;
+  if (!existing || String(existing).trim() === '' || String(existing).trim() === '[]') {
+    const defaults = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+      day,
+      enabled: true,
+      times: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+    }));
+    await pool.query(
+      'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+      ['booking_days', JSON.stringify(defaults)]
+    );
+  }
+}
+
 async function ensureGameRequestsTableExists() {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS game_requests (
@@ -450,7 +514,9 @@ async function bootstrap() {
 
   // Seed operations — each is optional, failures should not crash the server
   const seedSteps = [
-    { name: 'game_requests table', fn: ensureGameRequestsTableExists },
+    { name: 'service_bookings table', fn: ensureServiceBookingsTableExists },
+    { name: 'booking defaults', fn: ensureBookingDefaultsSeeded },
+    { name: 'customer database columns', fn: ensureCustomerSchemaExists },
     { name: 'sub_sub_categories table', fn: ensureSubSubCategoriesTableExists },
     { name: 'products sub_sub_category_slug column', fn: ensureProductSubSubCategorySlugColumnExists },
     { name: 'products digital_game_type column', fn: ensureDigitalGameTypeColumnExists },
