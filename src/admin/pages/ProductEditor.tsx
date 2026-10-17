@@ -801,6 +801,12 @@ export default function ProductEditor() {
   };
 
   const handleSave = async () => {
+    // TASK 03: flag missing mandatory information before publishing.
+    const issues = getPublishIssues();
+    if (issues.length) {
+      alert(`Cannot publish yet — missing required info:\n• ${issues.join('\n• ')}`);
+      return;
+    }
     try {
       setLoading(true);
       let di = formData.digitalItems;
@@ -896,6 +902,32 @@ export default function ProductEditor() {
       })
     }));
   };
+
+  // TASK 03: mandatory storefront information. Missing items block publishing.
+  const getPublishIssues = (): string[] => {
+    const issues: string[] = [];
+    const attrs = formData.attributes || {};
+    const str = (v: any) => String(v ?? '').trim();
+    if (!str(formData.name)) issues.push('Game / product name');
+    if (!str(formData.category)) issues.push('Category');
+    if (!str(attrs.platform)) issues.push('Platform');
+    if (!str(attrs.edition)) issues.push('Edition');
+    if (!str(attrs.region)) issues.push('Region');
+    if (!str(attrs.delivery_method)) issues.push('Delivery method');
+    if (!str(attrs.delivery_time)) issues.push('Estimated delivery time');
+    if (!str(attrs.whats_included)) issues.push("What's included");
+    if (!str(attrs.how_it_works)) issues.push('How it works');
+    const basePrice = parseFloat(formData.price) || 0;
+    const variantPrice = (customSlots || []).some((s: any) => (parseFloat(s.price) || 0) > 0);
+    if (!(basePrice > 0 || variantPrice)) issues.push('Valid pricing (base price or at least one variant price above 0)');
+    return issues;
+  };
+
+  const setAttr = (key: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, attributes: { ...(prev.attributes || {}), [key]: value } }));
+  };
+
+  const publishIssues = getPublishIssues();
 
   const onAddStockItem = (groupName: string, newItem: any) => {
     const target = customSlots.filter(s => (s.name.includes(' - ') ? s.name.split(' - ')[0] : 'General') === groupName);
@@ -1047,6 +1079,97 @@ export default function ProductEditor() {
                   })}
                   className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
                   placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-8 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl text-amber-600">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">Product Details (Storefront)</h3>
+                <p className="text-[10px] text-gray-400 font-bold">Required before publishing — shown on the product page.</p>
+              </div>
+            </div>
+            {publishIssues.length > 0 && (
+              <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                <div className="text-[11px] text-red-700 dark:text-red-300 font-bold">
+                  Missing before publish: {publishIssues.join(' · ')}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { key: 'edition', label: 'Edition', ph: 'Standard Edition / Deluxe / Ultimate' },
+                { key: 'delivery_method', label: 'Delivery Method', ph: 'Digital account delivery / Key by email / Physical shipping' },
+                { key: 'delivery_time', label: 'Estimated Delivery Time', ph: 'Usually within minutes after payment verification' },
+                { key: 'product_type', label: 'Product Type', ph: 'account / key / subscription / physical' },
+              ].map(({ key, label, ph }) => (
+                <div key={key}>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">{label}</label>
+                  <input
+                    type="text"
+                    value={formData.attributes?.[key] || ''}
+                    onChange={(e) => setAttr(key, e.target.value)}
+                    className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                    placeholder={ph}
+                  />
+                </div>
+              ))}
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">What&apos;s Included</label>
+                <textarea
+                  value={formData.attributes?.whats_included || ''}
+                  onChange={(e) => setAttr('whats_included', e.target.value)}
+                  rows={3}
+                  className="w-full px-5 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="List everything the customer receives..."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">How It Works (activation / redemption / delivery steps)</label>
+                <textarea
+                  value={formData.attributes?.how_it_works || ''}
+                  onChange={(e) => setAttr('how_it_works', e.target.value)}
+                  rows={3}
+                  className="w-full px-5 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="Step-by-step: checkout → verification → delivery → activation..."
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Region Restrictions</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.region_restrictions || ''}
+                  onChange={(e) => setAttr('region_restrictions', e.target.value)}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="e.g. Works on US accounts only"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 ml-1">Account-Sharing Limits</label>
+                <input
+                  type="text"
+                  value={formData.attributes?.account_sharing || ''}
+                  onChange={(e) => setAttr('account_sharing', e.target.value)}
+                  className="w-full px-5 py-3 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="e.g. Primary: 1 console · Secondary: shared access"
+                />
+              </div>
+              <div className="md:col-span-2 flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-gray-700 dark:text-gray-200">Coming Soon (approved upcoming product)</p>
+                  <p className="text-[10px] text-gray-400 font-bold">Shows a Coming Soon label and Request action; cannot be purchased.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={!!formData.attributes?.is_upcoming}
+                  onChange={(e) => setAttr('is_upcoming', e.target.checked ? 'true' : '')}
+                  className="w-5 h-5 rounded text-red-600"
                 />
               </div>
             </div>

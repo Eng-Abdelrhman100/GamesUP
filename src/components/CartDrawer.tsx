@@ -12,7 +12,7 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer = ({ isOpen, onClose, items, onRemove, onCheckout }: CartDrawerProps) => {
-  const total = items.reduce((sum, item) => sum + item.price, 0);
+  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleCheckout = () => {
     onCheckout();

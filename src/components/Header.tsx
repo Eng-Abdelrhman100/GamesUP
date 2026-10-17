@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ShoppingCart, Menu, X, Sun, Moon, Package, Heart, Info, Headset, Store, ShoppingBag, Gamepad2, User } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, Sun, Moon, Package, Heart, Info, Headset, Store, ShoppingBag, Gamepad2, User, CalendarClock } from 'lucide-react';
 import { AppView } from '../types';
+import { useStoreSettings } from '../context/StoreSettingsContext';
 
 interface HeaderProps {
   isDark: boolean;
@@ -30,6 +31,17 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
     { label: 'About Us', view: 'about', icon: Info },
     { label: 'Contact', view: 'contact', icon: Headset },
   ];
+
+  // Booking link is only shown while service booking is available.
+  let bookingEnabled = true;
+  try {
+    bookingEnabled = useStoreSettings().settings?.booking_enabled !== false;
+  } catch {
+    bookingEnabled = true;
+  }
+  const visibleLinks = bookingEnabled
+    ? [...navLinks.slice(0, 4), { label: 'Book Service', view: 'booking' as AppView, icon: CalendarClock }, ...navLinks.slice(4)]
+    : navLinks;
 
   const handleLinkClick = (view: AppView) => {
     onViewChange(view);
@@ -215,7 +227,7 @@ export const Header = ({ isDark, toggleTheme, cartCount, onCartClick, onLogoClic
 
               <div className="px-6 pb-6">
                 <div className="space-y-2">
-                  {navLinks.map((link) => (
+                  {visibleLinks.map((link) => (
                     <button
                       key={link.view}
                       onClick={() => handleLinkClick(link.view)}

@@ -70,6 +70,70 @@ const defaultAccountSlotAttributes = [
   { name: 'Offline PS5', type: 'text', display_order: 5 },
 ];
 
+async function ensureCustomerSchemaExists() {
+  const alters = [
+    `ALTER TABLE customers ADD COLUMN preferred_platform VARCHAR(64) NULL AFTER phone`,
+    `ALTER TABLE customers ADD COLUMN marketing_consent TINYINT(1) NOT NULL DEFAULT 0 AFTER preferred_platform`,
+    `ALTER TABLE customers ADD COLUMN avg_order_value DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER marketing_consent`,
+    `ALTER TABLE customers ADD COLUMN purchase_frequency DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER avg_order_value`,
+    `ALTER TABLE customers ADD COLUMN purchased_products JSON NULL AFTER purchase_frequency`,
+    `ALTER TABLE orders ADD COLUMN customer_id BIGINT UNSIGNED NULL AFTER id`,
+    `ALTER TABLE orders ADD COLUMN preferred_platform VARCHAR(64) NULL AFTER phone`,
+    `ALTER TABLE orders ADD COLUMN marketing_consent TINYINT(1) NOT NULL DEFAULT 0 AFTER preferred_platform`,
+  ];
+  for (const sql of alters) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
+}
+
+async function ensureServiceBookingsTableExists() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS service_bookings (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      service_type VARCHAR(16) NOT NULL DEFAULT 'repair',
+      booking_date DATE NOT NULL,
+      booking_time VARCHAR(16) NOT NULL,
+      day_of_week VARCHAR(16) NULL,
+      customer_name VARCHAR(191) NOT NULL,
+      customer_email VARCHAR(191) NULL,
+      phone VARCHAR(64) NOT NULL,
+      notes TEXT NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      KEY idx_booking_slot (booking_date, booking_time),
+      KEY idx_booking_date (booking_date),
+      KEY idx_booking_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+async function ensureBookingDefaultsSeeded() {
+  const [enabledRows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['booking_enabled']);
+  if (!enabledRows.length) {
+    // Booking is available by default.
+    await pool.query('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)', ['booking_enabled', 'true']);
+  }
+  const [daysRows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', ['booking_days']);
+  const existing = daysRows?.[0]?.setting_value;
+  if (!existing || String(existing).trim() === '' || String(existing).trim() === '[]') {
+    const defaults = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+      day,
+      enabled: true,
+      times: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+    }));
+    await pool.query(
+      'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+      ['booking_days', JSON.stringify(defaults)]
+    );
+  }
+}
+
 async function ensureGameRequestsTableExists() {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS game_requests (
@@ -145,6 +209,194 @@ async function ensureBalanceInventoryActivationCodesColumnExists() {
       throw err;
     }
   }
+}
+
+async function ensureAccountCostTables() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS account_costs (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      product_id BIGINT UNSIGNED NOT NULL,
+      digital_item_id CHAR(36) NOT NULL,
+      acquisition_type ENUM('purchased','created_from_balance','legacy','unknown') NOT NULL DEFAULT 'unknown',
+      acquisition_cost DECIMAL(10, 2) NULL,
+      source_balance_id BIGINT UNSIGNED NULL,
+      source_balance_email VARCHAR(191) NULL,
+      reference_note VARCHAR(191) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_account_cost_item (product_id, digital_item_id),
+      KEY idx_account_costs_product (product_id),
+      KEY idx_account_costs_type (acquisition_type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS account_sales (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      account_sale_id CHAR(36) NOT NULL,
+      product_id BIGINT UNSIGNED NOT NULL,
+      digital_item_id CHAR(36) NOT NULL,
+      slot_name VARCHAR(191) NOT NULL,
+      order_id BIGINT UNSIGNED NULL,
+      order_number VARCHAR(191) NULL,
+      buyer_name VARCHAR(191) NULL,
+      buyer_email VARCHAR(191) NULL,
+      sale_price DECIMAL(10, 2) NULL,
+      sale_date DATETIME(3) NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'active',
+      is_full_account TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_account_sale_ref (digital_item_id, slot_name, order_number),
+      KEY idx_account_sales_item (product_id, digital_item_id),
+      KEY idx_account_sales_order (order_id),
+      KEY idx_account_sales_created (sale_date, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS balance_usage (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      balance_id BIGINT UNSIGNED NOT NULL,
+      balance_email VARCHAR(191) NULL,
+      product_id BIGINT UNSIGNED NULL,
+      digital_item_id CHAR(36) NULL,
+      quantity INT NOT NULL DEFAULT 1,
+      amount_used DECIMAL(10, 2) NULL,
+      cost_per_account DECIMAL(10, 2) NULL,
+      created_by BIGINT UNSIGNED NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      KEY idx_balance_usage_balance (balance_id),
+      KEY idx_balance_usage_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+async function ensurePsPlusInventoryTables() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS ps_plus_accounts (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      email VARCHAR(191) NOT NULL,
+      password_encrypted TEXT NULL,
+      credential_ref VARCHAR(64) NULL,
+      status ENUM('AVAILABLE','RESERVED','SOLD','DISABLED','EXPIRED') NOT NULL DEFAULT 'AVAILABLE',
+      license_id BIGINT UNSIGNED NULL,
+      created_by BIGINT UNSIGNED NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_ps_plus_accounts_email (email),
+      KEY idx_ps_plus_accounts_status (status),
+      KEY idx_ps_plus_accounts_license (license_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS ps_plus_backup_codes (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      account_id BIGINT UNSIGNED NOT NULL,
+      code VARCHAR(191) NOT NULL,
+      status ENUM('AVAILABLE','USED','INVALID') NOT NULL DEFAULT 'AVAILABLE',
+      used_at DATETIME(3) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_ps_plus_backup_code (code),
+      KEY idx_ps_plus_backup_account (account_id),
+      CONSTRAINT fk_ps_plus_backup_account
+        FOREIGN KEY (account_id) REFERENCES ps_plus_accounts(id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS ps_plus_license_codes (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      license_code VARCHAR(191) NOT NULL,
+      status ENUM('AVAILABLE','ASSIGNED','USED') NOT NULL DEFAULT 'AVAILABLE',
+      account_id BIGINT UNSIGNED NULL,
+      assigned_at DATETIME(3) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_ps_plus_license_code (license_code),
+      KEY idx_ps_plus_license_account (account_id),
+      KEY idx_ps_plus_license_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS audit_log (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id BIGINT UNSIGNED NULL,
+      user_email VARCHAR(191) NULL,
+      action VARCHAR(64) NOT NULL,
+      entity_type VARCHAR(64) NULL,
+      entity_id BIGINT UNSIGNED NULL,
+      metadata JSON NULL,
+      ip_address VARCHAR(64) NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      KEY idx_audit_log_entity (entity_type, entity_id),
+      KEY idx_audit_log_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+// One-time backfill: mark existing sold slots as 'legacy' cost rows + build historical
+// account_sales rows from the denormalized slot.sold stamps already present in products.
+async function backfillAccountFinance() {
+  const flag = 'account_finance_backfill_v1';
+  const [flagRows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1', [flag]);
+  const alreadyDone = flagRows?.[0]?.setting_value;
+  if (alreadyDone && String(alreadyDone) === '1') return;
+
+  const [products] = await pool.query('SELECT id, name, digitalItems FROM products');
+  let costInserted = 0;
+  let saleInserted = 0;
+
+  for (const product of products) {
+    let digitalItems = null;
+    try {
+      digitalItems = typeof product.digitalItems === 'string' ? JSON.parse(product.digitalItems) : (product.digitalItems || []);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(digitalItems)) continue;
+
+    for (const item of digitalItems) {
+      if (!item || !item.id || !item.slots) continue;
+
+      const soldSlots = Object.entries(item.slots).filter(([, slot]) => slot && slot.sold && slot.orderId);
+      if (!soldSlots.length) continue;
+
+      // Legacy cost row (cost NULL — never assumed), idempotent
+      await pool.query(
+        `INSERT IGNORE INTO account_costs (product_id, digital_item_id, acquisition_type, acquisition_cost)
+         VALUES (?, ?, 'legacy', NULL)`,
+        [product.id, String(item.id)]
+      );
+      costInserted += 1;
+
+      for (const [slotName, slot] of soldSlots) {
+        const isFullAccount = item.fullAccountSold === true || String(slotName).toLowerCase().includes('full account');
+        const saleId = `backfill-${product.id}-${item.id}-${slotName}`.slice(0, 36);
+        const orderNumber = slot.orderId && String(slot.orderId) !== 'MANUAL' ? String(slot.orderId) : null;
+
+        await pool.query(
+          `INSERT IGNORE INTO account_sales
+            (account_sale_id, product_id, digital_item_id, slot_name, order_id, order_number,
+             buyer_name, buyer_email, sale_price, sale_date, status, is_full_account)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, NULL, NOW(), 'active', ?)`,
+          [saleId, product.id, String(item.id), String(slotName), orderNumber,
+           slot.customerName || null, slot.customerEmail || null, isFullAccount ? 1 : 0]
+        );
+        saleInserted += 1;
+      }
+    }
+  }
+
+  await pool.query(
+    'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+    [flag, '1']
+  );
+  console.log(`Account finance backfill complete: ${costInserted} legacy costs, ${saleInserted} historical sales.`);
 }
 
 async function ensureProductAttributesSeeded() {
@@ -262,14 +514,19 @@ async function bootstrap() {
 
   // Seed operations — each is optional, failures should not crash the server
   const seedSteps = [
-    { name: 'game_requests table', fn: ensureGameRequestsTableExists },
+    { name: 'service_bookings table', fn: ensureServiceBookingsTableExists },
+    { name: 'booking defaults', fn: ensureBookingDefaultsSeeded },
+    { name: 'customer database columns', fn: ensureCustomerSchemaExists },
     { name: 'sub_sub_categories table', fn: ensureSubSubCategoriesTableExists },
     { name: 'products sub_sub_category_slug column', fn: ensureProductSubSubCategorySlugColumnExists },
     { name: 'products digital_game_type column', fn: ensureDigitalGameTypeColumnExists },
     { name: 'balance_inventory activation_codes column', fn: ensureBalanceInventoryActivationCodesColumnExists },
+    { name: 'account cost/sales/balance_usage tables', fn: ensureAccountCostTables },
+    { name: 'ps_plus + audit_log tables', fn: ensurePsPlusInventoryTables },
     { name: 'product attributes', fn: ensureProductAttributesSeeded },
     { name: 'homepage categories', fn: ensureHomepageCategoriesSeeded },
     { name: 'system categories', fn: ensureSystemCategoriesSeeded },
+    { name: 'account finance historical backfill', fn: backfillAccountFinance },
   ];
 
   for (const step of seedSteps) {

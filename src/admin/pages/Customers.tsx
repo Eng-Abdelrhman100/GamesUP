@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Star, Mail, Phone, MapPin, X, User, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/card';
-import { customersAPI, ordersAPI } from '../../utils/api';
+import { customersAPI } from '../../utils/api';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
 import { Modal } from '../../components/ui/Modal';
 import { Toast } from '../../components/ui/Toast';
@@ -32,13 +32,23 @@ export function Customers() {
   const loadCustomerOrders = async (email: string) => {
     try {
       setOrdersLoading(true);
-      const data = await ordersAPI.getAll({ email });
+      const data = await customersAPI.getOrders(email);
       setCustomerOrders(data.orders || []);
     } catch (error) {
       console.error('Failed to load customer orders:', error);
       setCustomerOrders([]);
     } finally {
       setOrdersLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await customersAPI.exportCsv();
+      setToast({ message: 'Customer data exported', type: 'success' });
+    } catch (err: any) {
+      console.error('Failed to export customers:', err);
+      setToast({ message: err.message || 'Failed to export customers', type: 'error' });
     }
   };
 
@@ -93,9 +103,17 @@ export function Customers() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Manage customer profiles and relationships</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Manage customer profiles and relationships</p>
+        </div>
+        <button
+          onClick={handleExport}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2 shrink-0"
+        >
+          Export CSV
+        </button>
       </div>
 
       {/* Stats */}
@@ -282,6 +300,54 @@ export function Customers() {
                 <Card className="p-8">
                   <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatPrice(selectedCustomer.spent)}</p>
+                </Card>
+                <Card className="p-8">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Order Value</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatPrice(selectedCustomer.avg_order_value || 0)}</p>
+                </Card>
+                <Card className="p-8">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Purchase Frequency</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {Number(selectedCustomer.purchase_frequency || 0).toFixed(1)}<span className="text-sm font-medium text-gray-500">/mo</span>
+                  </p>
+                </Card>
+              </div>
+
+              {/* Preferences + purchased products */}
+              <div className="grid grid-cols-1 gap-4">
+                <Card className="p-8">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Preferred Platform</p>
+                      <p className="font-semibold text-gray-900 dark:text-white mt-1">{selectedCustomer.preferred_platform || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Last Purchase</p>
+                      <p className="font-semibold text-gray-900 dark:text-white mt-1">
+                        {selectedCustomer.last_purchase_date || selectedCustomer.lastOrder
+                          ? new Date(selectedCustomer.last_purchase_date || selectedCustomer.lastOrder).toLocaleDateString()
+                          : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Marketing Consent</p>
+                      <p className="font-semibold text-gray-900 dark:text-white mt-1">{selectedCustomer.marketing_consent ? 'Yes' : 'No'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Phone</p>
+                      <p className="font-semibold text-gray-900 dark:text-white mt-1">{selectedCustomer.phone || '—'}</p>
+                    </div>
+                  </div>
+                  {Array.isArray(selectedCustomer.purchased_products) && selectedCustomer.purchased_products.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Purchased Games & Products</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCustomer.purchased_products.slice(0, 20).map((p: string, i: number) => (
+                          <span key={i} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg">{p}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </Card>
               </div>
 

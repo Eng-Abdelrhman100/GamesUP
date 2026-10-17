@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/Modal';
-import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc, ordersAPI } from '@/utils/api';
+import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc, ordersAPI, balanceInventoryAPI, accountFinanceAPI } from '@/utils/api';
 import { 
   Search, Plus, Trash2, Save, RotateCcw, Download, Upload, 
-  ChevronDown, ChevronUp, Check, AlertCircle, RefreshCw, Eye, Edit
+  ChevronDown, ChevronUp, AlertCircle, RefreshCw, Eye, Edit, DollarSign
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -239,6 +239,24 @@ export function InventorySheet() {
   const [bulkAddFormat, setBulkAddFormat] = useState<'email:pass' | 'email:pass:outlook:outlookpass' | 'codes_only'>('email:pass');
   const [bulkAddSlot, setBulkAddSlot] = useState<string>('Primary ps4');
 
+  // Importer financial states (Acquisition Type + cost info)
+  const [bulkAcquisitionType, setBulkAcquisitionType] = useState<'purchased' | 'created_from_balance' | 'unknown'>('purchased');
+  const [bulkCostPerAccount, setBulkCostPerAccount] = useState('');
+  const [bulkTotalCost, setBulkTotalCost] = useState('');
+  const [bulkSourceBalanceId, setBulkSourceBalanceId] = useState('');
+  const [bulkDeductFromBalance, setBulkDeductFromBalance] = useState(false);
+  const [balanceOptions, setBalanceOptions] = useState<any[]>([]);
+
+  // Account finance detail modal state
+  const [financeModalState, setFinanceModalState] = useState<{ open: boolean; productId: string | number | null; digitalItemId: string | null; productName: string }>({
+    open: false,
+    productId: null,
+    digitalItemId: null,
+    productName: '',
+  });
+  const [financeDetail, setFinanceDetail] = useState<any>(null);
+  const [financeLoading, setFinanceLoading] = useState(false);
+
   // Description / Details modal state
   const [editingDescriptionProdId, setEditingDescriptionProdId] = useState<string | number | null>(null);
   const [descriptionModalData, setDescriptionModalData] = useState({
@@ -278,6 +296,69 @@ export function InventorySheet() {
       }
     });
     return count;
+  };
+
+  const loadBalanceOptions = async () => {
+    try {
+      const res = await balanceInventoryAPI.getAll();
+      setBalanceOptions(res?.items || []);
+    } catch (e) {
+      console.error('Failed to load balance inventory options', e);
+      setBalanceOptions([]);
+    }
+  };
+
+  const parsedBulkLineCount = useMemo(() => {
+    const lines = bulkAddRawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    return lines.length;
+  }, [bulkAddRawText]);
+
+  // Derived cost-per-account whenever total or line count changes
+  const derivedBulkCostPerAccount = useMemo(() => {
+    if (bulkAcquisitionType === 'unknown') return null;
+    const total = parseFloat(bulkTotalCost);
+    if (!isNaN(total) && parsedBulkLineCount > 0) return Math.round((total / parsedBulkLineCount) * 100) / 100;
+    const perAccount = parseFloat(bulkCostPerAccount);
+    if (!isNaN(perAccount)) return perAccount;
+    return null;
+  }, [bulkTotalCost, bulkCostPerAccount, parsedBulkLineCount, bulkAcquisitionType]);
+
+  const openFinanceModal = async (productId: string | number, digitalItemId: string, productName: string) => {
+    setFinanceModalState({ open: true, productId, digitalItemId, productName });
+    setFinanceLoading(true);
+    setFinanceDetail(null);
+    try {
+      const res = await accountFinanceAPI.getItemDetail(productId, digitalItemId);
+      setFinanceDetail(res?.item || null);
+    } catch (err: any) {
+      console.error('Failed to load account finance detail', err);
+      setFinanceDetail(null);
+    } finally {
+      setFinanceLoading(false);
+    }
+  };
+
+  const closeFinanceModal = () => {
+    setFinanceModalState({ open: false, productId: null, digitalItemId: null, productName: '' });
+    setFinanceDetail(null);
+  };
+
+  // Save the acquisition cost for all stamped (new) items of a product to the ledger
+  const persistCostsForItems = async (productId: string | number, items: any[]) => {
+    const stamped = (items || []).filter((it: any) => it && it.id && it.acquisitionType && !String(it.id).startsWith('new_'));
+    if (stamped.length === 0) return;
+    try {
+      await accountFinanceAPI.saveCosts(productId, stamped.map((it: any) => ({
+        id: it.id,
+        acquisitionType: it.acquisitionType,
+        acquisitionCost: it.acquisitionCost,
+        sourceBalanceId: it.sourceBalanceId,
+        sourceBalanceEmail: it.sourceBalanceEmail,
+        referenceNote: it.referenceNote,
+      })));
+    } catch (err) {
+      console.error('Failed to persist account costs:', err);
+    }
   };
 
   const loadData = async () => {
@@ -624,6 +705,10 @@ export function InventorySheet() {
             {
               ...stockModalData,
               id: generateUUID(),
+              acquisitionType: stockModalData.acquisitionType || 'unknown',
+              acquisitionCost: stockModalData.acquisitionType === 'unknown' || stockModalData.acquisitionType === 'legacy'
+                ? null
+                : (stockModalData.acquisitionCost ?? null),
               totalCodes: Object.keys(stockModalData.slots || {}).length,
               assignedGroup: 'All Groups'
             },
@@ -929,7 +1014,9 @@ export function InventorySheet() {
             digitalItems: row.digitalItems || [],
             product_variants: productVariants
           };
-          await productsAPI.create(payload);
+          const created = await productsAPI.create(payload);
+          const realProductId = (created && (created.id ?? created.product?.id)) || row.id;
+          await persistCostsForItems(realProductId, row.digitalItems || []);
         } else if (row._isModified) {
           const slotNames = getProductSlotNames(row);
           const productVariants = slotNames.map(name => {
@@ -965,6 +1052,7 @@ export function InventorySheet() {
             product_variants: productVariants
           };
           await productsAPI.update(row.id, payload);
+          await persistCostsForItems(row.id, row.digitalItems || []);
         }
       }
 
@@ -1202,7 +1290,7 @@ export function InventorySheet() {
   };
 
   // Smart Bulk Copy Paste account parser
-  const handleBulkAddSubmit = () => {
+  const handleBulkAddSubmit = async () => {
     if (!bulkAddProductId || !bulkAddRawText.trim()) {
       alert('Please select a product and paste stock accounts data');
       return;
@@ -1268,7 +1356,18 @@ export function InventorySheet() {
         backupCodes: '',
         slots,
         totalCodes: slotNames.length,
-        assignedGroup: 'All Groups'
+        assignedGroup: 'All Groups',
+        acquisitionType: bulkAcquisitionType === 'unknown' ? 'unknown' : (bulkAcquisitionType === 'created_from_balance' ? 'created_from_balance' : 'purchased'),
+        acquisitionCost: derivedBulkCostPerAccount,
+        sourceBalanceId: bulkAcquisitionType === 'created_from_balance' ? (bulkSourceBalanceId || null) : null,
+        sourceBalanceEmail: bulkAcquisitionType === 'created_from_balance'
+          ? (balanceOptions.find((b: any) => String(b.id) === String(bulkSourceBalanceId))?.email || null)
+          : null,
+        referenceNote: bulkAcquisitionType === 'purchased'
+          ? 'Purchased account'
+          : bulkAcquisitionType === 'created_from_balance'
+            ? `Created from balance ${balanceOptions.find((b: any) => String(b.id) === String(bulkSourceBalanceId))?.email || '#' + bulkSourceBalanceId}`
+            : null,
       });
     });
 
@@ -1277,6 +1376,18 @@ export function InventorySheet() {
     if (duplicateError) {
       alert(`Bulk addition blocked due to duplicates:\n${duplicateError}`);
       return;
+    }
+
+    // Validate financial info before allowing the import (Task 10)
+    if (bulkAcquisitionType === 'purchased' || bulkAcquisitionType === 'created_from_balance') {
+      if (derivedBulkCostPerAccount == null) {
+        alert('Please enter a Purchase Cost / Creation Cost (total or per-account) before parsing.');
+        return;
+      }
+      if (bulkAcquisitionType === 'created_from_balance' && !bulkSourceBalanceId) {
+        alert('Please choose a Balance Inventory source for accounts Created From Balance.');
+        return;
+      }
     }
 
     setRows(prev => prev.map(prod => {
@@ -1292,6 +1403,37 @@ export function InventorySheet() {
 
     setIsBulkAddModalOpen(false);
     setBulkAddRawText('');
+
+    // Record funds drawn from the chosen balance source (Created From Balance flow).
+    // Only for existing products — a brand-new unsaved product has no real DB id yet,
+    // so its balance usage + cost ledger rows are persisted once "Save Changes" runs.
+    if (bulkAcquisitionType === 'created_from_balance' && bulkSourceBalanceId && newItems.length > 0
+        && !String(targetProd.id).startsWith('new_')) {
+      const sourceBalance = balanceOptions.find((b: any) => String(b.id) === String(bulkSourceBalanceId));
+      const perAccount = derivedBulkCostPerAccount || 0;
+      const amountUsed = perAccount * newItems.length;
+      try {
+        await accountFinanceAPI.recordBalanceUsage({
+          balanceId: bulkSourceBalanceId,
+          productId: targetProd.id,
+          digitalItemIds: newItems.map((it: any) => it.id),
+          costPerAccount: perAccount,
+          quantity: newItems.length,
+          amountUsed,
+          deductFromBalance: bulkDeductFromBalance,
+        });
+        if (sourceBalance && bulkDeductFromBalance) {
+          setBalanceOptions(prev => prev.map((b: any) => String(b.id) === String(bulkSourceBalanceId)
+            ? { ...b, dollar_balance: Math.max(0, (parseFloat(b.dollar_balance) || 0) - amountUsed) }
+            : b));
+        }
+      } catch (err: any) {
+        console.error('Failed to record balance usage', err);
+        alert(`Accounts were added locally, but recording balance usage failed: ${err?.message || 'unknown error'}. Please retry the import or record usage manually.`);
+        return;
+      }
+    }
+
     alert(`Successfully loaded ${newItems.length} new items to "${rows.find(r=>String(r.id)===String(bulkAddProductId))?.name}". Remember to click "Save Changes" to save to the database.`);
   };
 
@@ -1343,7 +1485,7 @@ export function InventorySheet() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button 
-            onClick={() => setIsBulkAddModalOpen(true)}
+            onClick={() => { setIsBulkAddModalOpen(true); loadBalanceOptions(); }}
             variant="secondary"
             className="flex items-center gap-1.5 text-xs py-2 bg-brand-red/10 border border-brand-red/20 text-brand-red hover:bg-brand-red/20"
           >
@@ -1974,6 +2116,25 @@ export function InventorySheet() {
                                           {/* Actions */}
                                           <td className="px-2 py-1 text-center">
                                             <div className="flex items-center justify-center gap-1.5">
+                                              {isSuperAdmin && (
+                                                <>
+                                                  {item.acquisitionCost != null && (
+                                                    <span
+                                                      className="text-[9px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded"
+                                                      title={`Acquisition cost (${String(item.acquisitionType || 'unknown').replace(/_/g, ' ')})`}
+                                                    >
+                                                      ${Number(item.acquisitionCost).toFixed(2)}
+                                                    </span>
+                                                  )}
+                                                  <button
+                                                    onClick={() => openFinanceModal(row.id, item.id, row.name || 'Account')}
+                                                    className="p-1 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 rounded transition-colors"
+                                                    title="Account financial details (cost, revenue, profit)"
+                                                  >
+                                                    <DollarSign className="w-3.5 h-3.5" />
+                                                  </button>
+                                                </>
+                                              )}
                                               <button
                                                 onClick={() => handleOpenEditStockModal(row.id, item)}
                                                 className="p-1 text-blue-500 hover:text-blue-700 rounded transition-colors"
@@ -2046,6 +2207,129 @@ export function InventorySheet() {
         </div>
       )}
 
+      {/* Account Financial Details Modal */}
+      {financeModalState.open && (
+        <Modal
+          isOpen={true}
+          onClose={closeFinanceModal}
+          title={`Financial Details — ${financeModalState.productName}`}
+        >
+          <div className="space-y-4 max-h-[72vh] overflow-y-auto px-1">
+            {financeLoading ? (
+              <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" /> Loading financial details...
+              </div>
+            ) : !financeDetail ? (
+              <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No financial data available for this account. Save the product after adding acquisition cost to initialize its cost ledger.
+              </div>
+            ) : (
+              <>
+                {/* Account info */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Account</div>
+                    <div className="font-mono text-gray-900 dark:text-white truncate" title={financeDetail.account?.email || ''}>
+                      {financeDetail.account?.email || 'N/A'}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Product</div>
+                    <div className="text-gray-900 dark:text-white">{financeDetail.product_name || 'N/A'}</div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Acquisition Type</div>
+                    <div className="text-gray-900 dark:text-white capitalize">
+                      {financeDetail.cost ? String(financeDetail.cost.acquisition_type || 'unknown').replace(/_/g, ' ') : 'Unknown / Legacy'}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Source</div>
+                    <div className="text-gray-900 dark:text-white">
+                      {financeDetail.cost?.source_balance_email
+                        ? `Balance: ${financeDetail.cost.source_balance_email}`
+                        : financeDetail.cost?.acquisition_type === 'purchased'
+                          ? 'Purchased Account'
+                          : '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cost + Sales + Profit */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Original Cost</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      {financeDetail.totals?.acquisitionCost != null ? `$${financeDetail.totals.acquisitionCost.toFixed(2)}` : '—'}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Sales</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">{financeDetail.totals?.salesCount ?? 0}</div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Revenue</div>
+                    <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                      {financeDetail.totals?.totalRevenue != null ? `$${financeDetail.totals.totalRevenue.toFixed(2)}` : '$0.00'}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Profit</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      {financeDetail.totals?.totalProfit != null ? `$${financeDetail.totals.totalProfit.toFixed(2)}` : '—'}
+                    </div>
+                    {financeDetail.totals?.profitMargin != null && (
+                      <div className="text-[10px] text-gray-400">{financeDetail.totals.profitMargin.toFixed(1)}% margin</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sales History */}
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">Sales History</h4>
+                  {(!financeDetail.sales || financeDetail.sales.length === 0) ? (
+                    <p className="text-xs text-gray-400 italic py-2">No recorded sales for this account yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-500 dark:text-gray-400">
+                          <tr>
+                            <th className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">Sale</th>
+                            <th className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">Slot</th>
+                            <th className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">Buyer</th>
+                            <th className="px-3 py-2 border-r border-gray-200 dark:border-gray-800 text-right">Sale Price</th>
+                            <th className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">Date</th>
+                            <th className="px-3 py-2">Order</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                          {financeDetail.sales.map((s: any, idx: number) => (
+                            <tr key={s.id || s.account_sale_id || idx} className="bg-white dark:bg-gray-900">
+                              <td className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">#{idx + 1}</td>
+                              <td className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">{s.slot_name}</td>
+                              <td className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">{s.buyer_name || s.buyer_email || '—'}</td>
+                              <td className="px-3 py-2 border-r border-gray-200 dark:border-gray-800 text-right font-semibold">
+                                {s.sale_price != null ? `$${Number(s.sale_price).toFixed(2)}` : '—'}
+                              </td>
+                              <td className="px-3 py-2 border-r border-gray-200 dark:border-gray-800">
+                                {s.sale_date ? new Date(s.sale_date).toLocaleDateString() : '—'}
+                              </td>
+                              <td className="px-3 py-2">
+                                {s.order_number ? `#${s.order_number}` : (s.order_id ? `#${s.order_id}` : '—')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
+
       {/* Bulk Add / Paste Importer Modal */}
       <Modal
         isOpen={isBulkAddModalOpen}
@@ -2077,10 +2361,105 @@ export function InventorySheet() {
             </select>
           </div>
 
+          {/* Step 2: Acquisition Type + Cost Information */}
+          <div className="bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-3">
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+              2. Select Acquisition Type & Cost
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Acquisition Type</label>
+                <select
+                  value={bulkAcquisitionType}
+                  onChange={(e) => {
+                    const val = e.target.value as any;
+                    setBulkAcquisitionType(val);
+                    if (val === 'created_from_balance') loadBalanceOptions();
+                  }}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
+                >
+                  <option value="purchased">Purchased Account</option>
+                  <option value="created_from_balance">Created From Balance</option>
+                  <option value="unknown">Unknown / Legacy</option>
+                </select>
+              </div>
+
+              {bulkAcquisitionType !== 'unknown' && (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                      {bulkAcquisitionType === 'purchased' ? 'Total Purchase Cost ($)' : 'Total Creation Cost ($)'}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={bulkTotalCost}
+                      onChange={(e) => { setBulkTotalCost(e.target.value); setBulkCostPerAccount(''); }}
+                      placeholder="e.g. 200"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                      {bulkAcquisitionType === 'purchased' ? 'Purchase Cost Per Account ($)' : 'Creation Cost Per Account ($)'}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={bulkCostPerAccount}
+                      onChange={(e) => { setBulkCostPerAccount(e.target.value); setBulkTotalCost(''); }}
+                      placeholder="e.g. 2.00"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
+                    />
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300">
+                    Quantity detected: <span className="font-bold text-gray-900 dark:text-white">{parsedBulkLineCount}</span> accounts
+                    {derivedBulkCostPerAccount != null && (
+                      <span> → <span className="font-bold text-brand-red">${derivedBulkCostPerAccount}</span> / account</span>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {bulkAcquisitionType === 'created_from_balance' && (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Balance Inventory Source</label>
+                    <select
+                      value={bulkSourceBalanceId}
+                      onChange={(e) => setBulkSourceBalanceId(e.target.value)}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none"
+                    >
+                      <option value="">Choose a balance account...</option>
+                      {balanceOptions.map((b: any) => (
+                        <option key={b.id} value={String(b.id)}>
+                          {b.email} — ${b.dollar_balance}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-end pb-1">
+                    <label className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={bulkDeductFromBalance}
+                        onChange={(e) => setBulkDeductFromBalance(e.target.checked)}
+                        className="rounded text-brand-red focus:ring-brand-red"
+                      />
+                      Deduct ${derivedBulkCostPerAccount != null ? (derivedBulkCostPerAccount * parsedBulkLineCount).toFixed(2) : '0.00'} from this balance
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase">
-                2. Input Text Format
+                3. Input Text Format
               </label>
               <select
                 value={bulkAddFormat}
@@ -2118,7 +2497,7 @@ export function InventorySheet() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                3. Paste Raw Accounts List or Upload Excel
+                4. Paste Raw Accounts List or Upload Excel
               </label>
               <label className="cursor-pointer flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg transition-colors">
                 <Upload className="w-3.5 h-3.5" /> Extract Excel
@@ -2312,7 +2691,40 @@ export function InventorySheet() {
 
             <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-4">
               <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
-                2. Variant License Keys / Activation Codes
+                2. Acquisition Cost Basis (admin only)
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Acquisition Type</label>
+                  <select
+                    value={stockModalData.acquisitionType || 'purchased'}
+                    onChange={(e) => setStockModalData(p => ({ ...p, acquisitionType: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white"
+                  >
+                    <option value="purchased">Purchased Account</option>
+                    <option value="created_from_balance">Created From Balance</option>
+                    <option value="unknown">Unknown / Legacy</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cost Per Account ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={stockModalData.acquisitionCost ?? ''}
+                    disabled={stockModalData.acquisitionType === 'unknown' || stockModalData.acquisitionType === 'legacy'}
+                    onChange={(e) => setStockModalData(p => ({ ...p, acquisitionCost: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-red text-gray-900 dark:text-white disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-4">
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
+                3. Variant License Keys / Activation Codes
               </h4>
               <div className="space-y-3 text-xs">
                 {Object.keys(stockModalData.slots || {}).map(slotName => {

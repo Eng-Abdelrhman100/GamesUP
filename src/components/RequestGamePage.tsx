@@ -10,7 +10,14 @@ interface RequestGamePageProps {
 export const RequestGamePage = ({ onBack }: RequestGamePageProps) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
+  // ASK 01: "Request This Game" deep-links here with ?title= prefilled.
+  const [title, setTitle] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('title') || '';
+    } catch {
+      return '';
+    }
+  });
   const [platform, setPlatform] = useState('PLAYSTATION');
   const [accessType, setAccessType] = useState('PRIMARY');
   const [customerName, setCustomerName] = useState('');

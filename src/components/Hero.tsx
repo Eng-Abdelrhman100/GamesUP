@@ -22,11 +22,11 @@ interface Slide {
 
 const DEFAULT_SLIDES: Slide[] = [
   {
-    id: 'default-1',
-    title: 'CALL OF DUTY',
-    subtitle: 'Call of Duty is a first-person shooter video game franchise published by Activision. Starting out in 2003, it first focused on games set in World War II. The most recent title, Call of Duty: Modern Warfare, was released on October 25, 2019.',
-    badge: 'MODERN WARFARE',
-    imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop',
+    id: 'default-gta-vi',
+    title: 'GTA VI PRE-ORDER',
+    subtitle: 'Grand Theft Auto VI pre-orders — subject to confirmed availability and launch details. Reserve your copy and we will confirm delivery as soon as Rockstar locks the release.',
+    badge: 'GTA VI · PRE-ORDER',
+    imageUrl: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?q=80&w=1920&auto=format&fit=crop',
     linkType: 'none',
     productId: '',
     url: ''

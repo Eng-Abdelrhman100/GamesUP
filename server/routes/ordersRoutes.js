@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth, requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 import { sendMailInternal } from '../controllers/emailController.js';
+import { insertAccountSalesForDelivery, setOrderSaleStatus } from './accountFinanceRoutes.js';
+import { publishNewOrder, publishOrderUpdate } from '../utils/realtime.js';
 
 export const ordersRoutes = Router();
 
@@ -21,6 +23,244 @@ function normalizeOrderRow(row) {
     digital_delivery: parseJson(row.digital_delivery),
     shipping_address: parseJson(row.shipping_address),
   };
+}
+
+// ASK 04 / TASK 04: canonical order + payment statuses recorded accurately.
+const ORDER_STATUSES = new Set([
+  'pending', 'pending_approval', 'processing', 'paid', 'completed',
+  'delivered', 'shipped', 'failed', 'cancelled', 'refunded',
+]);
+
+function normalizeOrderStatus(raw, fallback = 'pending') {
+  const s = String(raw || '').trim().toLowerCase();
+  if (ORDER_STATUSES.has(s)) return s;
+  return fallback;
+}
+
+function parseAttributes(value) {
+  if (value == null) return {};
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value) || {};
+  } catch {
+    return {};
+  }
+}
+
+function productIsUpcoming(row) {
+  const attrs = parseAttributes(row?.attributes);
+  if (attrs.is_upcoming === true || attrs.isUpcoming === true) return true;
+  if (String(attrs.is_upcoming || '').toLowerCase() === 'true') return true;
+  if (String(attrs.availability || '').toLowerCase() === 'coming_soon') return true;
+  if (String(row?.digital_game_type || '').toLowerCase() === 'upcoming') return true;
+  if (String(row?.status || '').toLowerCase() === 'coming soon') return true;
+  return false;
+}
+
+// ASK 01 + TASK 04: server-side inventory + price validation before order creation.
+// Accepts structured `items: [{ productId, variantName, quantity, price }]` when the
+// client sends them; otherwise falls back to matching legacy free-text product_name.
+async function validateOrderPricing(o) {
+  const items = Array.isArray(o?.items) ? o.items : [];
+  if (items.length) {
+    const errors = [];
+    let expectedTotal = 0;
+    for (const item of items) {
+      const productId = item?.productId ?? item?.product_id ?? item?.gameId;
+      if (productId == null || productId === '') {
+        errors.push('Order item is missing a product reference.');
+        continue;
+      }
+      const [rows] = await pool.query('SELECT * FROM products WHERE id = ? LIMIT 1', [productId]);
+      if (!rows.length) {
+        errors.push(`Product #${productId} was not found.`);
+        continue;
+      }
+      const row = rows[0];
+      if (productIsUpcoming(row)) {
+        errors.push(`"${row.name}" is coming soon and cannot be purchased yet.`);
+        continue;
+      }
+      const [variants] = await pool.query(
+        'SELECT id, name, price, stock FROM product_variants WHERE product_id = ? ORDER BY id ASC',
+        [productId]
+      );
+      const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+      const variantName = item?.variantName ?? item?.tier ?? item?.variant_name ?? '';
+      let unitPrice = null;
+      let available = Number(row.stock) > 0;
+      if (variantName) {
+        const match = variants.find((v) => String(v.name).toLowerCase() === String(variantName).toLowerCase());
+        if (!match) {
+          errors.push(`Variant "${variantName}" is not available for "${row.name}".`);
+          continue;
+        }
+        unitPrice = Number(match.price);
+        available = Number(match.stock) > 0 || Number(row.stock) > 0;
+      } else {
+        const inStock = variants.filter((v) => Number(v?.stock) > 0).map((v) => Number(v?.price)).filter((n) => Number.isFinite(n) && n > 0);
+        if (inStock.length) unitPrice = Math.min(...inStock);
+        else unitPrice = Number(row.price);
+      }
+      if (!(unitPrice > 0)) {
+        errors.push(`"${row.name}" has no valid price and cannot be purchased.`);
+        continue;
+      }
+      if (!available) {
+        errors.push(`"${row.name}"${variantName ? ` (${variantName})` : ''} is out of stock.`);
+        continue;
+      }
+      const claimed = Number(item?.price);
+      if (Number.isFinite(claimed) && claimed > 0 && Math.abs(claimed - unitPrice) > 0.01) {
+        errors.push(`Price for "${row.name}" changed. Expected L.E ${unitPrice.toFixed(2)}.`);
+        continue;
+      }
+      expectedTotal += unitPrice * qty;
+    }
+    if (errors.length) return { ok: false, errors, expectedTotal };
+    return { ok: true, errors: [], expectedTotal };
+  }
+
+  // Legacy path: free-text product_name. Reject only when we can positively match a
+  // product that is unavailable or zero-priced; unknown custom products (manual orders)
+  // are left to staff fulfillment.
+  const productName = String(o?.product_name || '').trim();
+  if (!productName) return { ok: true, errors: [], expectedTotal: null };
+  const [products] = await pool.query('SELECT id, name, price, stock, status, digital_game_type, attributes FROM products');
+  const itemStrings = productName.split(',').map((s) => s.trim()).filter(Boolean);
+  const errors = [];
+  for (const itemString of itemStrings) {
+    const lower = itemString.toLowerCase();
+    const matched = products
+      .filter((p) => lower.includes(String(p.name || '').toLowerCase()) || String(p.name || '').toLowerCase().includes(lower))
+      .sort((a, b) => String(b.name || '').length - String(a.name || '').length)[0];
+    if (!matched) continue;
+    if (productIsUpcoming(matched)) {
+      errors.push(`"${matched.name}" is coming soon and cannot be purchased yet.`);
+      continue;
+    }
+    const price = Number(matched.price);
+    const [vRows] = await pool.query('SELECT price, stock FROM product_variants WHERE product_id = ?', [matched.id]);
+    const variantPrices = (vRows || []).map((v) => Number(v?.price)).filter((n) => Number.isFinite(n) && n > 0);
+    const hasPrice = price > 0 || variantPrices.length > 0;
+    const hasStock = Number(matched.stock) > 0 || (vRows || []).some((v) => Number(v?.stock) > 0);
+    if (!hasPrice || !hasStock) {
+      const onlyZeroBase = !(price > 0) && variantPrices.length === 0;
+      if (!hasStock && onlyZeroBase) {
+        errors.push(`"${matched.name}" is unavailable (out of stock with no valid price).`);
+      }
+    }
+  }
+  if (errors.length) return { ok: false, errors, expectedTotal: null };
+  return { ok: true, errors: [], expectedTotal: null };
+}
+
+async function ensureCustomerColumns() {
+  const alters = [
+    `ALTER TABLE customers ADD COLUMN preferred_platform VARCHAR(64) NULL AFTER phone`,
+    `ALTER TABLE customers ADD COLUMN marketing_consent TINYINT(1) NOT NULL DEFAULT 0 AFTER preferred_platform`,
+    `ALTER TABLE customers ADD COLUMN avg_order_value DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER marketing_consent`,
+    `ALTER TABLE customers ADD COLUMN purchase_frequency DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER avg_order_value`,
+    `ALTER TABLE customers ADD COLUMN purchased_products JSON NULL AFTER purchase_frequency`,
+  ];
+  for (const sql of alters) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      if (err?.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
+  const orderAlters = [
+    `ALTER TABLE orders ADD COLUMN customer_id BIGINT UNSIGNED NULL AFTER id`,
+    `ALTER TABLE orders ADD COLUMN preferred_platform VARCHAR(64) NULL AFTER phone`,
+    `ALTER TABLE orders ADD COLUMN marketing_consent TINYINT(1) NOT NULL DEFAULT 0 AFTER preferred_platform`,
+  ];
+  for (const sql of orderAlters) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      if (err?.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
+}
+
+let customerColumnsEnsured = false;
+async function ensureCustomerSchema() {
+  if (customerColumnsEnsured) return;
+  try {
+    await ensureCustomerColumns();
+  } catch (err) {
+    console.error('Warning: failed to ensure customer columns:', err?.message || err);
+  }
+  customerColumnsEnsured = true;
+}
+
+// TASK 05: create/merge a stable customer record for every completed order.
+// Dedup key is the verified lowercase email; phone-only matches are never auto-merged.
+async function upsertCustomerForOrder(o) {
+  await ensureCustomerSchema();
+  const email = String(o?.customer_email || '').trim().toLowerCase();
+  if (!email) return null;
+  const name = String(o?.customer_name || 'Customer').trim() || 'Customer';
+  const phone = o?.phone ? String(o.phone).trim() || null : null;
+  const preferredPlatform = o?.preferred_platform ? String(o.preferred_platform).trim() || null : null;
+  const marketingConsent = o?.marketing_consent === true || o?.marketing_consent === 1 || o?.marketing_consent === '1' ? 1 : 0;
+  const [existing] = await pool.query('SELECT id FROM customers WHERE LOWER(email) = ? LIMIT 1', [email]);
+  if (existing.length) {
+    await pool.query(
+      `UPDATE customers SET name = ?, phone = COALESCE(?, phone),
+        preferred_platform = COALESCE(?, preferred_platform),
+        marketing_consent = ?
+        WHERE LOWER(email) = ?`,
+      [name, phone, preferredPlatform, marketingConsent, email]
+    );
+    return existing[0].id;
+  }
+  const [result] = await pool.query(
+    `INSERT INTO customers (name, email, phone, preferred_platform, marketing_consent)
+     VALUES (?, ?, ?, ?, ?)`,
+    [name, email, phone, preferredPlatform, marketingConsent]
+  );
+  return result.insertId;
+}
+
+// TASK 05: recompute order history metrics from transaction records.
+// Refunded/cancelled orders are excluded from revenue metrics but kept in history.
+async function refreshCustomerMetrics(email) {
+  const key = String(email || '').trim().toLowerCase();
+  if (!key) return;
+  const [rows] = await pool.query(
+    `SELECT amount, status, created_at, product_name FROM orders WHERE LOWER(customer_email) = ? ORDER BY created_at ASC`,
+    [key]
+  );
+  const valid = (rows || []).filter((r) => !['cancelled', 'refunded'].includes(String(r.status || '').toLowerCase()));
+  const ordersCount = valid.length;
+  const totalSpent = valid.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const avgOrderValue = ordersCount ? totalSpent / ordersCount : 0;
+  const lastOrder = valid.length ? valid[valid.length - 1].created_at : null;
+  const firstOrder = valid.length ? valid[0].created_at : null;
+  let frequency = 0;
+  if (firstOrder && lastOrder && ordersCount > 1) {
+    const days = Math.max(1, (new Date(lastOrder).getTime() - new Date(firstOrder).getTime()) / 86400000);
+    frequency = ordersCount / (days / 30);
+  } else if (ordersCount === 1) {
+    frequency = 1;
+  }
+  const purchased = [];
+  for (const r of valid) {
+    const parts = String(r.product_name || '').split(',').map((s) => s.trim()).filter(Boolean);
+    for (const p of parts) if (!purchased.includes(p)) purchased.push(p);
+  }
+  try {
+    await pool.query(
+      `UPDATE customers SET orders_count = ?, total_spent = ?, avg_order_value = ?,
+        purchase_frequency = ?, last_order_date = ?, purchased_products = ?
+        WHERE LOWER(email) = ?`,
+      [ordersCount, totalSpent.toFixed(2), avgOrderValue.toFixed(2), frequency.toFixed(2), lastOrder, JSON.stringify(purchased.slice(0, 100)), key]
+    );
+  } catch (err) {
+    console.error('Warning: failed to refresh customer metrics:', err?.message || err);
+  }
 }
 
 ordersRoutes.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
@@ -89,32 +329,65 @@ ordersRoutes.post('/orders', async (req, res) => {
     const cleanPhone = String(o.phone).trim();
     const cleanEmail = o.customer_email ? String(o.customer_email).trim().toLowerCase() : null;
 
+    // TASK 04: validate inventory + price server-side before creating the order.
+    // Payment failure must never create a falsely-paid order: reject paid statuses
+    // that arrive without verification, and force them to pending.
+    const requestedStatus = normalizeOrderStatus(o.status, 'pending');
+    const paymentMethod = o.payment_method ? String(o.payment_method).toLowerCase() : null;
+    if (['paid', 'completed', 'delivered'].includes(requestedStatus) && !req.user) {
+      return res.status(400).json({
+        success: false,
+        error: 'New orders cannot be created as paid. The order will stay pending until payment is verified.',
+      });
+    }
+    const validation = await validateOrderPricing(o);
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, error: validation.errors.join(' ') });
+    }
+    if (o.amount != null && validation.expectedTotal != null) {
+      const claimed = Number(o.amount);
+      // Allow tax/fees on top of the validated subtotal, but never a zero/negative total
+      // for a purchasable cart, and never below the validated subtotal.
+      if (!(claimed > 0) || claimed + 0.01 < validation.expectedTotal) {
+        return res.status(400).json({
+          success: false,
+          error: `Order total L.E ${claimed} does not match validated price L.E ${validation.expectedTotal.toFixed(2)}.`,
+        });
+      }
+    }
+    const customerId = await upsertCustomerForOrder(o);
     const [result] = await pool.query(
       `INSERT INTO orders
-       (order_number, customer_name, customer_email, phone, product_name, date, status, amount,
+       (order_number, customer_id, customer_name, customer_email, phone, preferred_platform, marketing_consent, product_name, date, status, amount,
         digital_email, digital_password, digital_code, digital_delivery, inventory_id,
         payment_method, payment_proof, shipping_address, cost)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         o.order_number,
+        customerId || null,
         cleanName,
         cleanEmail,
         cleanPhone,
+        o.preferred_platform ? String(o.preferred_platform).trim() || null : null,
+        o.marketing_consent === true || o.marketing_consent === 1 || o.marketing_consent === '1' ? 1 : 0,
         o.product_name || null,
         o.date || null,
-        o.status || null,
+        requestedStatus,
         o.amount ?? null,
         o.digital_email || null,
         o.digital_password || null,
         o.digital_code || null,
         o.digital_delivery ? JSON.stringify(o.digital_delivery) : null,
         o.inventory_id || null,
-        o.payment_method || null,
+        paymentMethod,
         o.payment_proof || null,
         o.shipping_address ? JSON.stringify(o.shipping_address) : null,
         (o.cost !== undefined && o.cost !== null && String(o.cost).trim() !== '') ? o.cost : (o.amount ?? null),
       ]
     );
+    if (o.customer_email) {
+      refreshCustomerMetrics(o.customer_email).catch((err) => console.error('Failed to refresh customer metrics:', err));
+    }
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
     let orderObj = normalizeOrderRow(rows[0]);
 
@@ -138,6 +411,9 @@ ordersRoutes.post('/orders', async (req, res) => {
         console.error('Failed to sync customer/user phone from order:', syncErr);
       }
     }
+
+    // Push the new order to every connected admin device immediately.
+    publishNewOrder(orderObj, req.user ? 'admin' : 'website');
 
     // Auto-allocate immediately for digital products
     try {
@@ -234,6 +510,8 @@ ordersRoutes.post('/orders', async (req, res) => {
           updatedProducts.set(product.id, digitalItems);
           deliveryDetails.push({
             name: itemString,
+            digitalItemId: assignedDI.id || '',
+            productId: product.id,
             email: assignedDI.email || '',
             password: assignedDI.password || '',
             code: assignedDI.slots[allocatedSlotKey].code || '',
@@ -244,7 +522,8 @@ ordersRoutes.post('/orders', async (req, res) => {
             region: assignedDI.region || '',
             onlineId: assignedDI.onlineId || '',
             backupCodes: assignedDI.backupCodes || '',
-            slotName: allocatedSlotKey
+            slotName: allocatedSlotKey,
+            isFullAccount: allocatedSlotKey.toLowerCase().endsWith('full account'),
           });
         }
       }
@@ -260,6 +539,13 @@ ordersRoutes.post('/orders', async (req, res) => {
         // Refresh orderObj for email content
         const [refreshedRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [orderObj.id]);
         orderObj = normalizeOrderRow(refreshedRows[0]);
+
+        // Record the auditable per-account sale transactions for this allocation
+        try {
+          await insertAccountSalesForDelivery(pool, orderObj, deliveryDetails);
+        } catch (saleErr) {
+          console.error('Failed to record account sales for new order:', saleErr);
+        }
       }
     } catch (allocErr) {
       console.error('Initial auto-allocation failed:', allocErr);
@@ -440,6 +726,8 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
 
         deliveryDetails.push({
           name: itemString,
+          digitalItemId: assignedDI.id || '',
+          productId: product.id,
           email: assignedDI.email || '',
           password: assignedDI.password || '',
           code: assignedDI.slots[allocatedSlotKey].code || '',
@@ -450,7 +738,8 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
           region: assignedDI.region || '',
           onlineId: assignedDI.onlineId || '',
           backupCodes: assignedDI.backupCodes || '',
-          slotName: allocatedSlotKey
+          slotName: allocatedSlotKey,
+          isFullAccount: allocatedSlotKey.toLowerCase().endsWith('full account'),
         });
       }
     }
@@ -481,9 +770,31 @@ ordersRoutes.post('/orders/:id/auto-allocate', requirePermission('orders', 'writ
       ]
     );
 
+    // Record the auditable per-account sale transactions for this allocation
+    try {
+      const [freshOrderRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
+      if (freshOrderRows.length) {
+        await insertAccountSalesForDelivery(pool, normalizeOrderRow(freshOrderRows[0]), deliveryDetails);
+      }
+    } catch (saleErr) {
+      console.error('Failed to record account sales for auto-allocate:', saleErr);
+    }
+
     return res.json({ success: true, message: `Successfully allocated ${deliveryDetails.length} items`, delivery: deliveryDetails });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+ordersRoutes.post('/orders/validate', async (req, res) => {
+  try {
+    const validation = await validateOrderPricing(req.body || {});
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, errors: validation.errors });
+    }
+    return res.json({ success: true, expectedTotal: validation.expectedTotal });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'Validation failed' });
   }
 });
 
@@ -508,7 +819,7 @@ ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req
     setIfDefined('phone', o.phone);
     setIfDefined('product_name', o.product_name);
     setIfDefined('date', o.date);
-    setIfDefined('status', o.status);
+    if (o.status !== undefined) setIfDefined('status', normalizeOrderStatus(o.status, o.status));
     setIfDefined('amount', o.amount);
     setIfDefined('digital_email', o.digital_email);
     setIfDefined('digital_password', o.digital_password);
@@ -527,9 +838,24 @@ ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req
 
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id]);
     const norm = normalizeOrderRow(rows[0]);
+
+    // Sync account_sales rows when an order moves to a converted or cancelled status.
+    if (norm && o.status !== undefined) {
+      try {
+        await setOrderSaleStatus(pool, norm.id, norm.order_number, o.status);
+      } catch (statusErr) {
+        console.error('Failed to sync account sale status for order:', statusErr);
+      }
+      if (norm.customer_email) {
+        refreshCustomerMetrics(norm.customer_email).catch((err) => console.error('Failed to refresh customer metrics:', err));
+      }
+    }
+
     if (req.user?.role !== 'admin' && norm) {
       norm.phone = norm.phone ? '********' : null;
     }
+    // Let connected admin devices know the order moved (status/delivery change).
+    publishOrderUpdate(norm, 'admin');
     return res.json(norm);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to update order' });

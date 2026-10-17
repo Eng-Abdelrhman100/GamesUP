@@ -173,6 +173,9 @@ export const ordersAPI = {
   update: async (id: string | number, order: any) => {
     return requestJson<any>(`/orders/${id}`, { method: 'PUT', body: order, auth: 'admin' });
   },
+  validate: async (order: any) => {
+    return requestJson<{ success: boolean; expectedTotal?: number; errors?: string[] }>(`/orders/validate`, { method: 'POST', body: order, auth: 'none' });
+  },
   create: async (order: any) => {
      return requestJson<any>(`/orders`, { method: 'POST', body: order, auth: 'none' });
   },
@@ -185,6 +188,26 @@ export const ordersAPI = {
 export const customersAPI = {
   getAll: async () => {
     return requestJson<{ customers: any[] }>(`/customers`, { auth: 'admin' });
+  },
+  getOrders: async (email: string) => {
+    return requestJson<{ orders: any[] }>(`/customers/${encodeURIComponent(email)}/orders`, { auth: 'admin' });
+  },
+  exportCsv: async () => {
+    const token = getAccessToken('admin');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${getApiBase()}/api/customers/export`, { headers });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `customers_export_${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return true;
   },
   update: async (id: string | number, customer: any) => {
     return requestJson<any>(`/customers/${id}`, { method: 'PUT', body: customer, auth: 'admin' });
@@ -420,6 +443,107 @@ export const balanceInventoryAPI = {
   delete: async (id: string | number) => requestJson(`/balance-inventory/${id}`, { method: 'DELETE', auth: 'admin' }),
 };
 
+// Account Finance API — acquisition costs, sales history, profitability (admin/manager only)
+export const accountFinanceAPI = {
+  getCosts: async (productId?: string | number) => {
+    const qs = productId ? `?productId=${encodeURIComponent(String(productId))}` : '';
+    return requestJson<{ success: boolean; items: any[] }>(`/account-finance/costs${qs}`, { auth: 'admin' });
+  },
+  saveCosts: async (productId: string | number, items: any[]) => {
+    return requestJson<{ success: boolean; count: number }>(`/account-finance/costs`, { method: 'POST', body: { productId, items }, auth: 'admin' });
+  },
+  getItemDetail: async (productId: string | number, digitalItemId: string) => {
+    return requestJson<any>(`/account-finance/item/${productId}/${encodeURIComponent(digitalItemId)}`, { auth: 'admin' });
+  },
+  getDashboard: async (filters?: { productId?: string | number; type?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (filters?.productId) qs.set('productId', String(filters.productId));
+    if (filters?.type) qs.set('type', filters.type);
+    if (filters?.from) qs.set('from', filters.from);
+    if (filters?.to) qs.set('to', filters.to);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return requestJson<any>(`/account-finance/dashboard${suffix}`, { auth: 'admin' });
+  },
+  recordBalanceUsage: async (payload: { balanceId: string | number; productId: string | number; digitalItemIds: string[]; costPerAccount?: number; quantity?: number; amountUsed?: number; deductFromBalance?: boolean }) => {
+    return requestJson<{ success: boolean; quantity: number; amountUsed: number | null }>(`/account-finance/balance-usage`, { method: 'POST', body: payload, auth: 'admin' });
+  },
+  getBalanceUsage: async (balanceId?: string | number) => {
+    const qs = balanceId ? `?balanceId=${encodeURIComponent(String(balanceId))}` : '';
+    return requestJson<{ success: boolean; items: any[] }>(`/account-finance/balance-usage${qs}`, { auth: 'admin' });
+  },
+  addSale: async (sale: any) => {
+    return requestJson<{ success: boolean }>(`/account-finance/sales`, { method: 'POST', body: sale, auth: 'admin' });
+  },
+};
+
+// PS Plus Account Inventory API — account + 12 backup codes + optional license (admin/manager)
+export const psPlusAPI = {
+  getStats: async () => requestJson<{ success: boolean; stats: any }>(`/ps-plus/stats`, { auth: 'admin' }),
+  getAccounts: async (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return requestJson<{ success: boolean; accounts: any[] }>(`/ps-plus/accounts${suffix}`, { auth: 'admin' });
+  },
+  getAccount: async (id: string | number) => requestJson<any>(`/ps-plus/accounts/${id}`, { auth: 'admin' }),
+  createAccount: async (payload: { email: string; password: string; backupCodes: string[] }) => {
+    return requestJson<any>(`/ps-plus/accounts`, { method: 'POST', body: payload, auth: 'admin' });
+  },
+  createInventory: async (payload: any) => {
+    return requestJson<any>(`/ps-plus/inventory`, { method: 'POST', body: payload, auth: 'admin' });
+  },
+  updateAccount: async (id: string | number, payload: any) => {
+    return requestJson<any>(`/ps-plus/accounts/${id}`, { method: 'PUT', body: payload, auth: 'admin' });
+  },
+  deleteAccount: async (id: string | number) => {
+    await requestJson(`/ps-plus/accounts/${id}`, { method: 'DELETE', auth: 'admin' });
+    return true;
+  },
+  revealPassword: async (id: string | number) => {
+    return requestJson<{ success: boolean; password: string }>(`/ps-plus/accounts/${id}/reveal-password`, { method: 'POST', auth: 'admin' });
+  },
+  getLicenses: async (params?: { status?: string }) => {
+    const qs = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
+    return requestJson<{ success: boolean; licenses: any[] }>(`/ps-plus/licenses${qs}`, { auth: 'admin' });
+  },
+  addLicenses: async (licenseCodes: string[]) => {
+    return requestJson<any>(`/ps-plus/licenses`, { method: 'POST', body: { licenseCodes }, auth: 'admin' });
+  },
+  assignLicense: async (id: string | number, accountId: string | number) => {
+    return requestJson<any>(`/ps-plus/licenses/${id}/assign`, { method: 'PUT', body: { accountId }, auth: 'admin' });
+  },
+  removeLicense: async (id: string | number) => {
+    return requestJson<any>(`/ps-plus/licenses/${id}/remove`, { method: 'PUT', auth: 'admin' });
+  },
+  deleteLicense: async (id: string | number) => {
+    await requestJson(`/ps-plus/licenses/${id}`, { method: 'DELETE', auth: 'admin' });
+    return true;
+  },
+  markBackupUsed: async (id: string | number) => {
+    return requestJson<any>(`/ps-plus/backup-codes/${id}/used`, { method: 'PUT', auth: 'admin' });
+  },
+  replaceBackup: async (id: string | number, newCode: string) => {
+    return requestJson<any>(`/ps-plus/backup-codes/${id}/replace`, { method: 'PUT', body: { newCode }, auth: 'admin' });
+  },
+  importRows: async (rows: any[]) => {
+    return requestJson<any>(`/ps-plus/import`, { method: 'POST', body: { rows }, auth: 'admin' });
+  },
+  lookupOrder: async (orderNumber: string) => {
+    return requestJson<any>(`/ps-plus/orders/lookup?order_number=${encodeURIComponent(orderNumber)}`, { auth: 'admin' });
+  },
+  markSold: async (id: string | number, orderNumber?: string) => {
+    return requestJson<any>(`/ps-plus/accounts/${id}/mark-sold`, { method: 'POST', body: { order_number: orderNumber || '' }, auth: 'admin' });
+  },
+  getAudit: async (params?: { entityType?: string; entityId?: string | number }) => {
+    const qs = new URLSearchParams();
+    if (params?.entityType) qs.set('entityType', params.entityType);
+    if (params?.entityId) qs.set('entityId', String(params.entityId));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return requestJson<{ success: boolean; items: any[] }>(`/ps-plus/audit${suffix}`, { auth: 'admin' });
+  },
+};
+
 // Init API - No longer needed with MySQL backend
 export const initAPI = {
   initialize: async () => { return { success: true }; },
@@ -503,6 +627,27 @@ export const gameRequestsAPI = {
   },
   update: async (id: string | number, payload: any) => {
     return requestJson<any>(`/admin/game-requests/${id}`, { method: 'PUT', body: payload, auth: 'any' });
+  },
+};
+
+// Service booking API — repair / install slots (days + times configured in Settings)
+export const bookingAPI = {
+  getAvailability: async (days = 28) => {
+    return requestJson<{ success: boolean; enabled: boolean; days: any[]; taken: Record<string, string[]> }>(`/booking-availability?days=${days}`, { auth: 'none' });
+  },
+  create: async (payload: any) => {
+    return requestJson<any>(`/bookings`, { method: 'POST', body: payload, auth: 'none' });
+  },
+  getAll: async (status?: string) => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return requestJson<{ bookings: any[] }>(`/bookings${qs}`, { auth: 'admin' });
+  },
+  update: async (id: string | number, payload: any) => {
+    return requestJson<any>(`/bookings/${id}`, { method: 'PUT', body: payload, auth: 'admin' });
+  },
+  delete: async (id: string | number) => {
+    await requestJson(`/bookings/${id}`, { method: 'DELETE', auth: 'admin' });
+    return true;
   },
 };
 

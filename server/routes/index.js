@@ -19,8 +19,12 @@ import { orderChatsRoutes } from './orderChatsRoutes.js';
 import { chatRoutes } from './chatRoutes.js';
 import { uploadRoutes } from './uploadRoutes.js';
 import { customersRoutes } from './customersRoutes.js';
+import { bookingRoutes } from './bookingRoutes.js';
 import { balanceInventoryRoutes } from './balanceInventoryRoutes.js';
+import { accountFinanceRoutes } from './accountFinanceRoutes.js';
+import { psPlusRoutes } from './psPlusRoutes.js';
 import { posRoutes } from './posRoutes.js';
+import { realtimeRoutes } from './realtimeRoutes.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
 export const apiRouter = Router();
@@ -36,6 +40,7 @@ apiRouter.use(emailTemplatesRoutes);
 apiRouter.use(productsRoutes);
 apiRouter.use(ordersRoutes);
 apiRouter.use(customersRoutes);
+apiRouter.use(bookingRoutes);
 apiRouter.use(tasksRoutes);
 apiRouter.use(employeesRoutes);
 apiRouter.use(attendanceRoutes);
@@ -47,4 +52,9 @@ apiRouter.use(chatRoutes);
 apiRouter.use(uploadRoutes);
 apiRouter.use(tableRoutes);
 apiRouter.use(balanceInventoryRoutes);
+apiRouter.use(accountFinanceRoutes);
+apiRouter.use(psPlusRoutes);
 apiRouter.use(posRoutes);
+// Live push feed for the mobile admin app (SSE). Keep last: it holds the
+// connection open for as long as the client stays connected.
+apiRouter.use(realtimeRoutes);

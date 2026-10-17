@@ -47,6 +47,8 @@ interface StoreSettings {
   binance_enabled?: boolean;
   paypal_details?: string;
   paypal_enabled?: boolean;
+  booking_enabled?: boolean;
+  booking_days?: { day: string; enabled: boolean; times: string[] }[];
 }
 
 interface StoreSettingsContextType {
@@ -86,6 +88,12 @@ const defaultSettings: StoreSettings = {
   binance_enabled: false,
   paypal_details: '',
   paypal_enabled: false,
+  booking_enabled: true,
+  booking_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+    day,
+    enabled: true,
+    times: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+  })),
   homepage_categories: [
     {
       id: 'rpg',
@@ -171,6 +179,11 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         best_selling_product_ids = data.best_selling_product_ids ? JSON.parse(data.best_selling_product_ids) : [];
       } catch (e) {}
 
+      let booking_days: any[] = [];
+      try {
+        booking_days = data.booking_days ? JSON.parse(data.booking_days) : [];
+      } catch (e) {}
+
       setSettings({
         currency_code: data.currency_code || 'EGP',
         currency_symbol: data.currency_symbol || 'EGP',
@@ -204,6 +217,14 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
         binance_enabled: data.binance_enabled === true || data.binance_enabled === 'true',
         paypal_details: data.paypal_details || '',
         paypal_enabled: data.paypal_enabled === true || data.paypal_enabled === 'true',
+        booking_enabled: data.booking_enabled == null || data.booking_enabled === '' ? true : (data.booking_enabled === true || data.booking_enabled === 'true'),
+        booking_days: (Array.isArray(booking_days) && booking_days.length > 0)
+          ? booking_days.map((d: any) => ({
+              day: String(d?.day || ''),
+              enabled: d?.enabled !== false,
+              times: Array.isArray(d?.times) ? d.times.map((t: any) => String(t)) : [],
+            }))
+          : defaultSettings.booking_days,
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -237,6 +258,9 @@ export function StoreSettingsProvider({ children }: { children: ReactNode }) {
       }
       if (serverData.best_selling_product_ids) {
         serverData.best_selling_product_ids = JSON.stringify(serverData.best_selling_product_ids);
+      }
+      if (serverData.booking_days) {
+        serverData.booking_days = JSON.stringify(serverData.booking_days);
       }
 
       await settingsAPI.update(serverData);

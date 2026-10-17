@@ -28,11 +28,14 @@ import { EmailTemplates } from './pages/EmailTemplates';
 import { Expenses } from './pages/Expenses';
 import { SupportChats } from './pages/SupportChats';
 import { GameRequests } from './pages/GameRequests';
+import { Bookings } from './pages/Bookings';
 import { BalanceInventory } from './pages/BalanceInventory';
+import { AccountProfitability } from './pages/AccountProfitability';
+import { PsPlusInventory } from './pages/PsPlusInventory';
 import { authAPI, rolesAPI } from '../utils/api';
 // import { setAccessToken } from './utils/api';
 
-export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'balance-inventory';
+export type Screen = 'dashboard' | 'products' | 'data-overview' | 'inventory-sheet' | 'playstation-plus' | 'orders' | 'sold-products' | 'order-chats' | 'analytics' | 'customers' | 'tasks' | 'team' | 'settings' | 'roles' | 'outlook' | 'banners' | 'hero-slider' | 'hr' | 'pos' | 'system' | 'delivery' | 'email-templates' | 'expenses' | 'game-requests' | 'bookings' | 'balance-inventory' | 'account-profitability' | 'ps-plus-inventory';
 
 export default function AdminApp() {
   const navigate = useNavigate();
@@ -265,6 +268,7 @@ export default function AdminApp() {
               <Route path="data-overview" element={<ProtectedRoute id="data-overview"><OrderDataOverview /></ProtectedRoute>} />
               <Route path="inventory-sheet" element={<ProtectedRoute id="inventory-sheet"><InventorySheet /></ProtectedRoute>} />
               <Route path="playstation-plus" element={<ProtectedRoute id="playstation-plus"><Products filterCategory="playstation-plus" /></ProtectedRoute>} />
+              <Route path="ps-plus-inventory" element={<ProtectedRoute id="ps-plus-inventory"><PsPlusInventory /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute id="orders"><Orders /></ProtectedRoute>} />
               <Route path="order-chats" element={<ProtectedRoute id="order-chats"><SupportChats /></ProtectedRoute>} />
               <Route path="sold-products" element={<ProtectedRoute id="sold-products"><SoldProducts /></ProtectedRoute>} />
@@ -273,6 +277,7 @@ export default function AdminApp() {
               <Route path="customers" element={<ProtectedRoute id="customers"><Customers /></ProtectedRoute>} />
               <Route path="expenses" element={<ProtectedRoute id="expenses"><Expenses /></ProtectedRoute>} />
               <Route path="game-requests" element={<ProtectedRoute id="game-requests"><GameRequests /></ProtectedRoute>} />
+              <Route path="bookings" element={<ProtectedRoute id="bookings"><Bookings /></ProtectedRoute>} />
               <Route path="banners" element={<ProtectedRoute id="banners"><Banners /></ProtectedRoute>} />
               <Route path="hero-slider" element={<ProtectedRoute id="hero-slider"><HeroSliderBanners /></ProtectedRoute>} />
               <Route path="outlook" element={<ProtectedRoute id="outlook"><Outlook /></ProtectedRoute>} />
@@ -285,6 +290,7 @@ export default function AdminApp() {
               <Route path="delivery" element={<ProtectedRoute id="delivery"><Delivery /></ProtectedRoute>} />
               <Route path="email-templates" element={<ProtectedRoute id="email-templates"><EmailTemplates /></ProtectedRoute>} />
               <Route path="balance-inventory" element={<ProtectedRoute id="balance-inventory"><BalanceInventory /></ProtectedRoute>} />
+              <Route path="account-profitability" element={<ProtectedRoute id="account-profitability"><AccountProfitability /></ProtectedRoute>} />
               <Route path="*" element={
                 <div className="flex flex-col items-center justify-center h-full">
                   <h1 className="text-2xl font-bold mb-2">Page Not Found</h1>
