@@ -102,3 +102,59 @@ The backend lives in the `server/` folder. It is a raw Node.js application.
 | **Frontend** | `npm run build` | `public_html` | **YES** |
 | **Backend** | `npm install` (on server) | `gamesup-server` (Custom folder) | **NO** |
 
+---
+
+## Part 4: Live order notifications (SSE)
+
+The mobile admin app keeps a long-lived Server-Sent Events connection open to:
+
+```
+GET /api/realtime/orders/stream     (Authorization: Bearer <admin token>)
+```
+
+Every new order (website or POS) is written straight down that connection, so the
+phone is notified instantly. No Firebase/FCM/APNs service is involved.
+
+### Proxy requirement — do not buffer the stream
+
+SSE only works if the web server forwards the response as it is written. If a
+proxy buffers it, notifications arrive late (or in bursts).
+
+**Apache / LiteSpeed** — add to the backend's `.htaccess`:
+
+```apache
+# Never gzip or buffer the live order feed.
+<IfModule mod_env.c>
+  SetEnvIf Request_URI "realtime/orders/stream" no-gzip=1
+</IfModule>
+<IfModule mod_headers.c>
+  Header set X-Accel-Buffering "no"
+  Header set Cache-Control "no-cache, no-transform"
+</IfModule>
+```
+
+**nginx** — for the backend location block:
+
+```nginx
+proxy_buffering off;
+proxy_read_timeout 3600s;
+gzip off;
+```
+
+### Verifying it works
+
+```bash
+# 1. Watch the stream (Ctrl+C to stop). A ": connected" line means it is live.
+curl -N -H "Authorization: Bearer <admin token>" \
+  https://yourdomain.com/api/realtime/orders/stream
+
+# 2. Place a test order in another terminal and watch the order:new event appear.
+```
+
+If the curl command prints everything only after you press Ctrl+C, the proxy is
+buffering — apply the rules above.
+
+Note: the server sends a `: keep-alive` comment every 20 seconds, which also
+flushes buffered output at least that often.
+
+

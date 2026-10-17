@@ -24,6 +24,7 @@ import { balanceInventoryRoutes } from './balanceInventoryRoutes.js';
 import { accountFinanceRoutes } from './accountFinanceRoutes.js';
 import { psPlusRoutes } from './psPlusRoutes.js';
 import { posRoutes } from './posRoutes.js';
+import { realtimeRoutes } from './realtimeRoutes.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
 export const apiRouter = Router();
@@ -54,3 +55,6 @@ apiRouter.use(balanceInventoryRoutes);
 apiRouter.use(accountFinanceRoutes);
 apiRouter.use(psPlusRoutes);
 apiRouter.use(posRoutes);
+// Live push feed for the mobile admin app (SSE). Keep last: it holds the
+// connection open for as long as the client stays connected.
+apiRouter.use(realtimeRoutes);

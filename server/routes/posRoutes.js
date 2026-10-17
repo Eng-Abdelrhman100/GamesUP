@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireRoles, requirePermission } from '../middleware/authMiddleware.js';
+import { publishNewOrder } from '../utils/realtime.js';
 
 export const posRoutes = Router();
 
@@ -29,6 +30,8 @@ posRoutes.post('/pos/invoice', async (req, res) => {
         ]
       );
       const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
+      // POS sales show up in the live admin feed too (source flagged as POS).
+      publishNewOrder(rows[0], 'pos');
       return res.json({ success: true, order: rows[0] });
     } catch (err) {
       return res.status(500).json({ success: false, error: err.message || 'Failed to create invoice' });

@@ -3,6 +3,7 @@ import { pool } from '../db/pool.js';
 import { requireAuth, requireRoles, requirePermission } from '../middleware/authMiddleware.js';
 import { sendMailInternal } from '../controllers/emailController.js';
 import { insertAccountSalesForDelivery, setOrderSaleStatus } from './accountFinanceRoutes.js';
+import { publishNewOrder, publishOrderUpdate } from '../utils/realtime.js';
 
 export const ordersRoutes = Router();
 
@@ -378,6 +379,9 @@ ordersRoutes.post('/orders', async (req, res) => {
     }
     const [rows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [result.insertId]);
     let orderObj = normalizeOrderRow(rows[0]);
+
+    // Push the new order to every connected admin device immediately.
+    publishNewOrder(orderObj, req.user ? 'admin' : 'website');
 
     // Auto-allocate immediately for digital products
     try {
@@ -818,6 +822,8 @@ ordersRoutes.put('/orders/:id', requirePermission('orders', 'write'), async (req
     if (req.user?.role !== 'admin' && norm) {
       norm.phone = norm.phone ? '********' : null;
     }
+    // Let connected admin devices know the order moved (status/delivery change).
+    publishOrderUpdate(norm, 'admin');
     return res.json(norm);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to update order' });
