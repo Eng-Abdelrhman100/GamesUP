@@ -5,9 +5,25 @@ import { Modal } from '@/components/ui/Modal';
 import { productsAPI, categoriesAPI, api, uploadAPI, normalizeImageSrc, ordersAPI, balanceInventoryAPI, accountFinanceAPI } from '@/utils/api';
 import { 
   Search, Plus, Trash2, Save, RotateCcw, Download, Upload, 
-  ChevronDown, ChevronUp, AlertCircle, RefreshCw, Eye, Edit, DollarSign
+  ChevronDown, ChevronUp, AlertCircle, RefreshCw, Eye, Edit, DollarSign, TableProperties
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+export const SPREADSHEET_SHEET_TABS = [
+  { id: 'all', label: 'All Games', icon: '🎮' },
+  { id: 'fc26', label: 'FC 26', keywords: ['fc 26', 'fc26', 'fifa 26'], icon: '⚽' },
+  { id: 'fc25', label: 'FC 25', keywords: ['fc 25', 'fc25', 'fifa 25'], icon: '⚽' },
+  { id: 'fc27', label: 'FC 27', keywords: ['fc 27', 'fc27'], icon: '⚽' },
+  { id: 'bo6', label: 'BO6 & COD', keywords: ['bo6', 'black ops', 'call of duty', 'cod'], icon: '🎯' },
+  { id: 'gta', label: 'GTA & RDR2', keywords: ['gta', 'grand theft auto', 'red dead', 'rdr2', 'rdr'], icon: '🚗' },
+  { id: 'psplus', label: 'PS Plus', keywords: ['ps plus', 'playstation plus', 'plus', 'deluxe', 'essential', 'extra'], icon: '⭐' },
+  { id: 'spiderman', label: 'Spider-Man', keywords: ['spider-man', 'spiderman', 'miles morales'], icon: '🕷️' },
+  { id: 'racing', label: 'Forza & Racing', keywords: ['forza', 'nfs', 'need for speed', 'racing', 'crew'], icon: '🏎️' },
+  { id: 'wwe_ufc', label: 'WWE & UFC', keywords: ['wwe', 'ufc', '2k24'], icon: '🥊' },
+  { id: 'crash_coop', label: 'Crash & Co-op', keywords: ['crash', 'takes two', 'it takes two', 'minecraft', 'gang beasts'], icon: '🧩' },
+  { id: 'story', label: 'Story & Action', keywords: ['god of war', 'cyberpunk', 'mortal kombat', 'rainbow six', 'r6', 'nba'], icon: '⚔️' },
+  { id: 'new_releases', label: 'New Releases', keywords: ['new', 'upcoming', 'pre order', 'preorder'], icon: '🔥' },
+];
 
 interface ProductRow {
   id: string | number;
@@ -219,6 +235,7 @@ export function InventorySheet() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeSheetTab, setActiveSheetTab] = useState<string>('all');
 
   // Expanded details states (Master-Detail expansion)
   const [expandedProductIds, setExpandedProductIds] = useState<Set<string | number>>(new Set());
@@ -830,10 +847,45 @@ export function InventorySheet() {
     });
   };
 
+  const handleSheetTabClick = (tabId: string) => {
+    setActiveSheetTab(tabId);
+    if (tabId === 'all') {
+      // Keep current expansion
+    } else {
+      const tab = SPREADSHEET_SHEET_TABS.find(t => t.id === tabId);
+      if (tab && tab.keywords) {
+        const matchingIds = rows.filter(row => {
+          if (row._isDeleted) return false;
+          const rowText = `${row.name || ''} ${row.category_slug || ''} ${row.sub_category_slug || ''}`.toLowerCase();
+          return tab.keywords!.some(k => rowText.includes(k.toLowerCase()));
+        }).map(r => r.id);
+        setExpandedProductIds(new Set(matchingIds));
+      }
+    }
+  };
+
+  const handleToggleExpandAll = () => {
+    if (expandedProductIds.size === filteredRows.length && filteredRows.length > 0) {
+      setExpandedProductIds(new Set());
+    } else {
+      setExpandedProductIds(new Set(filteredRows.map(r => r.id)));
+    }
+  };
+
   // Master checkbox selection handlers
   const filteredRows = useMemo(() => {
     return rows.filter(row => {
       if (row._isDeleted) return false;
+
+      // Filter by Top Sheet Tab
+      if (activeSheetTab !== 'all') {
+        const tab = SPREADSHEET_SHEET_TABS.find(t => t.id === activeSheetTab);
+        if (tab && tab.keywords) {
+          const rowText = `${row.name || ''} ${row.category_slug || ''} ${row.sub_category_slug || ''} ${row.description || ''}`.toLowerCase();
+          const matchesTab = tab.keywords.some(k => rowText.includes(k.toLowerCase()));
+          if (!matchesTab) return false;
+        }
+      }
 
       // Filter by category
       if (categoryFilter !== 'all' && row.category_slug !== categoryFilter) {
@@ -868,7 +920,7 @@ export function InventorySheet() {
 
       return true;
     });
-  }, [rows, categoryFilter, statusFilter, searchTerm]);
+  }, [rows, activeSheetTab, categoryFilter, statusFilter, searchTerm]);
 
   const isAllSelected = useMemo(() => {
     if (filteredRows.length === 0) return false;
@@ -1522,6 +1574,50 @@ export function InventorySheet() {
           <span>{error}</span>
         </div>
       )}
+
+      {/* Top Filter Tabs Bar (Google Sheets Style) */}
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-3 shadow-sm space-y-2.5">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2">
+            <TableProperties className="w-4 h-4 text-brand-red" />
+            <span className="text-xs font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">
+              Spreadsheet Tabs (17 Sheets)
+            </span>
+            <span className="text-[10px] text-gray-400 font-mono">
+              ({filteredRows.length} {filteredRows.length === 1 ? 'game' : 'games'} displayed)
+            </span>
+          </div>
+          <button
+            onClick={handleToggleExpandAll}
+            className="text-xs font-bold text-brand-red hover:underline flex items-center gap-1.5 transition-all"
+          >
+            {expandedProductIds.size === filteredRows.length && filteredRows.length > 0
+              ? '⊟ Collapse All Accounts'
+              : '⊞ Expand All Accounts (Full Sheet Mode)'}
+          </button>
+        </div>
+
+        {/* Scrollable Tabs Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+          {SPREADSHEET_SHEET_TABS.map(tab => {
+            const isActive = activeSheetTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleSheetTabClick(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 ${
+                  isActive
+                    ? 'bg-brand-red text-white shadow-md shadow-brand-red/20 scale-[1.02]'
+                    : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white border border-gray-200/60 dark:border-gray-700/60'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Filters Toolbar */}
       <Card className="p-4 bg-bg-secondary border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
